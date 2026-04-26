@@ -44,7 +44,7 @@ setup-web:
 	fi
 
 seed:
-	@echo "TODO Phase 2: implement scripts/generate_synthetic.py"
+	PYTHONPATH=src $(PYTHON) scripts/generate_synthetic.py
 
 train:
 	@echo "TODO Phase 4: implement scripts/train_baseline.py"

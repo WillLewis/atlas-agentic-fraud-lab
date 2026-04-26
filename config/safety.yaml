@@ -148,13 +148,24 @@ rules:
 
 # Synthetic-id naming guard. Anything that *should* look like an entity ID in
 # fixtures or generated data must match one of these prefixes.
+#
+# Phase 2 alignment (config/synthetic_schema.yaml v2): recipient ID prefix
+# moved from `recipient_` to `recip_` to match project_atlas_sample_data.json
+# (`recip_000077`); the three event tables emit `sess_`, `sec_`, and `tx_`;
+# graph edges use `edge_`; latent label records use `label_tx_`. The `evt_`
+# prefix stays for Phase 6+ red-team candidate event histories (Bible §15.2).
 synthetic_id_prefixes:
   - cust_
   - acct_
   - dev_
-  - recipient_
+  - recip_
   - extacct_
   - evt_
+  - sess_
+  - sec_
+  - tx_
+  - edge_
+  - label_tx_
   - cand_
   - mv_
   - fix_

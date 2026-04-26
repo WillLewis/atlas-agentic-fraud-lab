@@ -56,6 +56,7 @@ include = ["atlas*"]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100

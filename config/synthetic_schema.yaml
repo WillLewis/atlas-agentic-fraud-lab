@@ -1,70 +1,99 @@
 # config/synthetic_schema.yaml
-# Schema for the synthetic environment. See PROJECT_ATLAS_BIBLE.md §11.
-# All entities, events, and features here are synthetic and public-safe.
+# Schema for the synthetic environment. See PROJECT_ATLAS_BIBLE.md §11 and
+# PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md §2.1.
+#
+# This file is the contract between the Phase 2 generators and the rest of
+# the system. Field names and ID prefixes here MUST match
+# project_atlas_sample_data.json (canonical fixture) and the architecture
+# doc's entity tables. The Phase 1 frontend (app/web/lib/types.ts) and the
+# eventual Phase 4 OpenAPI schemas key off these same names.
 
-schema_version: 1
-schema_label: atlas_synthetic_v1
+schema_version: 2
+schema_label: atlas_synthetic_v2
 
 # --- Entities ---
 entities:
   customer:
     id_prefix: cust_
     fields:
-      - name: customer_id
-        type: string
-      - name: account_age_days
-        type: int
-      - name: base_customer_risk
-        type: float
-      - name: region_code
-        type: string
+      - { name: customer_id, type: string }
+      - { name: customer_segment, type: string }
+      - { name: home_region_bucket, type: string }
+      - { name: account_age_days, type: int }
+      - { name: normal_login_frequency_30d, type: int }
+      - { name: normal_transfer_frequency_30d, type: int }
+      - { name: synthetic_base_risk, type: float }
+      - { name: created_from_seed, type: int }
+
   account:
     id_prefix: acct_
     fields:
-      - name: account_id
-        type: string
-      - name: customer_id
-        type: string
-      - name: opened_days_ago
-        type: int
+      - { name: account_id, type: string }
+      - { name: customer_id, type: string }
+      - { name: account_type, type: string }
+      - { name: opened_days_ago, type: int }
+      - { name: available_balance_bucket, type: string }
+      - { name: account_status, type: string }
+
   device:
     id_prefix: dev_
     fields:
-      - name: device_id
-        type: string
-      - name: customer_id
-        type: string
-      - name: first_seen_days_ago
-        type: int
+      - { name: device_id, type: string }
+      - { name: customer_id, type: string }
+      - { name: device_channel, type: string }
+      - { name: first_seen_days_ago, type: int }
+      - { name: login_count_30d, type: int }
+      - { name: is_current_event_device, type: bool }
+
   recipient:
-    id_prefix: recipient_
+    # Fixture uses recip_* IDs (e.g. recip_000077). The earlier `recipient_`
+    # prefix was stale; the safety-scanner allow-list mirrors this change.
+    id_prefix: recip_
     fields:
-      - name: recipient_id
-        type: string
-      - name: customer_id
-        type: string
-      - name: recipient_tenure_days
-        type: int
+      - { name: recipient_id, type: string }
+      - { name: first_seen_days_ago, type: int }
+      - { name: recipient_reuse_degree, type: int }
+      - { name: recipient_risk_bucket, type: string }
+
   external_account:
     id_prefix: extacct_
     fields:
-      - name: external_account_id
-        type: string
-      - name: customer_id
-        type: string
+      - { name: external_account_id, type: string }
+      - { name: customer_id, type: string }
+      - { name: linked_days_ago, type: int }
+      - { name: verification_method, type: string }
+      - { name: external_account_risk_bucket, type: string }
 
+# --- Graph ---
 graph:
+  edge_id_prefix: edge_
   edge_kinds:
     - shared_device
     - shared_recipient
     - shared_external_account
     - shared_region
+    - uses_device
+    - attempted_transfer_to
+  graph_edge_fields:
+    - { name: edge_id, type: string }
+    - { name: source_node_id, type: string }
+    - { name: source_node_type, type: string }
+    - { name: target_node_id, type: string }
+    - { name: target_node_type, type: string }
+    - { name: relationship_type, type: string }
+    - { name: first_seen_days_ago, type: int }
+    - { name: event_count, type: int }
+  # Phase-3 graph features. Listed here for completeness; not computed in
+  # Phase 2.
   features:
     - shared_device_degree
     - shared_recipient_degree
     - entity_graph_risk_score
 
-# --- Event types ---
+# --- Events ---
+# Three concrete tables matching the fixture envelope. Each table has its
+# own ID prefix and required-field set. Phase 2 generators emit these three;
+# Phase 6+ red-team candidate event histories reuse the `evt_` prefix.
 events:
   allowed_types:
     - login_success
@@ -79,14 +108,70 @@ events:
     - instant_transfer_attempt
     - external_transfer_attempt
     - large_transfer_attempt
-  id_prefix: evt_
+
+  tables:
+    login_sessions:
+      id_prefix: sess_
+      required_fields:
+        - session_id
+        - customer_id
+        - device_id
+        - event_time_utc
+        - channel
+        - region_bucket
+        - challenge_required
+        - challenge_result
+
+    security_events:
+      id_prefix: sec_
+      required_fields:
+        - security_event_id
+        - customer_id
+        - session_id
+        - event_type
+        - event_time_utc
+        - device_id
+        - safe_risk_marker
+
+    transfer_events:
+      id_prefix: tx_
+      required_fields:
+        - transfer_event_id
+        - customer_id
+        - account_id
+        - event_type
+        - event_time_utc
+        - amount_bucket
+        - recipient_id
+        - channel
+        - synthetic_truth_label
+
+# --- Label generation ---
+label_generation:
+  # Fixture example IDs in arch-doc §2.1: label_tx_000002 — labels reuse the
+  # source transfer-event ID with a `label_tx_` prefix.
+  id_prefix: label_tx_
   required_fields:
     - event_id
-    - customer_id
-    - event_type
-    - timestamp_offset_min
+    - latent_drivers
+    - synthetic_risk_probability
+    - synthetic_truth_label
+  allowed_label_values:
+    - normal_activity
+    - high_risk_synthetic_activity
 
-# --- Feature families ---
+# --- Synthetic label generation drivers ---
+label_drivers:
+  - base_customer_risk
+  - account_access_change_marker
+  - device_novelty_marker
+  - security_recovery_marker
+  - cash_movement_velocity_marker
+  - entity_reuse_marker
+  - ring_membership_marker
+  - label_noise
+
+# --- Feature families (Phase 3 surface; not generated in Phase 2) ---
 feature_families:
   - name: login
     members:
@@ -125,17 +210,6 @@ feature_families:
   - name: account
     members:
       - account_age_days
-
-# --- Synthetic label generation drivers ---
-label_drivers:
-  - base_customer_risk
-  - account_access_change_marker
-  - device_novelty_marker
-  - security_recovery_marker
-  - cash_movement_velocity_marker
-  - entity_reuse_marker
-  - ring_membership_marker
-  - label_noise
 
 # --- Splits ---
 splits:
