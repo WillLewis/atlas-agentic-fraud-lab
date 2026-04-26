@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* Width reserved for the left sidebar (component 8). Defining it here so
+     layout, page, and sidebar all share one source of truth. */
+  --atlas-sidebar-width: 16rem;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #0b1020;
+  color: #e6e9f2;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Accessible focus ring — applied to any keyboard-focused element. The
+   sidebar links rely on this so navigation stays usable without a UI lib. */
+:focus-visible {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Anchor scroll-padding so jumping to a section via the sidebar leaves room
+   for the sticky disclaimer banner above. */
+html {
+  scroll-padding-top: 3.25rem;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
