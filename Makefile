@@ -47,7 +47,7 @@ seed:
 	PYTHONPATH=src $(PYTHON) scripts/generate_synthetic.py
 
 train:
-	@echo "TODO Phase 4: implement scripts/train_baseline.py"
+	PYTHONPATH=src $(PYTHON) scripts/train_baseline.py
 
 run-rounds:
 	@echo "TODO Phase 8: implement scripts/run_rounds.py"
@@ -67,7 +67,7 @@ safety-scan:
 
 demo-api:
 	@if [ -f app/api/main.py ]; then \
-		$(PYTHON) -m uvicorn $(API_MODULE) --host $(API_HOST) --port $(API_PORT) --reload; \
+		PYTHONPATH=src $(PYTHON) -m uvicorn $(API_MODULE) --host $(API_HOST) --port $(API_PORT) --reload; \
 	else \
 		echo "TODO Phase 4: app/api/main.py not present yet."; \
 	fi

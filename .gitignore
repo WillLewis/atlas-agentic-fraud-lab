@@ -81,6 +81,7 @@ outputs/ledgers/
 outputs/model_vulnerabilities/
 outputs/defensive_fixes/
 outputs/reports/
+outputs/baseline_models/
 outputs/demo_replays/*
 !outputs/demo_replays/.gitkeep
 
@@ -100,3 +101,6 @@ logs/
 # --- Local sandbox notes (must not be committed) ---
 scratch/
 notes.local.md
+
+# --- Claude Code transient state (worktrees, plan caches, etc.) ---
+.claude/worktrees/

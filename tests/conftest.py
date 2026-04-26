@@ -1,4 +1,4 @@
-"""Pytest fixtures for Phase 2 tests.
+"""Pytest fixtures for Phase 2 / 3 / 4 tests.
 
 Path bootstrap is handled by ``[tool.pytest.ini_options].pythonpath`` in
 ``pyproject.toml`` (which puts ``src/`` and the repo root on sys.path).
@@ -7,6 +7,8 @@ This conftest only owns shared fixtures.
 from __future__ import annotations
 
 import random
+import shutil
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -29,7 +31,7 @@ from atlas.synthetic.recipients import (
 from atlas.synthetic.splits import build_splits
 
 DEFAULT_TEST_SEED = 42
-DEFAULT_TEST_COUNT = 60  # >= 5-way split minimum, fast to build
+DEFAULT_TEST_COUNT = 60
 
 
 def _build(seed: int, customer_count: int) -> dict[str, Any]:
@@ -80,33 +82,21 @@ def _build(seed: int, customer_count: int) -> dict[str, Any]:
 
 @pytest.fixture(scope="session")
 def dataset() -> dict[str, Any]:
-    """Default Phase-2 dataset built once per test session.
-
-    seed=42, customer_count=60. The 5-way split yields 36/6/6/6/6.
-    """
     return _build(DEFAULT_TEST_SEED, DEFAULT_TEST_COUNT)
 
 
 @pytest.fixture(scope="session")
 def dataset_alt_seed() -> dict[str, Any]:
-    """Same shape, different seed. Used to assert seed-dependence."""
     return _build(99, DEFAULT_TEST_COUNT)
 
 
 @pytest.fixture
 def build_dataset():
-    """Factory for tests that need an ad-hoc dataset at custom (seed, count)."""
     return _build
 
 
 @pytest.fixture(scope="session")
 def features_global(dataset) -> list[FeatureVector]:
-    """Phase 3 feature vectors computed over the GLOBAL dataset.
-
-    For shape / per-vector tests this is convenient: all 17-field records
-    in one list, no partition gymnastics. Split-safety tests should use
-    ``features_per_partition`` instead.
-    """
     return recompute_feature_vectors(
         transfer_events=dataset["transfer_events"],
         customers=dataset["customers"],
@@ -119,12 +109,6 @@ def features_global(dataset) -> list[FeatureVector]:
 
 @pytest.fixture(scope="session")
 def features_per_partition(dataset) -> dict[str, list[FeatureVector]]:
-    """Phase 3 feature vectors keyed by partition name.
-
-    Each partition's features are computed using ONLY that partition's
-    customer / device / edge / event view — the split-safe calling
-    pattern that ``scripts/generate_synthetic.py`` uses.
-    """
     out: dict[str, list[FeatureVector]] = {}
     for pname, p in dataset["splits"].partitions.items():
         out[pname] = recompute_feature_vectors(
@@ -136,3 +120,57 @@ def features_per_partition(dataset) -> dict[str, list[FeatureVector]]:
             security_events=p.security_events,
         )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def trained_baseline_dir(tmp_path_factory) -> Path:
+    """Train the Phase 4 baseline once per test session into a tmp dir.
+
+    Layout: ``<tmp_root>/baseline_v1/{model.joblib,calibration.json,...}``.
+    The ``baseline_v1`` nesting matches the on-disk convention Phase 5's
+    ``evaluate_fix`` expects (``outputs/baseline_models/{model_version}/``)
+    while still letting Phase 4 tests pass the artifact directory itself
+    to ``load_baseline_bundle``.
+    """
+    from atlas.model.train import train_baseline_model
+
+    root = tmp_path_factory.mktemp("phase4_baseline")
+    out = root / "baseline_v1"
+    out.mkdir()
+    train_baseline_model(seed=DEFAULT_TEST_SEED, output_dir=out)
+    return out
+
+
+@pytest.fixture
+def api_client(trained_baseline_dir: Path, monkeypatch):
+    """FastAPI TestClient with the baseline pointed at the session tmp dir.
+
+    Patches ``atlas.model.scorer.DEFAULT_OUTPUT_DIR`` so the scoring routes'
+    lazy ``load_baseline_bundle()`` reads from the test artifacts. Also
+    patches ``atlas.judge.evaluate.BASELINE_MODELS_ROOT`` so Phase 5's
+    version-keyed lookup (``BASELINE_MODELS_ROOT / "baseline_v1"``)
+    resolves to the same artifact dir. Resets all cached state per test.
+    """
+    from fastapi.testclient import TestClient
+
+    import atlas.judge.evaluate as evaluate_mod
+    import atlas.model.scorer as scorer_mod
+    from app.api.main import app
+    from app.api.routes.judge import reset_caches as reset_judge_caches
+    from app.api.routes.scoring import reset_caches as reset_scoring_caches
+
+    monkeypatch.setattr(scorer_mod, "DEFAULT_OUTPUT_DIR", trained_baseline_dir)
+    monkeypatch.setattr(
+        evaluate_mod, "BASELINE_MODELS_ROOT", trained_baseline_dir.parent
+    )
+    reset_scoring_caches()
+    reset_judge_caches()
+    with TestClient(app) as client:
+        yield client
+    reset_scoring_caches()
+    reset_judge_caches()

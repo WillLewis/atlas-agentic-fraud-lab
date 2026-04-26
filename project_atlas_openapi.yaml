@@ -733,7 +733,7 @@ components:
           type: array
           items:
             type: string
-      required: [event_id, score, decision_action, model_version, threshold_version]
+      required: [event_id, score, decision_action, decision_band, model_version, threshold_version, reason_codes]
     BatchScoreRequest:
       type: object
       properties:
@@ -1044,6 +1044,10 @@ components:
           type: string
         candidate_threshold_version:
           type: string
+        found_adaptive_set_event_ids:
+          type: array
+          items:
+            type: string
       required: [run_id, round_id, defensive_fix_id, baseline_model_version, candidate_model_version]
     JudgeReport:
       type: object
@@ -1066,6 +1070,8 @@ components:
           type: object
           properties:
             clean_holdout_pass:
+              type: boolean
+            found_adaptive_set_pass:
               type: boolean
             locked_adaptive_holdout_pass:
               type: boolean
