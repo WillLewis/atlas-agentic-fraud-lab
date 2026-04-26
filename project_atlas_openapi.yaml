@@ -908,6 +908,10 @@ components:
           type: number
         miss_rate_lift_vs_random:
           type: number
+        found_adaptive_set_event_ids:
+          type: array
+          items:
+            type: string
         model_vulnerability_cards:
           type: array
           items:

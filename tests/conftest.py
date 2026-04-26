@@ -162,6 +162,7 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
     import atlas.model.scorer as scorer_mod
     from app.api.main import app
     from app.api.routes.judge import reset_caches as reset_judge_caches
+    from app.api.routes.red_team import reset_caches as reset_red_team_caches
     from app.api.routes.scoring import reset_caches as reset_scoring_caches
 
     monkeypatch.setattr(scorer_mod, "DEFAULT_OUTPUT_DIR", trained_baseline_dir)
@@ -170,7 +171,9 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
     )
     reset_scoring_caches()
     reset_judge_caches()
+    reset_red_team_caches()
     with TestClient(app) as client:
         yield client
     reset_scoring_caches()
     reset_judge_caches()
+    reset_red_team_caches()

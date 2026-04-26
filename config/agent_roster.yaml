@@ -45,6 +45,24 @@ red_team:
       - propose_graph_features
       - identify_graph_risk_low_score_cohorts
 
+  # Phase 6 deterministic helpers — code-only, no LLM tier. Listed here so
+  # the roster is the single source of truth for the red-team module set.
+  - id: random_search
+    module: atlas.red_team.random_search
+    purpose: Deterministic random-mutation baseline search over synthetic event histories.
+    allowed:
+      - mutate_event_timing_counts_and_links_within_constraints
+      - call_local_mock_scorer
+      - return_candidate_batches
+    not_allowed:
+      - mutate_labels
+      - mutate_engineered_features_directly
+      - access_locked_holdout_records
+
+  - id: scoring_query_allocator
+    module: atlas.red_team.scoring_query_allocator
+    purpose: Deterministically split max_score_queries across enabled search methods and allowed families per round_config.
+
   - id: model_vulnerability_analyst_agent
     module: atlas.red_team.model_vulnerability_packager
     purpose: Package discovered misses as model vulnerability cards.

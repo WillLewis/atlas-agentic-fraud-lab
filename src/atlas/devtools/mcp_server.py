@@ -1,17 +1,19 @@
-"""Local MCP wrapper over the Phase 4 FastAPI service.
+"""Local MCP wrapper over the Phase 4 + Phase 6 FastAPI service.
 
-Thin local wrapper that exposes the implemented Phase 4 routes as
-callable functions over ``ATLAS_API_BASE_URL`` (set in ``.mcp.json``).
+Thin local wrapper that exposes the implemented routes as callable
+functions over ``ATLAS_API_BASE_URL`` (set in ``.mcp.json``).
 
-Phase 4 deliberately keeps this surface small: four tool functions
-(``get_decision_thresholds``, ``get_synthetic_sample``, ``score_event``,
-``batch_score_events``) and a ``main()`` that prints the tool list. A
-proper MCP-protocol server can wrap these functions in a future phase
+Surface:
+  * Phase 4 — ``get_decision_thresholds``, ``get_synthetic_sample``,
+              ``score_event``, ``batch_score_events``.
+  * Phase 6 — ``run_red_team_search``.
+
+A proper MCP-protocol server can wrap these functions in a future phase
 without changing the underlying calls.
 
 The wrapper does NOT add any new business logic — it forwards to the
-local FastAPI service, which is the only authoritative path for scoring
-and metadata.
+local FastAPI service, which is the only authoritative path for scoring,
+metadata, and red-team search.
 """
 
 from __future__ import annotations
@@ -74,6 +76,31 @@ def batch_score_events(records: list[dict[str, Any]]) -> dict[str, Any]:
         return r.json()
 
 
+def run_red_team_search(
+    run_id: str,
+    round_id: int,
+    search_methods: list[str],
+    max_score_queries: int,
+    allowed_family_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Run a deterministic Phase 6 red-team search and return the
+    ``RedTeamSearchResponse`` (headline metrics, found_adaptive_set
+    event-ids, model-vulnerability cards).
+    """
+    payload: dict[str, Any] = {
+        "run_id": run_id,
+        "round_id": round_id,
+        "search_methods": search_methods,
+        "max_score_queries": max_score_queries,
+    }
+    if allowed_family_ids is not None:
+        payload["allowed_family_ids"] = allowed_family_ids
+    with _client() as client:
+        r = client.post("/red-team/search", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
 # ---------------------------------------------------------------------------
 # Tool registry — printed by main() so callers can introspect the surface
 # ---------------------------------------------------------------------------
@@ -94,6 +121,14 @@ TOOLS: dict[str, dict[str, str]] = {
     "batch_score_events": {
         "description": "Score many synthetic events in one request (max 5000).",
         "method": "POST /batch-score",
+    },
+    "run_red_team_search": {
+        "description": (
+            "Run a deterministic Phase 6 red-team search across the "
+            "configured methods + families and return public-safe "
+            "model-vulnerability cards plus found_adaptive_set event-ids."
+        ),
+        "method": "POST /red-team/search",
     },
 }
 
