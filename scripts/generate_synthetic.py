@@ -73,6 +73,10 @@ from atlas.synthetic.events import (  # noqa: E402
     generate_security_events,
     generate_transfer_events,
 )
+from atlas.synthetic.features import (  # noqa: E402
+    FeatureVector,
+    recompute_feature_vectors,
+)
 from atlas.synthetic.graph import generate_graph_edges  # noqa: E402
 from atlas.synthetic.labels import generate_label_generation_records  # noqa: E402
 from atlas.synthetic.recipients import (  # noqa: E402
@@ -105,6 +109,7 @@ GENERATED_SUBDIRS: tuple[str, ...] = (
     "labels",
     "splits",
     "holdouts",
+    "features",
 )
 
 # ---------------------------------------------------------------------------
@@ -261,6 +266,31 @@ def collect_global_records(splits: SplitsResult) -> dict[str, list]:
     return out
 
 
+def compute_features_per_partition(
+    splits: SplitsResult,
+) -> dict[str, list[FeatureVector]]:
+    """For each partition, recompute features using ONLY that partition's
+    customer / device / edge / event view.
+
+    This is the split-safe calling pattern from the Phase 3 plan: graph-
+    derived feature counts (``shared_device_degree``,
+    ``shared_recipient_degree``) reflect partition-local cohorts, so a
+    train-partition feature vector cannot leak relationship information
+    from the locked or drifted holdouts.
+    """
+    out: dict[str, list[FeatureVector]] = {}
+    for pname, p in splits.partitions.items():
+        out[pname] = recompute_feature_vectors(
+            transfer_events=p.transfer_events,
+            customers=p.customers,
+            devices=p.devices,
+            graph_edges=p.graph_edges,
+            login_sessions=p.login_sessions,
+            security_events=p.security_events,
+        )
+    return out
+
+
 def persist_dataset(
     output_dir: Path,
     splits: SplitsResult,
@@ -273,6 +303,7 @@ def persist_dataset(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     g = collect_global_records(splits)
+    features_by_partition = compute_features_per_partition(splits)
 
     # --- Global entity tables (train + val + clean only) ---
     write_json(output_dir / "entities" / "customers.json", g["customers"])
@@ -310,6 +341,17 @@ def persist_dataset(
         },
     )
 
+    # --- Per-partition Phase 3 feature artifacts ---
+    # train + validation + clean_holdout features go into the global-readable
+    # features/ subdir. Locked + drifted feature artifacts are written into
+    # their respective holdouts/ subtree below so the same .claude/settings.json
+    # deny rules continue to apply.
+    for pname in GLOBAL_PARTITION_NAMES:
+        write_json(
+            output_dir / "features" / f"{pname}.json",
+            features_by_partition[pname],
+        )
+
     # --- Locked adaptive holdout (full data, isolated from global) ---
     locked = splits.partitions["locked_adaptive_holdout"]
     locked_dir = output_dir / "holdouts" / "locked"
@@ -322,6 +364,12 @@ def persist_dataset(
     write_json(locked_dir / "security_events.json", locked.security_events)
     write_json(locked_dir / "transfer_events.json", locked.transfer_events)
     write_json(locked_dir / "labels.json", locked.label_records)
+    # Phase 3: locked-partition feature artifact lives alongside the locked
+    # entities/events. Same deny gate as the rest of holdouts/locked/.
+    write_json(
+        locked_dir / "feature_vectors.json",
+        features_by_partition["locked_adaptive_holdout"],
+    )
 
     # --- Drifted holdout (drift applied; labels in subdir per deny rule) ---
     drifted = splits.partitions["drifted_holdout"]
@@ -337,9 +385,23 @@ def persist_dataset(
     # Drifted labels go to a separate `labels/` subdir matching
     # .claude/settings.json:9 read-deny.
     write_json(drifted_dir / "labels" / "labels.json", drifted.label_records)
+    # Phase 3: drifted-partition feature vectors are computed from the
+    # drifted (post-drift) events. Lives alongside the drifted entities,
+    # NOT under labels/ — features are not labels.
+    write_json(
+        drifted_dir / "feature_vectors.json",
+        features_by_partition["drifted_holdout"],
+    )
 
     # --- Manifest ---
-    manifest = build_manifest(splits, recipients, seed, customer_count, output_dir)
+    manifest = build_manifest(
+        splits,
+        recipients,
+        seed,
+        customer_count,
+        output_dir,
+        features_by_partition,
+    )
     write_json(output_dir / "manifest.json", manifest)
 
 
@@ -372,6 +434,7 @@ def build_manifest(
     seed: int,
     customer_count: int,
     output_dir: Path,
+    features_by_partition: dict[str, list[FeatureVector]],
 ) -> dict[str, Any]:
     g = collect_global_records(splits)
 
@@ -379,8 +442,8 @@ def build_manifest(
     drifted_dir = output_dir / "holdouts" / "drifted"
 
     return {
-        "schema_version": 1,
-        "manifest_label": "atlas_synthetic_dataset_v2",
+        "schema_version": 2,
+        "manifest_label": "atlas_synthetic_dataset_v3",
         "seed": seed,
         "customer_count": customer_count,
         "reference_now_utc": REFERENCE_NOW.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -403,6 +466,9 @@ def build_manifest(
             "by_partition": {
                 pname: len(p.customer_ids)
                 for pname, p in splits.partitions.items()
+            },
+            "feature_vectors_by_partition": {
+                pname: len(fvs) for pname, fvs in features_by_partition.items()
             },
         },
         "label_distribution": {
@@ -435,6 +501,13 @@ def build_manifest(
             "labels": {
                 "label_generation": _rel(output_dir / "labels" / "label_generation.json", output_dir),
             },
+            "features": {
+                "train": _rel(output_dir / "features" / "train.json", output_dir),
+                "validation": _rel(output_dir / "features" / "validation.json", output_dir),
+                "clean_holdout": _rel(
+                    output_dir / "features" / "clean_holdout.json", output_dir
+                ),
+            },
             "splits": {
                 "train": _rel(output_dir / "splits" / "train.json", output_dir),
                 "validation": _rel(output_dir / "splits" / "validation.json", output_dir),
@@ -454,6 +527,7 @@ def build_manifest(
                     "security_events": _rel(locked_dir / "security_events.json", output_dir),
                     "transfer_events": _rel(locked_dir / "transfer_events.json", output_dir),
                     "labels": _rel(locked_dir / "labels.json", output_dir),
+                    "feature_vectors": _rel(locked_dir / "feature_vectors.json", output_dir),
                 },
                 "drifted_holdout": {
                     "customers": _rel(drifted_dir / "customers.json", output_dir),
@@ -465,6 +539,7 @@ def build_manifest(
                     "security_events": _rel(drifted_dir / "security_events.json", output_dir),
                     "transfer_events": _rel(drifted_dir / "transfer_events.json", output_dir),
                     "labels": _rel(drifted_dir / "labels" / "labels.json", output_dir),
+                    "feature_vectors": _rel(drifted_dir / "feature_vectors.json", output_dir),
                     "drift_applied": True,
                 },
             },

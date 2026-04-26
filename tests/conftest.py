@@ -19,6 +19,7 @@ from atlas.synthetic.events import (
     generate_security_events,
     generate_transfer_events,
 )
+from atlas.synthetic.features import FeatureVector, recompute_feature_vectors
 from atlas.synthetic.graph import generate_graph_edges
 from atlas.synthetic.labels import generate_label_generation_records
 from atlas.synthetic.recipients import (
@@ -96,3 +97,42 @@ def dataset_alt_seed() -> dict[str, Any]:
 def build_dataset():
     """Factory for tests that need an ad-hoc dataset at custom (seed, count)."""
     return _build
+
+
+@pytest.fixture(scope="session")
+def features_global(dataset) -> list[FeatureVector]:
+    """Phase 3 feature vectors computed over the GLOBAL dataset.
+
+    For shape / per-vector tests this is convenient: all 17-field records
+    in one list, no partition gymnastics. Split-safety tests should use
+    ``features_per_partition`` instead.
+    """
+    return recompute_feature_vectors(
+        transfer_events=dataset["transfer_events"],
+        customers=dataset["customers"],
+        devices=dataset["devices"],
+        graph_edges=dataset["graph_edges"],
+        login_sessions=dataset["login_sessions"],
+        security_events=dataset["security_events"],
+    )
+
+
+@pytest.fixture(scope="session")
+def features_per_partition(dataset) -> dict[str, list[FeatureVector]]:
+    """Phase 3 feature vectors keyed by partition name.
+
+    Each partition's features are computed using ONLY that partition's
+    customer / device / edge / event view — the split-safe calling
+    pattern that ``scripts/generate_synthetic.py`` uses.
+    """
+    out: dict[str, list[FeatureVector]] = {}
+    for pname, p in dataset["splits"].partitions.items():
+        out[pname] = recompute_feature_vectors(
+            transfer_events=p.transfer_events,
+            customers=p.customers,
+            devices=p.devices,
+            graph_edges=p.graph_edges,
+            login_sessions=p.login_sessions,
+            security_events=p.security_events,
+        )
+    return out

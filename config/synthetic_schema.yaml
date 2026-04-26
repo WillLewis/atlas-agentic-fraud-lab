@@ -171,7 +171,21 @@ label_drivers:
   - ring_membership_marker
   - label_noise
 
-# --- Feature families (Phase 3 surface; not generated in Phase 2) ---
+# --- Feature families (Bible §11.3 superset; documentation only) ---
+#
+# The list below is the union from PROJECT_ATLAS_BIBLE.md §11.3 and is
+# DOCUMENTATION ONLY. Phase 3 EMITS only the names in
+# `phase_3_emitted_features` further down. Four names appear here that are
+# NOT in the emitted FeatureVector and are reserved for Phase 4+ schema
+# extensions:
+#
+#   - username_recovery_count_72h
+#   - region_change_count_72h
+#   - new_recipient_indicator
+#   - account_age_days
+#
+# `account_age_days` already lives on the Customer record (entities.customer)
+# and does not need to be re-emitted as a feature in Phase 3.
 feature_families:
   - name: login
     members:
@@ -185,7 +199,7 @@ feature_families:
   - name: recovery
     members:
       - password_recovery_count_72h
-      - username_recovery_count_72h
+      - username_recovery_count_72h        # NOT emitted in Phase 3
   - name: device
     members:
       - device_count_72h
@@ -193,7 +207,7 @@ feature_families:
   - name: geo
     members:
       - geo_consistency_flag
-      - region_change_count_72h
+      - region_change_count_72h            # NOT emitted in Phase 3
   - name: transfer
     members:
       - transfer_count_72h
@@ -201,7 +215,7 @@ feature_families:
   - name: recipient
     members:
       - recipient_tenure_days
-      - new_recipient_indicator
+      - new_recipient_indicator            # NOT emitted in Phase 3
   - name: graph
     members:
       - shared_device_degree
@@ -209,7 +223,43 @@ feature_families:
       - entity_graph_risk_score
   - name: account
     members:
-      - account_age_days
+      - account_age_days                   # already on Customer; NOT a feature
+
+# --- Phase 3 emitted FeatureVector contract ---
+#
+# Canonical public output for the Phase 3 feature calculator. Mirrors the
+# `FeatureVector` schema in `project_atlas_openapi.yaml` and the `features[]`
+# shape in `project_atlas_sample_data.json` exactly. The Phase 1 frontend
+# types (`app/web/lib/types.ts:FeatureVector`) and any future Phase 4 API
+# (`/synthetic/sample`, `/score`, `/batch-score`) share this list one-for-one.
+#
+# `src/atlas/synthetic/features.py:FEATURE_VECTOR_KEYS` validates each
+# emitted record against this set at runtime.
+phase_3_emitted_features:
+  reference_records: [event_id, customer_id]
+  login_velocity:
+    - login_count_72h
+    - login_count_30d
+    - login_velocity_ratio
+  challenge_behavior:
+    - challenge_count_72h
+    - challenge_pass_ratio_30d
+  recovery_behavior:
+    - password_recovery_count_72h
+  device_novelty:
+    - device_count_72h
+    - current_device_tenure_days
+  geo_consistency:
+    - geo_consistency_flag
+  transfer_velocity:
+    - transfer_count_72h
+    - cash_movement_velocity_score
+  recipient_tenure:
+    - recipient_tenure_days
+  relationship_graph:
+    - shared_device_degree
+    - shared_recipient_degree
+    - entity_graph_risk_score
 
 # --- Splits ---
 splits:

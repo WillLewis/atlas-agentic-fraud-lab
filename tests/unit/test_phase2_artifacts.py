@@ -25,6 +25,10 @@ EXPECTED_FILES = {
     "events/transfer_events.json",
     "graph/graph_edges.json",
     "labels/label_generation.json",
+    # Phase 3 — per-partition feature artifacts.
+    "features/train.json",
+    "features/validation.json",
+    "features/clean_holdout.json",
     "splits/train.json",
     "splits/validation.json",
     "splits/clean_holdout.json",
@@ -38,6 +42,7 @@ EXPECTED_FILES = {
     "holdouts/locked/security_events.json",
     "holdouts/locked/transfer_events.json",
     "holdouts/locked/labels.json",
+    "holdouts/locked/feature_vectors.json",
     "holdouts/drifted/customers.json",
     "holdouts/drifted/accounts.json",
     "holdouts/drifted/devices.json",
@@ -47,6 +52,7 @@ EXPECTED_FILES = {
     "holdouts/drifted/security_events.json",
     "holdouts/drifted/transfer_events.json",
     "holdouts/drifted/labels/labels.json",
+    "holdouts/drifted/feature_vectors.json",
 }
 
 
