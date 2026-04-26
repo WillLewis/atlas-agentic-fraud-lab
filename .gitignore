@@ -1,0 +1,102 @@
+# Project Atlas — synthetic-only, defensive demo
+# Never commit generated data or secrets. See PROJECT_ATLAS_BIBLE.md §6.
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+.hypothesis/
+.python-version
+
+# --- Virtual envs ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+.turbo/
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Secrets and env files ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+
+# --- Generated synthetic data and run outputs ---
+# outputs/ is generated. Only curated public-safe replays under outputs/demo_replays/
+# may be committed by hand after passing safety scan.
+outputs/runs/
+outputs/ledgers/
+outputs/model_vulnerabilities/
+outputs/defensive_fixes/
+outputs/reports/
+outputs/demo_replays/*
+!outputs/demo_replays/.gitkeep
+
+# --- Synthetic data caches ---
+data/synthetic/*
+!data/synthetic/.gitkeep
+data/fixtures/*.generated.json
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- Local sandbox notes (must not be committed) ---
+scratch/
+notes.local.md

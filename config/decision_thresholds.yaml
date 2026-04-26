@@ -1,0 +1,44 @@
+# config/decision_thresholds.yaml
+# Synthetic demo-constant decision thresholds and action-rate limits.
+# See PROJECT_ATLAS_BIBLE.md §12. NOT real institution-specific controls.
+
+decision_threshold_version: thresholds_v1
+
+decision_thresholds:
+  decline_score_threshold: 0.92
+  alert_score_threshold: 0.86
+  challenge_score_threshold: 0.74
+
+action_rate_limits:
+  decline_rate_limit_bps: 25
+  alert_rate_limit_pct: 15.0
+  challenge_rate_limit_pct: 8.0
+  review_rate_limit_pct: 3.0
+
+# Customer-friction tolerances. A defensive fix that exceeds any of these is
+# rejected by the deterministic judge.
+customer_friction_tolerances:
+  max_false_positive_rate_increase: 0.001
+  max_challenge_rate_increase: 0.005
+  max_decline_rate_increase_bps: 2
+  max_alert_rate_increase_pct: 0.5
+
+# Decision-band labels surfaced via the API for explainability.
+decision_bands:
+  accept_band: accept_threshold_band
+  challenge_band: challenge_threshold_band
+  alert_band: alert_threshold_band
+  decline_band: decline_threshold_band
+
+# Reason-code allow-list. Only public-safe codes may appear in API responses.
+allowed_reason_codes:
+  - recent_activity_change
+  - entity_graph_risk
+  - device_novelty
+  - security_recovery_recent
+  - cash_movement_velocity_high
+  - new_recipient_low_tenure
+  - region_change_recent
+  - score_boundary_cluster
+  - shared_device_high_degree
+  - shared_recipient_high_degree

@@ -1,0 +1,19 @@
+{
+  "name": "atlas-agentic-fraud-lab",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Project Atlas — synthetic red/blue fraud-model evaluation arena. Local-only, defensive, public-safe.",
+  "workspaces": [
+    "app/web"
+  ],
+  "scripts": {
+    "dev": "npm --workspace app/web run dev",
+    "build": "npm --workspace app/web run build",
+    "start": "npm --workspace app/web run start",
+    "lint": "npm --workspace app/web run lint"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

@@ -1,0 +1,58 @@
+# config/model_quality_matrix.yaml
+# Model-tier comparison matrix. See PROJECT_ATLAS_BIBLE.md §17.
+# Public copy uses tier labels only (Frontier / Compact). Concrete model IDs
+# are revealed only when explicitly configured for a private demo.
+
+model_quality_matrix_version: matrix_v1
+
+tiers:
+  frontier:
+    label: Frontier
+    description: Stronger reasoning agent tier used for comparison runs.
+    public_safe_label: Frontier
+  compact:
+    label: Compact
+    description: Smaller, lower-cost agent tier used for comparison runs.
+    public_safe_label: Compact
+
+# Concrete model identifiers per tier. These are only used when
+# expose_concrete_model_names is true (private demo). In public mode the web
+# app and API surface only the tier labels above.
+tier_models:
+  frontier:
+    primary: claude-opus-4-7
+    fallback: claude-sonnet-4-6
+  compact:
+    primary: claude-haiku-4-5-20251001
+    fallback: claude-haiku-4-5-20251001
+
+# Visibility controls.
+expose_concrete_model_names: false
+public_safe_default: true
+
+# Four precomputed run cells. Public app shows tier labels and outcomes.
+runs:
+  - run_label: A
+    red_team_tier: frontier
+    bank_defense_tier: frontier
+    purpose: Best-case agentic loop.
+  - run_label: B
+    red_team_tier: compact
+    bank_defense_tier: frontier
+    purpose: Strong defense, weaker red-team testing.
+  - run_label: C
+    red_team_tier: frontier
+    bank_defense_tier: compact
+    purpose: Stress case — strong red-team testing, weaker defense.
+  - run_label: D
+    red_team_tier: compact
+    bank_defense_tier: compact
+    purpose: Low-cost baseline.
+
+# Illustrative summary findings to display in the model-tier comparison card.
+# These are templates, not measured values. The judge fills in actual numbers
+# from the four precomputed runs.
+summary_templates:
+  - Stronger red-team agents identify more model vulnerabilities.
+  - Stronger bank-defense agents reduce model miss rate faster and overfit less.
+  - Compact bank-defense agents may produce plausible explanations that fail locked holdout.

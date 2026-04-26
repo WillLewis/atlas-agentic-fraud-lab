@@ -1,0 +1,171 @@
+# config/synthetic_schema.yaml
+# Schema for the synthetic environment. See PROJECT_ATLAS_BIBLE.md §11.
+# All entities, events, and features here are synthetic and public-safe.
+
+schema_version: 1
+schema_label: atlas_synthetic_v1
+
+# --- Entities ---
+entities:
+  customer:
+    id_prefix: cust_
+    fields:
+      - name: customer_id
+        type: string
+      - name: account_age_days
+        type: int
+      - name: base_customer_risk
+        type: float
+      - name: region_code
+        type: string
+  account:
+    id_prefix: acct_
+    fields:
+      - name: account_id
+        type: string
+      - name: customer_id
+        type: string
+      - name: opened_days_ago
+        type: int
+  device:
+    id_prefix: dev_
+    fields:
+      - name: device_id
+        type: string
+      - name: customer_id
+        type: string
+      - name: first_seen_days_ago
+        type: int
+  recipient:
+    id_prefix: recipient_
+    fields:
+      - name: recipient_id
+        type: string
+      - name: customer_id
+        type: string
+      - name: recipient_tenure_days
+        type: int
+  external_account:
+    id_prefix: extacct_
+    fields:
+      - name: external_account_id
+        type: string
+      - name: customer_id
+        type: string
+
+graph:
+  edge_kinds:
+    - shared_device
+    - shared_recipient
+    - shared_external_account
+    - shared_region
+  features:
+    - shared_device_degree
+    - shared_recipient_degree
+    - entity_graph_risk_score
+
+# --- Event types ---
+events:
+  allowed_types:
+    - login_success
+    - login_challenge_required
+    - challenge_passed
+    - challenge_failed
+    - password_recovery_completed
+    - username_recovery_completed
+    - profile_update
+    - recipient_added
+    - external_account_link_attempt
+    - instant_transfer_attempt
+    - external_transfer_attempt
+    - large_transfer_attempt
+  id_prefix: evt_
+  required_fields:
+    - event_id
+    - customer_id
+    - event_type
+    - timestamp_offset_min
+
+# --- Feature families ---
+feature_families:
+  - name: login
+    members:
+      - login_count_72h
+      - login_count_30d
+      - login_velocity_ratio
+  - name: challenge
+    members:
+      - challenge_count_72h
+      - challenge_pass_ratio_30d
+  - name: recovery
+    members:
+      - password_recovery_count_72h
+      - username_recovery_count_72h
+  - name: device
+    members:
+      - device_count_72h
+      - current_device_tenure_days
+  - name: geo
+    members:
+      - geo_consistency_flag
+      - region_change_count_72h
+  - name: transfer
+    members:
+      - transfer_count_72h
+      - cash_movement_velocity_score
+  - name: recipient
+    members:
+      - recipient_tenure_days
+      - new_recipient_indicator
+  - name: graph
+    members:
+      - shared_device_degree
+      - shared_recipient_degree
+      - entity_graph_risk_score
+  - name: account
+    members:
+      - account_age_days
+
+# --- Synthetic label generation drivers ---
+label_drivers:
+  - base_customer_risk
+  - account_access_change_marker
+  - device_novelty_marker
+  - security_recovery_marker
+  - cash_movement_velocity_marker
+  - entity_reuse_marker
+  - ring_membership_marker
+  - label_noise
+
+# --- Splits ---
+splits:
+  split_by: customer_id
+  partitions:
+    - name: train
+      fraction: 0.60
+    - name: validation
+      fraction: 0.10
+    - name: clean_holdout
+      fraction: 0.10
+    - name: locked_adaptive_holdout
+      fraction: 0.10
+      locked: true
+    - name: drifted_holdout
+      fraction: 0.10
+      locked: true
+
+# --- Synthetic model vulnerability families ---
+model_vulnerability_families:
+  - id: low_velocity_high_graph_risk
+  - id: recent_change_feature_delay
+  - id: score_boundary_cluster
+  - id: activity_channel_shift
+  - id: current_device_mismatch
+  - id: label_noise_mislearned
+  - id: overfit_fix_failure
+
+# --- Generation safety guards ---
+generation_guards:
+  forbid_real_pii_fields: true
+  require_synthetic_id_prefixes: true
+  debug_direct_feature_mutation_default: false

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./data/synthetic/holdouts/locked/**)",
+      "Read(./data/synthetic/holdouts/drifted/labels/**)",
+      "Bash(* .env)",
+      "Bash(* .env.*)",
+      "Bash(* ./.env)",
+      "Bash(* ./.env.*)",
+      "Bash(* secrets/*)",
+      "Bash(* ./secrets/*)",
+      "Bash(* data/synthetic/holdouts/locked/*)",
+      "Bash(* ./data/synthetic/holdouts/locked/*)",
+      "Bash(* data/synthetic/holdouts/drifted/labels/*)",
+      "Bash(* ./data/synthetic/holdouts/drifted/labels/*)"
+    ],
+    "ask": [
+      "Edit(./src/atlas/judge/**)",
+      "Write(./src/atlas/judge/**)",
+      "MultiEdit(./src/atlas/judge/**)",
+      "Edit(./config/decision_thresholds.yaml)",
+      "Write(./config/decision_thresholds.yaml)",
+      "Edit(./config/agent_roster.yaml)",
+      "Write(./config/agent_roster.yaml)",
+      "Edit(./config/safety.yaml)",
+      "Write(./config/safety.yaml)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/safety_scan_changed_files.py",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/safety_scan_pending.py",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

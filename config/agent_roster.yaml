@@ -1,0 +1,88 @@
+# config/agent_roster.yaml
+# Simulation-agent roster. See PROJECT_ATLAS_BIBLE.md §13.
+# These are runtime Python modules invoked by the Round Engine — NOT Claude
+# Code builder subagents under .claude/agents/.
+
+agent_roster_version: agents_v1
+
+defaults:
+  max_score_queries: 1200
+  max_runtime_seconds: 180
+  allow_locked_holdout_access: false
+  must_recompute_features_from_events: true
+  allow_direct_feature_mutation: false
+
+red_team:
+  - id: fraud_scenario_agent
+    module: atlas.red_team.fraud_scenario_agent
+    purpose: Propose abstract synthetic model vulnerability hypotheses.
+    allowed:
+      - choose_configured_vulnerability_family
+      - propose_search_capacity_allocation
+      - explain_model_risk_in_safe_terms
+    not_allowed:
+      - real_fraud_tactics
+      - production_controls
+      - credential_or_authentication_instructions
+
+  - id: evolutionary_search_agent
+    module: atlas.red_team.evolutionary_search
+    purpose: Optimize synthetic event histories to surface under-ranked high-risk examples.
+    allowed:
+      - mutate_event_timing_counts_and_links_within_constraints
+      - call_local_mock_scorer
+      - return_candidate_batches
+    not_allowed:
+      - mutate_labels
+      - mutate_engineered_features_directly
+      - access_locked_holdout_records
+
+  - id: graph_probe_agent
+    module: atlas.red_team.graph_probe
+    purpose: Explore safe synthetic relationship-risk vulnerabilities.
+    allowed:
+      - analyze_synthetic_recipient_device_account_graph
+      - propose_graph_features
+      - identify_graph_risk_low_score_cohorts
+
+  - id: model_vulnerability_analyst_agent
+    module: atlas.red_team.model_vulnerability_packager
+    purpose: Package discovered misses as model vulnerability cards.
+    allowed:
+      - summarize_accepted_high_risk_synthetic_candidates
+      - generate_safe_cohort_definitions
+      - recommend_defensive_fix_families
+
+bank_defense:
+  - id: bank_strategy_agent
+    module: atlas.blue_team.strategy_agent
+    purpose: Triage model vulnerability cards and select a defensive fix approach.
+
+  - id: feature_fix_agent
+    module: atlas.blue_team.feature_fix_agent
+    purpose: Propose defensive features derived from synthetic event histories or graph relationships.
+
+  - id: decision_threshold_fix_agent
+    module: atlas.blue_team.policy_fix_agent
+    purpose: Propose synthetic decision-threshold changes while preserving action-rate limits.
+
+  - id: model_calibration_fix_agent
+    module: atlas.blue_team.model_calibration_fix_agent
+    purpose: Retrain or recalibrate the mock scorer using allowed synthetic data.
+
+  - id: governance_agent
+    module: atlas.blue_team.governance_agent
+    purpose: Block unsafe, overfit, limit-violating, or non-generalizing defensive fixes.
+
+deterministic_judge:
+  id: evaluation_judge
+  module: atlas.judge.evaluate
+  notes: >-
+    Code, not an LLM. Owns metrics, holdout evaluation, defensive fix
+    acceptance, action-rate-limit enforcement, and ledger validation.
+
+# Default agent-tier assignments. Concrete model identifiers live in
+# config/model_quality_matrix.yaml. Public copy uses tier labels only.
+default_tier_assignments:
+  red_team_tier: frontier
+  bank_defense_tier: frontier

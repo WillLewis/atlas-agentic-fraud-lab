@@ -1,0 +1,1192 @@
+openapi: 3.1.0
+info:
+  title: Project Atlas Synthetic Fraud Defense API
+  version: 0.1.0
+  description: >-
+    Local-only API for Project Atlas, a synthetic, defensive red/blue fraud-model
+    evaluation demo. This API must not connect to production systems or real customer data.
+servers:
+  - url: http://localhost:8000
+    description: Local mock API only
+security: []
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: API is available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /config/demo:
+    get:
+      summary: Return public demo configuration
+      operationId: getDemoConfig
+      responses:
+        "200":
+          description: Demo configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoConfig'
+  /schema:
+    get:
+      summary: Return synthetic schema metadata
+      operationId: getSyntheticSchema
+      responses:
+        "200":
+          description: Synthetic entity, event, and feature schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyntheticSchemaResponse'
+  /decision-thresholds:
+    get:
+      summary: Return synthetic decision thresholds and action-rate limits
+      operationId: getDecisionThresholds
+      responses:
+        "200":
+          description: Current decision thresholds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionThresholds'
+  /synthetic/generate:
+    post:
+      summary: Generate synthetic customers, events, features, and labels
+      operationId: generateSyntheticData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyntheticGenerateRequest'
+      responses:
+        "200":
+          description: Synthetic generation summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyntheticGenerateResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+  /synthetic/sample:
+    get:
+      summary: Return a small public-safe synthetic sample
+      operationId: getSyntheticSample
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: Public-safe synthetic sample records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyntheticSampleResponse'
+  /score:
+    post:
+      summary: Score one synthetic event
+      operationId: scoreEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreRequest'
+      responses:
+        "200":
+          description: Score and decision action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+  /batch-score:
+    post:
+      summary: Score multiple synthetic events
+      operationId: batchScoreEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchScoreRequest'
+      responses:
+        "200":
+          description: Batch scores and decision actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchScoreResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "413":
+          description: Request exceeds max batch size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+  /runs:
+    post:
+      summary: Create a new synthetic evaluation run
+      operationId: createRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunCreateRequest'
+      responses:
+        "201":
+          description: Run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSummary'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+    get:
+      summary: List synthetic evaluation runs
+      operationId: listRuns
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RunSummary'
+                required: [runs]
+  /runs/{run_id}:
+    get:
+      summary: Return run details
+      operationId: getRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        "200":
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetail'
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /runs/{run_id}/rounds:
+    get:
+      summary: List rounds for a run
+      operationId: listRunRounds
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        "200":
+          description: Round summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rounds:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoundSummary'
+                required: [rounds]
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /runs/{run_id}/rounds/{round_id}:
+    get:
+      summary: Return one round detail
+      operationId: getRound
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/RoundId'
+      responses:
+        "200":
+          description: Round details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundDetail'
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /rounds/run:
+    post:
+      summary: Execute one or more red-team test / defensive response rounds
+      operationId: runRounds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoundRunRequest'
+      responses:
+        "200":
+          description: Completed round summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundRunResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "409":
+          description: Run state conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /red-team/search:
+    post:
+      summary: Run a synthetic red-team search over event histories
+      operationId: runRedTeamSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedTeamSearchRequest'
+      responses:
+        "200":
+          description: Search result and model vulnerability cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedTeamSearchResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+  /runs/{run_id}/model-vulnerabilities:
+    get:
+      summary: List model vulnerability cards for a run
+      operationId: listModelVulnerabilities
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        "200":
+          description: Model vulnerability cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  model_vulnerabilities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelVulnerabilityCard'
+                required: [model_vulnerabilities]
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /model-vulnerabilities/{model_vulnerability_id}:
+    get:
+      summary: Return a model vulnerability card
+      operationId: getModelVulnerability
+      parameters:
+        - name: model_vulnerability_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Model vulnerability card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelVulnerabilityCard'
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /defensive-fixes/propose:
+    post:
+      summary: Propose defensive fixes for one or more model vulnerabilities
+      operationId: proposeDefensiveFixes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefensiveFixProposalRequest'
+      responses:
+        "200":
+          description: Defensive fix candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefensiveFixProposalResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+  /defensive-fixes/apply:
+    post:
+      summary: Apply a defensive fix candidate to a candidate model or policy version
+      operationId: applyDefensiveFix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefensiveFixApplyRequest'
+      responses:
+        "200":
+          description: Applied fix result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefensiveFixApplyResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "409":
+          description: Fix could not be applied to current run state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /judge/evaluate-fix:
+    post:
+      summary: Evaluate a defensive fix using deterministic metrics
+      operationId: evaluateDefensiveFix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JudgeEvaluationRequest'
+      responses:
+        "200":
+          description: Judge report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeReport'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+  /runs/{run_id}/judge-reports/{judge_report_id}:
+    get:
+      summary: Return a judge report
+      operationId: getJudgeReport
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: judge_report_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Judge report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeReport'
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /replay/{run_id}:
+    get:
+      summary: Return web-app replay data for a completed run
+      operationId: getReplay
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        "200":
+          description: Replay payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayPayload'
+        "404":
+          $ref: '#/components/responses/NotFound'
+  /safety/scan:
+    post:
+      summary: Scan text or files for public-demo safety issues
+      operationId: runSafetyScan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SafetyScanRequest'
+      responses:
+        "200":
+          description: Safety scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafetyScanResponse'
+  /model-quality-matrix:
+    get:
+      summary: Return precomputed frontier-vs-compact agent comparison
+      operationId: getModelQualityMatrix
+      responses:
+        "200":
+          description: Model quality matrix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelQualityMatrix'
+components:
+  parameters:
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RoundId:
+      name: round_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        demo_mode:
+          type: string
+          enum: [public, internal]
+        version:
+          type: string
+        local_only:
+          type: boolean
+      required: [status, demo_mode, version, local_only]
+    DemoConfig:
+      type: object
+      properties:
+        project_name:
+          type: string
+        project_folder:
+          type: string
+        demo_mode:
+          type: string
+          enum: [public, internal]
+        institution_label:
+          type: string
+        model_label:
+          type: string
+        disclaimer:
+          type: string
+      required: [project_name, project_folder, demo_mode, institution_label, model_label, disclaimer]
+    DecisionThresholds:
+      type: object
+      properties:
+        threshold_version:
+          type: string
+        decline_score_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+        challenge_score_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+        alert_score_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+        decline_rate_limit_bps:
+          type: number
+        challenge_rate_limit_pct:
+          type: number
+        alert_rate_limit_pct:
+          type: number
+        manual_review_rate_limit_pct:
+          type: number
+      required: [threshold_version, decline_score_threshold, challenge_score_threshold, alert_score_threshold, decline_rate_limit_bps, challenge_rate_limit_pct, alert_rate_limit_pct]
+    SyntheticSchemaResponse:
+      type: object
+      properties:
+        entity_types:
+          type: array
+          items:
+            type: string
+        event_types:
+          type: array
+          items:
+            type: string
+        feature_names:
+          type: array
+          items:
+            type: string
+        allowed_model_vulnerability_families:
+          type: array
+          items:
+            type: string
+      required: [entity_types, event_types, feature_names, allowed_model_vulnerability_families]
+    SyntheticGenerateRequest:
+      type: object
+      properties:
+        seed:
+          type: integer
+        customer_count:
+          type: integer
+          minimum: 10
+        fraud_like_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+        include_model_vulnerability_families:
+          type: array
+          items:
+            type: string
+      required: [seed, customer_count, fraud_like_rate]
+    SyntheticGenerateResponse:
+      type: object
+      properties:
+        seed:
+          type: integer
+        customers_created:
+          type: integer
+        events_created:
+          type: integer
+        feature_vectors_created:
+          type: integer
+        label_records_created:
+          type: integer
+        dataset_paths:
+          type: object
+          additionalProperties:
+            type: string
+      required: [seed, customers_created, events_created, feature_vectors_created, label_records_created]
+    SyntheticSampleResponse:
+      type: object
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventRecord'
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureVector'
+      required: [customers, events, features]
+    Customer:
+      type: object
+      properties:
+        customer_id:
+          type: string
+        customer_segment:
+          type: string
+        home_region_bucket:
+          type: string
+        account_age_days:
+          type: integer
+        normal_login_frequency_30d:
+          type: integer
+        normal_transfer_frequency_30d:
+          type: integer
+        synthetic_base_risk:
+          type: number
+      required: [customer_id, customer_segment, home_region_bucket, account_age_days]
+    EventRecord:
+      type: object
+      properties:
+        event_id:
+          type: string
+        customer_id:
+          type: string
+        event_type:
+          type: string
+        event_time_utc:
+          type: string
+          format: date-time
+        device_id:
+          type: string
+        account_id:
+          type: string
+        recipient_id:
+          type: string
+        channel:
+          type: string
+        amount_bucket:
+          type: string
+        synthetic_truth_label:
+          type: string
+          enum: [normal_activity, high_risk_synthetic_activity]
+      required: [event_id, customer_id, event_type, event_time_utc, synthetic_truth_label]
+    FeatureVector:
+      type: object
+      properties:
+        event_id:
+          type: string
+        customer_id:
+          type: string
+        login_count_72h:
+          type: integer
+        login_count_30d:
+          type: integer
+        login_velocity_ratio:
+          type: number
+        challenge_count_72h:
+          type: integer
+        challenge_pass_ratio_30d:
+          type: number
+        password_recovery_count_72h:
+          type: integer
+        device_count_72h:
+          type: integer
+        current_device_tenure_days:
+          type: integer
+        geo_consistency_flag:
+          type: integer
+          enum: [0, 1]
+        transfer_count_72h:
+          type: integer
+        recipient_tenure_days:
+          type: integer
+        shared_device_degree:
+          type: integer
+        shared_recipient_degree:
+          type: integer
+        entity_graph_risk_score:
+          type: number
+        cash_movement_velocity_score:
+          type: number
+      required: [event_id, customer_id]
+    ScoreRequest:
+      type: object
+      properties:
+        event:
+          $ref: '#/components/schemas/EventRecord'
+        features:
+          $ref: '#/components/schemas/FeatureVector'
+        model_version:
+          type: string
+          default: baseline_v1
+        threshold_version:
+          type: string
+          default: thresholds_v1
+      required: [event, features]
+    ScoreResponse:
+      type: object
+      properties:
+        event_id:
+          type: string
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+        decision_action:
+          type: string
+          enum: [accept, challenge, alert, decline]
+        decision_band:
+          type: string
+        model_version:
+          type: string
+        threshold_version:
+          type: string
+        reason_codes:
+          type: array
+          items:
+            type: string
+      required: [event_id, score, decision_action, model_version, threshold_version]
+    BatchScoreRequest:
+      type: object
+      properties:
+        records:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items:
+            $ref: '#/components/schemas/ScoreRequest'
+      required: [records]
+    BatchScoreResponse:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreResponse'
+        model_version:
+          type: string
+        threshold_version:
+          type: string
+      required: [scores]
+    RunCreateRequest:
+      type: object
+      properties:
+        seed:
+          type: integer
+        run_label:
+          type: string
+        demo_mode:
+          type: string
+          enum: [public, internal]
+        max_rounds:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+        max_score_queries_per_round:
+          type: integer
+          minimum: 1
+          default: 1200
+      required: [seed, demo_mode]
+    RunSummary:
+      type: object
+      properties:
+        run_id:
+          type: string
+        seed:
+          type: integer
+        demo_mode:
+          type: string
+        status:
+          type: string
+          enum: [created, running, completed, failed]
+        current_round:
+          type: integer
+        created_at_utc:
+          type: string
+          format: date-time
+      required: [run_id, seed, demo_mode, status]
+    RunDetail:
+      allOf:
+        - $ref: '#/components/schemas/RunSummary'
+        - type: object
+          properties:
+            rounds:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoundSummary'
+            latest_metrics:
+              $ref: '#/components/schemas/MetricSnapshot'
+    RoundRunRequest:
+      type: object
+      properties:
+        run_id:
+          type: string
+        start_round:
+          type: integer
+          minimum: 1
+          default: 1
+        round_count:
+          type: integer
+          minimum: 1
+          maximum: 3
+          default: 1
+        max_score_queries_per_round:
+          type: integer
+          minimum: 1
+          default: 1200
+      required: [run_id]
+    RoundRunResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+        completed_rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoundSummary'
+      required: [run_id, completed_rounds]
+    RoundSummary:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        status:
+          type: string
+        model_version_before:
+          type: string
+        model_version_after:
+          type: string
+        model_miss_rate_before:
+          type: number
+        model_miss_rate_after:
+          type: number
+        recall_at_fixed_action_rate_before:
+          type: number
+        recall_at_fixed_action_rate_after:
+          type: number
+      required: [run_id, round_id, status]
+    RoundDetail:
+      allOf:
+        - $ref: '#/components/schemas/RoundSummary'
+        - type: object
+          properties:
+            model_vulnerabilities:
+              type: array
+              items:
+                $ref: '#/components/schemas/ModelVulnerabilityCard'
+            defensive_fixes:
+              type: array
+              items:
+                $ref: '#/components/schemas/DefensiveFixCandidate'
+            judge_reports:
+              type: array
+              items:
+                $ref: '#/components/schemas/JudgeReport'
+    RedTeamSearchRequest:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        allowed_family_ids:
+          type: array
+          items:
+            type: string
+        max_score_queries:
+          type: integer
+          minimum: 1
+        search_methods:
+          type: array
+          items:
+            type: string
+            enum: [random, evolutionary, graph_probe]
+      required: [run_id, round_id, max_score_queries, search_methods]
+    RedTeamSearchResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        valid_high_risk_events_tested:
+          type: integer
+        accepted_high_risk_events:
+          type: integer
+        model_miss_rate:
+          type: number
+        miss_rate_lift_vs_random:
+          type: number
+        model_vulnerability_cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelVulnerabilityCard'
+      required: [run_id, round_id, valid_high_risk_events_tested, accepted_high_risk_events, model_miss_rate]
+    ModelVulnerabilityCard:
+      type: object
+      properties:
+        model_vulnerability_id:
+          type: string
+        round_id:
+          type: integer
+        family_id:
+          type: string
+        summary:
+          type: string
+        valid_high_risk_events_tested:
+          type: integer
+        accepted_high_risk_events:
+          type: integer
+        model_miss_rate:
+          type: number
+        miss_rate_lift_vs_random:
+          type: number
+        estimated_synthetic_loss_allowed:
+          type: number
+        affected_decision_action:
+          type: string
+        safe_cohort_definition:
+          type: object
+          additionalProperties: true
+        recommended_defensive_fix_types:
+          type: array
+          items:
+            type: string
+      required: [model_vulnerability_id, round_id, family_id, summary, model_miss_rate]
+    DefensiveFixProposalRequest:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        model_vulnerability_ids:
+          type: array
+          items:
+            type: string
+        allowed_fix_types:
+          type: array
+          items:
+            type: string
+            enum: [feature_fix, policy_fix, model_calibration_fix]
+      required: [run_id, round_id, model_vulnerability_ids, allowed_fix_types]
+    DefensiveFixProposalResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        defensive_fix_candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefensiveFixCandidate'
+      required: [run_id, round_id, defensive_fix_candidates]
+    DefensiveFixCandidate:
+      type: object
+      properties:
+        defensive_fix_id:
+          type: string
+        round_id:
+          type: integer
+        fix_type:
+          type: string
+          enum: [feature_fix, policy_fix, model_calibration_fix]
+        description:
+          type: string
+        files_changed:
+          type: array
+          items:
+            type: string
+        expected_benefit:
+          type: string
+        rate_limit_claim:
+          type: object
+          properties:
+            max_false_positive_rate_increase:
+              type: number
+            max_challenge_rate_increase:
+              type: number
+        requires_judge_evaluation:
+          type: boolean
+      required: [defensive_fix_id, round_id, fix_type, description, requires_judge_evaluation]
+    DefensiveFixApplyRequest:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        defensive_fix_id:
+          type: string
+      required: [run_id, round_id, defensive_fix_id]
+    DefensiveFixApplyResponse:
+      type: object
+      properties:
+        defensive_fix_id:
+          type: string
+        applied:
+          type: boolean
+        candidate_model_version:
+          type: string
+        candidate_threshold_version:
+          type: string
+        changed_files:
+          type: array
+          items:
+            type: string
+      required: [defensive_fix_id, applied]
+    JudgeEvaluationRequest:
+      type: object
+      properties:
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        defensive_fix_id:
+          type: string
+        baseline_model_version:
+          type: string
+        candidate_model_version:
+          type: string
+        baseline_threshold_version:
+          type: string
+        candidate_threshold_version:
+          type: string
+      required: [run_id, round_id, defensive_fix_id, baseline_model_version, candidate_model_version]
+    JudgeReport:
+      type: object
+      properties:
+        judge_report_id:
+          type: string
+        run_id:
+          type: string
+        round_id:
+          type: integer
+        defensive_fix_id:
+          type: string
+        accepted_by_judge:
+          type: boolean
+        baseline:
+          $ref: '#/components/schemas/MetricSnapshot'
+        fixed:
+          $ref: '#/components/schemas/MetricSnapshot'
+        holdout_generalization:
+          type: object
+          properties:
+            clean_holdout_pass:
+              type: boolean
+            locked_adaptive_holdout_pass:
+              type: boolean
+            drifted_holdout_pass:
+              type: boolean
+        judge_notes:
+          type: string
+      required: [judge_report_id, run_id, round_id, defensive_fix_id, accepted_by_judge, baseline, fixed]
+    MetricSnapshot:
+      type: object
+      properties:
+        recall_at_fixed_action_rate:
+          type: number
+        false_positive_rate_at_fixed_action_rate:
+          type: number
+        model_miss_rate:
+          type: number
+        synthetic_loss_allowed:
+          type: number
+        synthetic_loss_prevented:
+          type: number
+        challenge_rate:
+          type: number
+        alert_rate:
+          type: number
+        decline_rate:
+          type: number
+      required: [recall_at_fixed_action_rate, false_positive_rate_at_fixed_action_rate, model_miss_rate]
+    ReplayPayload:
+      type: object
+      properties:
+        run:
+          $ref: '#/components/schemas/RunDetail'
+        five_step_story:
+          type: array
+          items:
+            type: object
+            properties:
+              step_id:
+                type: integer
+              title:
+                type: string
+              cards:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        charts:
+          type: object
+          additionalProperties: true
+      required: [run, five_step_story, charts]
+    SafetyScanRequest:
+      type: object
+      properties:
+        demo_mode:
+          type: string
+          enum: [public, internal]
+        text:
+          type: string
+        file_paths:
+          type: array
+          items:
+            type: string
+      required: [demo_mode]
+    SafetyScanResponse:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              category:
+                type: string
+              message:
+                type: string
+              location:
+                type: string
+        recommended_rewrites:
+          type: array
+          items:
+            type: string
+      required: [passed, findings]
+    ModelQualityMatrix:
+      type: object
+      properties:
+        matrix_version:
+          type: string
+        cells:
+          type: array
+          items:
+            type: object
+            properties:
+              cell_id:
+                type: string
+              red_team_model_tier:
+                type: string
+                enum: [frontier, compact]
+              blue_team_model_tier:
+                type: string
+                enum: [frontier, compact]
+              average_model_miss_rate:
+                type: number
+              average_recall_recovery_points:
+                type: number
+              fixed_action_rate_pass:
+                type: boolean
+        caveat:
+          type: string
+      required: [matrix_version, cells, caveat]
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+        safe_to_show:
+          type: boolean
+      required: [error_code, message, safe_to_show]

@@ -1,0 +1,366 @@
+{
+  "project": {
+    "project_name": "Project Atlas",
+    "project_folder": "atlas-agentic-fraud-lab",
+    "demo_mode": "public",
+    "disclaimer": "Synthetic closed-loop demo. No real customers, no real controls, no production endpoints."
+  },
+  "entities": {
+    "customers": [
+      {
+        "customer_id": "cust_000001",
+        "customer_segment": "digital_primary",
+        "home_region_bucket": "region_03",
+        "account_age_days": 842,
+        "normal_login_frequency_30d": 18,
+        "normal_transfer_frequency_30d": 3,
+        "synthetic_base_risk": 0.18,
+        "created_from_seed": 42
+      },
+      {
+        "customer_id": "cust_000002",
+        "customer_segment": "low_digital_activity",
+        "home_region_bucket": "region_07",
+        "account_age_days": 118,
+        "normal_login_frequency_30d": 4,
+        "normal_transfer_frequency_30d": 0,
+        "synthetic_base_risk": 0.31,
+        "created_from_seed": 42
+      }
+    ],
+    "accounts": [
+      {
+        "account_id": "acct_000001",
+        "customer_id": "cust_000001",
+        "account_type": "checking",
+        "opened_days_ago": 842,
+        "available_balance_bucket": "balance_bucket_04",
+        "account_status": "active"
+      },
+      {
+        "account_id": "acct_000002",
+        "customer_id": "cust_000002",
+        "account_type": "checking",
+        "opened_days_ago": 118,
+        "available_balance_bucket": "balance_bucket_02",
+        "account_status": "active"
+      }
+    ],
+    "devices": [
+      {
+        "device_id": "dev_000001",
+        "customer_id": "cust_000001",
+        "device_channel": "mobile_app",
+        "first_seen_days_ago": 620,
+        "login_count_30d": 12,
+        "is_current_event_device": true
+      },
+      {
+        "device_id": "dev_000099",
+        "customer_id": "cust_000001",
+        "device_channel": "web",
+        "first_seen_days_ago": 0,
+        "login_count_30d": 1,
+        "is_current_event_device": false
+      }
+    ],
+    "recipients": [
+      {
+        "recipient_id": "recip_000011",
+        "first_seen_days_ago": 340,
+        "recipient_reuse_degree": 1,
+        "recipient_risk_bucket": "low"
+      },
+      {
+        "recipient_id": "recip_000077",
+        "first_seen_days_ago": 1,
+        "recipient_reuse_degree": 9,
+        "recipient_risk_bucket": "high_synthetic_graph_risk"
+      }
+    ],
+    "external_accounts": [
+      {
+        "external_account_id": "extacct_000021",
+        "customer_id": "cust_000001",
+        "linked_days_ago": 92,
+        "verification_method": "synthetic_verified",
+        "external_account_risk_bucket": "low"
+      },
+      {
+        "external_account_id": "extacct_000088",
+        "customer_id": "cust_000002",
+        "linked_days_ago": 1,
+        "verification_method": "synthetic_pending_review",
+        "external_account_risk_bucket": "medium"
+      }
+    ],
+    "graph_edges": [
+      {
+        "edge_id": "edge_000001",
+        "source_node_id": "cust_000001",
+        "source_node_type": "customer",
+        "target_node_id": "dev_000001",
+        "target_node_type": "device",
+        "relationship_type": "uses_device",
+        "first_seen_days_ago": 620,
+        "event_count": 87
+      },
+      {
+        "edge_id": "edge_000002",
+        "source_node_id": "cust_000002",
+        "source_node_type": "customer",
+        "target_node_id": "recip_000077",
+        "target_node_type": "recipient",
+        "relationship_type": "attempted_transfer_to",
+        "first_seen_days_ago": 1,
+        "event_count": 1
+      }
+    ]
+  },
+  "events": {
+    "login_sessions": [
+      {
+        "session_id": "sess_000001",
+        "customer_id": "cust_000001",
+        "device_id": "dev_000001",
+        "event_time_utc": "2026-06-01T13:05:00Z",
+        "channel": "mobile_app",
+        "region_bucket": "region_03",
+        "challenge_required": false,
+        "challenge_result": "not_required"
+      },
+      {
+        "session_id": "sess_000002",
+        "customer_id": "cust_000002",
+        "device_id": "dev_000099",
+        "event_time_utc": "2026-06-01T14:42:00Z",
+        "channel": "web",
+        "region_bucket": "region_11",
+        "challenge_required": true,
+        "challenge_result": "passed"
+      }
+    ],
+    "security_events": [
+      {
+        "security_event_id": "sec_000001",
+        "customer_id": "cust_000002",
+        "session_id": "sess_000002",
+        "event_type": "password_recovery_completed",
+        "event_time_utc": "2026-06-01T14:51:00Z",
+        "device_id": "dev_000099",
+        "safe_risk_marker": "recent_account_access_change"
+      },
+      {
+        "security_event_id": "sec_000002",
+        "customer_id": "cust_000001",
+        "session_id": "sess_000001",
+        "event_type": "profile_update",
+        "event_time_utc": "2026-06-01T13:20:00Z",
+        "device_id": "dev_000001",
+        "safe_risk_marker": "normal_customer_update"
+      }
+    ],
+    "transfer_events": [
+      {
+        "transfer_event_id": "tx_000001",
+        "customer_id": "cust_000001",
+        "account_id": "acct_000001",
+        "event_type": "instant_transfer_attempt",
+        "event_time_utc": "2026-06-01T13:30:00Z",
+        "amount_bucket": "amount_bucket_02",
+        "recipient_id": "recip_000011",
+        "channel": "mobile_app",
+        "synthetic_truth_label": "normal_activity"
+      },
+      {
+        "transfer_event_id": "tx_000002",
+        "customer_id": "cust_000002",
+        "account_id": "acct_000002",
+        "event_type": "large_transfer_attempt",
+        "event_time_utc": "2026-06-01T15:05:00Z",
+        "amount_bucket": "amount_bucket_05",
+        "recipient_id": "recip_000077",
+        "channel": "web",
+        "synthetic_truth_label": "high_risk_synthetic_activity"
+      }
+    ]
+  },
+  "features": [
+    {
+      "event_id": "tx_000001",
+      "customer_id": "cust_000001",
+      "login_count_72h": 2,
+      "login_count_30d": 18,
+      "login_velocity_ratio": 0.11,
+      "challenge_count_72h": 0,
+      "challenge_pass_ratio_30d": 0.0,
+      "password_recovery_count_72h": 0,
+      "device_count_72h": 1,
+      "current_device_tenure_days": 620,
+      "geo_consistency_flag": 1,
+      "transfer_count_72h": 1,
+      "recipient_tenure_days": 340,
+      "shared_device_degree": 1,
+      "shared_recipient_degree": 1,
+      "entity_graph_risk_score": 0.06,
+      "cash_movement_velocity_score": 0.12
+    },
+    {
+      "event_id": "tx_000002",
+      "customer_id": "cust_000002",
+      "login_count_72h": 3,
+      "login_count_30d": 4,
+      "login_velocity_ratio": 0.75,
+      "challenge_count_72h": 1,
+      "challenge_pass_ratio_30d": 1.0,
+      "password_recovery_count_72h": 1,
+      "device_count_72h": 2,
+      "current_device_tenure_days": 0,
+      "geo_consistency_flag": 0,
+      "transfer_count_72h": 1,
+      "recipient_tenure_days": 1,
+      "shared_device_degree": 3,
+      "shared_recipient_degree": 9,
+      "entity_graph_risk_score": 0.91,
+      "cash_movement_velocity_score": 0.78
+    }
+  ],
+  "label_generation": [
+    {
+      "event_id": "tx_000001",
+      "latent_drivers": {
+        "base_customer_risk": 0.18,
+        "account_access_change_marker": 0,
+        "device_novelty_marker": 0,
+        "security_recovery_marker": 0,
+        "cash_movement_velocity_marker": 0,
+        "entity_reuse_marker": 0,
+        "ring_membership_marker": 0,
+        "label_noise": 0.01
+      },
+      "synthetic_risk_probability": 0.04,
+      "synthetic_truth_label": "normal_activity"
+    },
+    {
+      "event_id": "tx_000002",
+      "latent_drivers": {
+        "base_customer_risk": 0.31,
+        "account_access_change_marker": 1,
+        "device_novelty_marker": 1,
+        "security_recovery_marker": 1,
+        "cash_movement_velocity_marker": 1,
+        "entity_reuse_marker": 1,
+        "ring_membership_marker": 0,
+        "label_noise": 0.02
+      },
+      "synthetic_risk_probability": 0.83,
+      "synthetic_truth_label": "high_risk_synthetic_activity"
+    }
+  ],
+  "model_vulnerability_families": [
+    {
+      "family_id": "low_velocity_high_graph_risk",
+      "public_name": "Low individual activity, high relationship risk",
+      "safe_description": "The event looks moderate when evaluated alone, but the synthetic relationship graph shows repeated risky reuse patterns.",
+      "expected_detector": "entity_graph_risk_score",
+      "recommended_defensive_fix_type": "feature_fix"
+    },
+    {
+      "family_id": "recent_change_feature_delay",
+      "public_name": "Recent behavior change not reflected quickly enough",
+      "safe_description": "The synthetic stream has recent account-access changes that are not fully reflected in delayed aggregate features.",
+      "expected_detector": "recent_change_streaming_feature",
+      "recommended_defensive_fix_type": "feature_fix"
+    },
+    {
+      "family_id": "score_boundary_cluster",
+      "public_name": "High-risk events near an action threshold",
+      "safe_description": "High-risk synthetic events cluster just below a configured decision threshold.",
+      "expected_detector": "threshold_proximity_score",
+      "recommended_defensive_fix_type": "policy_fix"
+    }
+  ],
+  "model_vulnerability_cards": [
+    {
+      "model_vulnerability_id": "mv_round1_001",
+      "round_id": 1,
+      "family_id": "low_velocity_high_graph_risk",
+      "summary": "Synthetic high-risk events with moderate individual activity but elevated relationship risk are under-ranked by the baseline mock scorer.",
+      "valid_high_risk_events_tested": 1200,
+      "accepted_high_risk_events": 92,
+      "model_miss_rate": 0.0767,
+      "miss_rate_lift_vs_random": 3.4,
+      "estimated_synthetic_loss_allowed": 184000,
+      "affected_decision_action": "accept",
+      "safe_cohort_definition": {
+        "entity_graph_risk_score": "> synthetic_p90",
+        "model_score": "below_challenge_threshold",
+        "recipient_tenure_days": "low"
+      },
+      "recommended_defensive_fix_types": [
+        "feature_fix",
+        "policy_fix"
+      ]
+    }
+  ],
+  "defensive_fix_candidates": [
+    {
+      "defensive_fix_id": "fix_round1_graph_risk_feature",
+      "round_id": 1,
+      "fix_type": "feature_fix",
+      "description": "Add a synthetic relationship-risk feature and recalibrate the mock scorer under fixed action-rate limits.",
+      "files_changed": [
+        "src/atlas/synthetic/features.py",
+        "src/atlas/model/train.py"
+      ],
+      "expected_benefit": "Reduce accepted high-risk synthetic events in the relationship-risk cohort.",
+      "rate_limit_claim": {
+        "max_false_positive_rate_increase": 0.001,
+        "max_challenge_rate_increase": 0.0
+      },
+      "requires_judge_evaluation": true
+    }
+  ],
+  "judge_reports": [
+    {
+      "judge_report_id": "judge_round1_fix_graph_risk",
+      "round_id": 1,
+      "defensive_fix_id": "fix_round1_graph_risk_feature",
+      "accepted_by_judge": true,
+      "baseline": {
+        "recall_at_fixed_action_rate": 0.44,
+        "false_positive_rate_at_fixed_action_rate": 0.01,
+        "model_miss_rate": 0.0767,
+        "synthetic_loss_allowed": 184000
+      },
+      "fixed": {
+        "recall_at_fixed_action_rate": 0.58,
+        "false_positive_rate_at_fixed_action_rate": 0.01,
+        "model_miss_rate": 0.0312,
+        "synthetic_loss_allowed": 91000
+      },
+      "holdout_generalization": {
+        "clean_holdout_pass": true,
+        "locked_adaptive_holdout_pass": true,
+        "drifted_holdout_pass": true
+      },
+      "judge_notes": "Fix accepted because recall improved at the same action-rate limit and clean-customer friction stayed within tolerance."
+    }
+  ],
+  "ledger_records": [
+    {
+      "run_id": "run_2026_001",
+      "round_id": 1,
+      "seed": 42,
+      "demo_mode": "public",
+      "model_version_before": "baseline_v1",
+      "decision_threshold_version_before": "thresholds_v1",
+      "model_version_after": "model_v2_graph_feature",
+      "decision_threshold_version_after": "thresholds_v1",
+      "agent_roster_version": "agents_v1",
+      "safety_scan_passed": true,
+      "judge_report_path": "outputs/reports/run_2026_001_round1_judge.json",
+      "model_vulnerability_card_path": "outputs/model_vulnerabilities/mv_round1_001.json"
+    }
+  ]
+}

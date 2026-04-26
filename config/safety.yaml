@@ -1,0 +1,169 @@
+# config/safety.yaml
+# Safety scanner configuration. See PROJECT_ATLAS_BIBLE.md §6.
+# Used by scripts/safety_scan.py and src/atlas/safety/scanner.py.
+
+mode: public
+
+# Paths that the scanner walks by default. Absolute paths or repo-relative.
+default_paths:
+  - app/
+  - src/
+  - config/
+  - scripts/
+  - data/fixtures/
+  - outputs/demo_replays/
+  - README.md
+  - project_atlas_sample_data.json
+
+# Files and directories the scanner ignores. Generated, vendored, or
+# canonical-spec material that intentionally references legacy terms.
+ignore_globs:
+  - "**/.git/**"
+  - "**/.venv/**"
+  - "**/node_modules/**"
+  - "**/__pycache__/**"
+  - "**/.next/**"
+  - "**/.pytest_cache/**"
+  - "**/.mypy_cache/**"
+  - "**/.ruff_cache/**"
+  - "**/.DS_Store"
+  - "**/*.pyc"
+  - "**/*.lock"
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+  - "**/pnpm-lock.yaml"
+  - "outputs/runs/**"
+  - "outputs/ledgers/**"
+  - "outputs/model_vulnerabilities/**"
+  - "outputs/defensive_fixes/**"
+  - "outputs/reports/**"
+  - "data/synthetic/**"
+  # Canonical specs are the source of truth for the legacy-term map and may
+  # mention disallowed phrasing in safety-doctrine sections.
+  - "PROJECT_ATLAS_BIBLE.md"
+  - "PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md"
+  - "PROJECT_ATLAS_COMPONENT_ARCHITECTURE.xlsx"
+  - "CLAUDE.md"
+  - "AGENTS.md"
+  - ".claude/skills/**"
+  - ".agents/**"
+  - "config/safety.yaml"
+
+# File extensions the scanner inspects. Other files are skipped.
+text_extensions:
+  - ".py"
+  - ".ts"
+  - ".tsx"
+  - ".js"
+  - ".jsx"
+  - ".json"
+  - ".yaml"
+  - ".yml"
+  - ".md"
+  - ".html"
+  - ".css"
+  - ".txt"
+  - ".env.example"
+
+# --- Banned content categories ---
+# Each rule has an id, severity, description, and a list of regex patterns
+# (Python re syntax, case-insensitive unless noted).
+
+rules:
+  - id: real_institution_names
+    severity: error
+    description: Real bank or institution names must not appear in public copy.
+    patterns:
+      - "\\b(jpmorgan|jp morgan|chase|citibank|citigroup|wells fargo|bank of america|bofa|hsbc|barclays|santander|deutsche bank|goldman sachs|morgan stanley|capital one|td bank|us bank|pnc|usaa|ally bank|truist|fifth third|key bank|m&t bank)\\b"
+      - "\\b(visa|mastercard|american express|amex|discover|paypal|venmo|zelle|cash app|stripe|square)\\b"
+
+  - id: internal_paths
+    severity: error
+    description: Internal repository, warehouse, or cloud-storage paths.
+    patterns:
+      - "\\bs3://"
+      - "\\bgs://"
+      - "\\babfs://"
+      - "\\bhdfs://"
+      - "\\bgithub\\.[a-z0-9-]+\\.internal\\b"
+      - "\\b[a-z0-9_]+\\.[a-z0-9_]+\\.(?:prod|production)\\b"
+
+  - id: warehouse_table_names
+    severity: error
+    description: Warehouse-style fully-qualified table identifiers.
+    patterns:
+      - "\\b(prod|production|warehouse|edw|dwh)[_.][a-z0-9_]+\\.[a-z0-9_]+\\.[a-z0-9_]+\\b"
+
+  - id: secrets_and_tokens
+    severity: error
+    description: Auth-token-like strings, API keys, or private credentials.
+    patterns:
+      - "\\b(sk-[a-z0-9]{20,})\\b"
+      - "\\b(AKIA[0-9A-Z]{16})\\b"
+      - "\\b(xox[abprs]-[a-z0-9-]{10,})\\b"
+      - "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+      - "\\bbearer\\s+[a-z0-9_\\-\\.]{20,}\\b"
+
+  - id: production_endpoints
+    severity: error
+    description: Production-looking endpoint URLs.
+    patterns:
+      - "https?://[a-z0-9.-]+\\.(prod|production|internal|corp)(/|\\b)"
+      - "https?://api\\.[a-z0-9.-]+\\.(com|net|io)/(v[0-9]+/)?(score|fraud|risk|auth|customers?|accounts?)"
+
+  - id: pii_shaped_strings
+    severity: error
+    description: Strings that look like real PII rather than synthetic IDs.
+    patterns:
+      # SSN-shaped
+      - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      # Credit-card-shaped (16 digits, with or without separators)
+      - "\\b(?:\\d[ -]*?){13,16}\\b"
+      # E.164-style phone numbers
+      - "\\+\\d{1,3}[-. ]?\\(?\\d{2,4}\\)?[-. ]?\\d{3,4}[-. ]?\\d{3,4}\\b"
+
+  - id: unsafe_redteam_phrasing
+    severity: error
+    description: Operational fraud, phishing, MFA bypass, or money-movement guidance.
+    patterns:
+      - "\\bhow to (?:phish|bypass|evade|defeat) [a-z ]*(?:mfa|2fa|otp|authentication|controls?)\\b"
+      - "\\b(?:phishing|smishing|vishing) (?:kit|template|script|page)\\b"
+      - "\\bcredential (?:theft|harvesting|stuffing) (?:steps|guide|playbook)\\b"
+      - "\\bsim[- ]?swap (?:steps|guide|playbook|attack)\\b"
+      - "\\bsocial engineering (?:script|playbook|template)\\b"
+      - "\\b(?:mule|cash[- ]?out) (?:network|guide|playbook|steps)\\b"
+      - "\\baccount takeover (?:steps|guide|playbook|tutorial)\\b"
+      - "\\bmoney movement (?:abuse|guide|playbook|steps)\\b"
+
+  - id: legacy_terminology_in_public_copy
+    severity: warning
+    description: >-
+      Legacy terms in public-facing copy. Allowed only inside terminology maps
+      and safety filters; warning by default so docstrings and comments can
+      explain what not to use.
+    patterns:
+      - "\\bblind spot\\b"
+      - "\\bevasion rate\\b"
+      - "\\bfraud playbook\\b"
+
+# Synthetic-id naming guard. Anything that *should* look like an entity ID in
+# fixtures or generated data must match one of these prefixes.
+synthetic_id_prefixes:
+  - cust_
+  - acct_
+  - dev_
+  - recipient_
+  - extacct_
+  - evt_
+  - cand_
+  - mv_
+  - fix_
+  - judge_
+  - run_
+  - round_
+
+# Files that the scanner must always inspect even if extensions vary.
+must_scan_files:
+  - README.md
+  - project_atlas_sample_data.json
+  - project_atlas_openapi.yaml

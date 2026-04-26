@@ -1,0 +1,31 @@
+# config/demo.yaml
+# Demo-mode configuration. See PROJECT_ATLAS_BIBLE.md §7.
+# Public mode is the default; all user-facing labels read from this file.
+
+demo_mode: public
+
+institution_label: RetailBank-X
+model_label: Mock Account-Takeover Risk Scorer
+disclaimer: >-
+  Synthetic closed-loop demo. No real customers, no real controls,
+  no production endpoints.
+
+ui:
+  show_internal_funding_panel: false
+  show_model_tier_comparison: true
+  use_abstract_icons_only: true
+  human_photos_allowed: false
+
+api:
+  host: 127.0.0.1
+  port: 8000
+  base_url: http://127.0.0.1:8000
+
+reproducibility:
+  default_seed: 42
+
+# Model-tier display labels for the public app. Concrete model names live in
+# config/model_quality_matrix.yaml and are only revealed for private demos.
+model_tier_labels:
+  frontier: Frontier
+  compact: Compact
