@@ -7,6 +7,7 @@
       "Read(./secrets/**)",
       "Read(./data/synthetic/holdouts/locked/**)",
       "Read(./data/synthetic/holdouts/drifted/labels/**)",
+      "Read(./AGENTS.md)",
       "Bash(* .env)",
       "Bash(* .env.*)",
       "Bash(* ./.env)",

@@ -17,6 +17,9 @@ Read the relevant canonical file before major changes:
 - `project_atlas_openapi.yaml` — local-only FastAPI schema.
 - `PROJECT_ATLAS_COMPONENT_ARCHITECTURE.xlsx` — spreadsheet version of the component architecture.
 
+# Dont read AGENTS.MD
+AGENTS.md` is the OpenAI Codex instruction manifest. Do not read, summarize, or reference `AGENTS.md` during normal Claude Code work.
+
 ## Public terminology standard
 Use `.claude/skills/atlas-terminology/SKILL.md` for the detailed terminology map. In always-loaded context, preserve the core public terms: `model_vulnerability`, `defensive_fix`, `action_rate_limit`, `scoring_query_limit`, `decision_threshold`, `model_miss_rate`, `red_team_test`, `synthetic_search`, and `under_ranked_cohort`. Legacy terms may appear only in safety filters or terminology maps.
 

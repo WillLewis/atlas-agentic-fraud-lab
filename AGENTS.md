@@ -1,6 +1,13 @@
 # AGENTS.md
 Persistent Codex instructions for **Project Atlas**.
 
+## Agent-file routing
+- This file is the OpenAI Codex instruction manifest for Project Atlas.
+- Codex reads `AGENTS.md` automatically; use this file as Codex's primary always-loaded context.
+- `CLAUDE.md` is the Claude Code instruction manifest and shared cross-agent contract.
+- Codex should read `CLAUDE.md` only for major work, architecture or safety changes, cross-agent handoffs, or when the user explicitly asks for Claude/Codex alignment.
+- Claude Code should use `CLAUDE.md` and should not read, summarize, or reference this file during normal work.
+
 ## Project identity
 - Project name: **Project Atlas**
 - Project folder: `atlas-agentic-fraud-lab`
@@ -11,6 +18,7 @@ Persistent Codex instructions for **Project Atlas**.
 
 ## Canonical files
 Read the relevant canonical file before major changes:
+- `CLAUDE.md` — Claude Code instructions and shared cross-agent contract; Codex reads it only when the task needs Claude/Codex alignment or touches shared architecture/safety rules.
 - `PROJECT_ATLAS_BIBLE.md` — product, safety, architecture, and build plan.
 - `PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md` — file-by-file architecture, synthetic data model, and API summary.
 - `project_atlas_sample_data.json` — public-safe sample entities, events, features, labels, model vulnerability cards, defensive fix candidates, judge reports, and ledger records.
@@ -36,15 +44,17 @@ Use `.Codex/skills/atlas-terminology/SKILL.md` for the detailed terminology map.
 ## First actions each session
 1. Inspect repo state: `pwd`, `git status`, and relevant directory listings.
 2. Read this file.
-3. For major work, read `PROJECT_ATLAS_BIBLE.md`.
-4. For file-level work, read `PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md`.
-5. For API work, read `project_atlas_openapi.yaml`.
-6. For fixture or replay work, inspect `project_atlas_sample_data.json`.
-7. Produce a short plan before edits, build the smallest coherent vertical slice, then run targeted tests and safety checks.
+3. For major, safety-sensitive, architecture, or cross-agent work, read `CLAUDE.md` before other project references.
+4. For major work, read `PROJECT_ATLAS_BIBLE.md`.
+5. For file-level work, read `PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md`.
+6. For API work, read `project_atlas_openapi.yaml`.
+7. For fixture or replay work, inspect `project_atlas_sample_data.json`.
+8. Produce a short plan before edits, build the smallest coherent vertical slice, then run targeted tests and safety checks.
 
 ## Required repo structure
 ```text
 atlas-agentic-fraud-lab/
+  CLAUDE.md
   AGENTS.md
   PROJECT_ATLAS_BIBLE.md
   PROJECT_ATLAS_COMPONENT_ARCHITECTURE_DATA_API.md
