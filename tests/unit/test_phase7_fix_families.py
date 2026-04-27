@@ -355,6 +355,23 @@ def test_apply_feature_fix_persists_pipeline_with_transformer(outputs):
 
 
 @pytest.mark.slow
+def test_apply_feature_fix_does_not_emit_convergence_warning(outputs):
+    """Phase 7 ``feature_fix`` candidates retrain via the Phase 4
+    trainer with ``pre_model_step`` + ``StandardScaler``. The combo
+    must converge cleanly — ``make run-rounds`` re-runs this path 3×.
+    """
+    import warnings
+
+    from sklearn.exceptions import ConvergenceWarning
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", ConvergenceWarning)
+        apply_feature_fix(
+            _feature_manifest(), outputs_root=outputs, data_dir=DATA_DIR,
+        )
+
+
+@pytest.mark.slow
 def test_apply_feature_fix_score_path_works_with_unmodified_feature_vector(outputs):
     """The score path takes a 17-field FeatureVector dict (unchanged)
     and produces a score. The transform is applied internally by the

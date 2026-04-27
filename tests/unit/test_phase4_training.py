@@ -145,6 +145,39 @@ def test_score_outputs_in_unit_interval(trained_baseline_dir):
     assert 0.0 <= s <= 1.0
 
 
+def test_train_baseline_does_not_emit_convergence_warning(tmp_path: Path):
+    """Phase 4 trainer must converge cleanly. The Phase 10 hardening
+    (``StandardScaler`` + raised ``max_iter``) eliminates the lbfgs
+    ``ConvergenceWarning`` that the unscaled 15-feature matrix used to
+    trigger; this test pins that invariant by treating the warning as
+    an error.
+    """
+    import warnings
+
+    from sklearn.exceptions import ConvergenceWarning
+
+    out = tmp_path / "baseline"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", ConvergenceWarning)
+        train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+
+
+def test_train_baseline_persists_pipeline_with_standardize_step(tmp_path: Path):
+    """The persisted artifact is now always a sklearn ``Pipeline`` with
+    a ``standardize`` step. Pins the contract for Phase 7 candidate
+    paths that need to inspect ``named_steps``.
+    """
+    import joblib
+    from sklearn.pipeline import Pipeline
+
+    out = tmp_path / "baseline"
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    pipeline = joblib.load(out / "model.joblib")
+    assert isinstance(pipeline, Pipeline)
+    assert "standardize" in pipeline.named_steps
+    assert "model" in pipeline.named_steps
+
+
 def test_score_determinism(trained_baseline_dir):
     bundle = load_baseline_bundle(trained_baseline_dir)
     fv = {

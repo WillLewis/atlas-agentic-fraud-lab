@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any
 
 import joblib
-from sklearn.linear_model import LogisticRegression
 
 from atlas.model.calibration import apply_calibrator
 from atlas.model.loader import (
@@ -37,9 +36,17 @@ from atlas.synthetic.features import FeatureVector
 
 @dataclass(frozen=True)
 class BaselineModelBundle:
-    """Loaded baseline model + calibration + ordered feature columns."""
+    """Loaded estimator + calibration + ordered feature columns.
 
-    base_model: LogisticRegression
+    ``base_model`` is a sklearn ``Pipeline`` (``StandardScaler`` +
+    ``LogisticRegression``, optionally preceded by a Phase 7
+    feature-fix transformer named ``pre_model_step``). The scorer +
+    calibrator only require ``predict_proba``; ``Pipeline`` forwards
+    that to its terminal step transparently, so this field is typed
+    ``Any`` rather than the concrete estimator class.
+    """
+
+    base_model: Any
     calibration: dict[str, Any]
     feature_columns: tuple[str, ...]
     model_version: str

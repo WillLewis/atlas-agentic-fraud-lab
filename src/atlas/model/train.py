@@ -4,7 +4,13 @@ Fits a deterministic logistic baseline on the ``train`` partition,
 calibrates score distribution on ``validation``, and persists four
 artifacts under ``outputs/baseline_models/baseline_v1/``:
 
-  * ``model.joblib``           — pickled sklearn estimator
+  * ``model.joblib``           — pickled sklearn ``Pipeline`` (always
+                                 includes a ``StandardScaler`` step
+                                 before the ``LogisticRegression`` so
+                                 lbfgs converges on mixed-scale inputs;
+                                 may also include a leading
+                                 ``pre_model_step`` for Phase 7
+                                 feature-fix candidates)
   * ``calibration.json``       — Platt slope + intercept
   * ``feature_columns.json``   — ordered feature column list
   * ``baseline_summary.json``  — read-only metadata for Phase 9 web app
@@ -13,8 +19,10 @@ Phase 4 invariants enforced here:
   * ``train_baseline_model`` calls only the loader's
     ``load_train_labeled_features`` / ``load_validation_labeled_features``
     entry points. The loader refuses holdout partitions outright.
-  * ``random_state=42`` and ``max_iter=1000`` pin the L-BFGS solver so
-    the same training data produces byte-identical coefficients.
+  * ``random_state=42`` and a high ``max_iter`` pin the L-BFGS solver
+    so the same training data produces byte-identical coefficients.
+    ``StandardScaler`` is parameter-free and deterministic, so the
+    full pipeline stays byte-stable across runs.
   * No Phase 5 judge metrics computed here. The summary contains only
     identity, fit / cal counts, and label distributions.
 """
@@ -29,6 +37,7 @@ import numpy as np
 import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from atlas.model.calibration import fit_calibrator
 from atlas.model.loader import (
@@ -47,7 +56,12 @@ from atlas.model.loader import (
 # ---------------------------------------------------------------------------
 
 DEFAULT_TRAIN_SEED: int = 42
-_BASE_MAX_ITER: int = 1000
+# Raised from 1000 to 5000: lbfgs converges far below this floor on the
+# standardized matrix, but the high cap leaves headroom for Phase 7
+# feature-fix candidates whose ``pre_model_step`` reshapes one or two
+# columns before standardization (e.g. ``boost_graph_risk`` doubles
+# ``entity_graph_risk_score``).
+_BASE_MAX_ITER: int = 5000
 _BASE_C: float = 1.0
 _BASE_SOLVER: str = "lbfgs"
 
@@ -148,11 +162,19 @@ def train_baseline_model(
         to surface alternate L2 strengths.
       * ``pre_model_step`` — optional sklearn-compatible transformer
         prepended to the model. When provided, the persisted artifact
-        is a ``Pipeline([("pre_model", pre_model_step), ("model",
+        is a ``Pipeline([("pre_model_step", pre_model_step),
+        ("standardize", StandardScaler()), ("model",
         LogisticRegression)])`` so the SAME transform runs at fit and
         predict time. Used by the feature-fix family to bake a closed-
         enum training-data transform into the candidate artifact while
         preserving the public ``/score`` ``FeatureVector`` shape.
+
+    The persisted artifact is always a ``Pipeline``. When
+    ``pre_model_step`` is omitted the pipeline is
+    ``Pipeline([("standardize", StandardScaler()), ("model",
+    LogisticRegression)])``. The scorer / calibrator only require an
+    estimator with ``predict_proba``; ``Pipeline`` forwards that to
+    its terminal step transparently.
     """
     train_data = load_train_labeled_features(data_dir)
     val_data = load_validation_labeled_features(data_dir)
@@ -171,14 +193,19 @@ def train_baseline_model(
         random_state=seed,
         max_iter=_BASE_MAX_ITER,
     )
+    # Always-Pipeline: the StandardScaler step normalizes the
+    # mixed-scale 15-feature matrix (counts vs ratios vs tenure-days
+    # vs graph scores) so lbfgs converges. Phase 7 feature-fix
+    # candidates put their custom transform first, then standardize,
+    # then the model — so the closed-enum spec runs on raw inputs at
+    # both fit and predict time, while the standardizer keeps lbfgs
+    # well-conditioned on whatever the spec produces.
+    steps: list[tuple[str, object]] = []
     if pre_model_step is not None:
-        # Pipeline applies pre_model_step.transform(X) at both fit AND
-        # predict time, so the public /score path stays consistent.
-        base = Pipeline(
-            [("pre_model_step", pre_model_step), ("model", inner_model)]
-        )
-    else:
-        base = inner_model
+        steps.append(("pre_model_step", pre_model_step))
+    steps.append(("standardize", StandardScaler()))
+    steps.append(("model", inner_model))
+    base = Pipeline(steps)
     base.fit(x_train, y_train)
 
     # --- Calibrate on VALIDATION only ---

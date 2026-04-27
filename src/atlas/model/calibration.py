@@ -17,6 +17,7 @@ Phase 4 invariants:
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -31,14 +32,18 @@ _PLATT_C: float = 1.0
 
 
 def fit_calibrator(
-    base_model: LogisticRegression,
+    base_model: Any,
     validation: list[LabeledFeature],
     feature_columns: tuple[str, ...],
 ) -> dict:
     """Fit a Platt sigmoid mapping on the validation partition's raw scores.
 
     Args:
-        base_model: The trained baseline (already fit on the train partition).
+        base_model: The trained baseline. Phase 4 onward this is a
+            sklearn ``Pipeline`` (``StandardScaler`` +
+            ``LogisticRegression``, optionally preceded by a Phase 7
+            feature-fix transformer); we only require an estimator
+            with ``predict_proba``.
         validation: ``LabeledFeature`` records from
             ``load_validation_labeled_features``.
         feature_columns: The exact ordered column tuple from the loader.
