@@ -1,5 +1,5 @@
-"""Local MCP wrapper over the Phase 4 + Phase 6 + Phase 7 + Phase 9
-FastAPI service.
+"""Local MCP wrapper over the Phase 4 + Phase 6 + Phase 7 + Phase 9 +
+Phase 10 FastAPI service.
 
 Thin local wrapper that exposes the implemented routes as callable
 functions over ``ATLAS_API_BASE_URL`` (set in ``.mcp.json``).
@@ -11,14 +11,16 @@ Surface:
   * Phase 7 — ``propose_defensive_fixes``, ``apply_defensive_fix``.
   * Phase 9 — ``create_run``, ``list_runs``, ``get_run_detail``,
               ``run_rounds``, ``get_replay_payload``.
+  * Phase 10 — ``run_safety_scan``, ``get_model_quality_matrix``.
 
 A proper MCP-protocol server can wrap these functions in a future phase
 without changing the underlying calls.
 
 The wrapper does NOT add any new business logic — it forwards to the
 local FastAPI service, which is the only authoritative path for scoring,
-metadata, red-team search, defensive-fix proposal/apply, and the Phase 9
-run/round/replay surface.
+metadata, red-team search, defensive-fix proposal/apply, the Phase 9
+run/round/replay surface, and the Phase 10 safety + model-quality
+surfaces.
 """
 
 from __future__ import annotations
@@ -239,6 +241,47 @@ def get_replay_payload(run_id: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Phase 10 — safety + model-quality
+# ---------------------------------------------------------------------------
+
+
+def run_safety_scan(
+    demo_mode: str = "public",
+    text: str | None = None,
+    file_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Scan ``text`` or ``file_paths`` (or ``default_paths`` when both
+    are omitted) against the public-mode rules in
+    ``config/safety.yaml``. Returns ``{passed, findings,
+    recommended_rewrites}``.
+
+    Deterministic: same input → same response. Rewrite suggestions
+    come from a closed-enum template registry keyed on rule_id; no
+    LLM rewriting path exists.
+    """
+    payload: dict[str, Any] = {"demo_mode": demo_mode}
+    if text is not None:
+        payload["text"] = text
+    if file_paths is not None:
+        payload["file_paths"] = file_paths
+    with _client() as client:
+        r = client.post("/safety/scan", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+def get_model_quality_matrix() -> dict[str, Any]:
+    """Fetch the public-safe model-tier comparison matrix projected
+    from ``config/model_quality_matrix.yaml``. Per-cell metric values
+    are placeholders (Phase 13 fills measured values).
+    """
+    with _client() as client:
+        r = client.get("/model-quality-matrix")
+        r.raise_for_status()
+        return r.json()
+
+
+# ---------------------------------------------------------------------------
 # Tool registry — printed by main() so callers can introspect the surface
 # ---------------------------------------------------------------------------
 
@@ -319,6 +362,22 @@ TOOLS: dict[str, dict[str, str]] = {
             "five_step_story + charts.round_metrics) for a run."
         ),
         "method": "GET /replay/{run_id}",
+    },
+    "run_safety_scan": {
+        "description": (
+            "Scan text or file_paths against the public-mode rules in "
+            "config/safety.yaml. Returns passed + findings + "
+            "deterministic recommended_rewrites."
+        ),
+        "method": "POST /safety/scan",
+    },
+    "get_model_quality_matrix": {
+        "description": (
+            "Fetch the public-safe model-tier comparison matrix. "
+            "Per-cell metric values are placeholders; Phase 13 fills "
+            "measured values from live comparison runs."
+        ),
+        "method": "GET /model-quality-matrix",
     },
 }
 

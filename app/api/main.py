@@ -23,7 +23,7 @@ Phase 7 surface:
   POST /defensive-fixes/propose
   POST /defensive-fixes/apply
 
-Phase 9 surface (component 1 stubs — bodies land in components 3–4):
+Phase 9 surface:
 
   POST /runs
   GET  /runs
@@ -34,6 +34,11 @@ Phase 9 surface (component 1 stubs — bodies land in components 3–4):
   GET  /runs/{run_id}/model-vulnerabilities
   GET  /runs/{run_id}/judge-reports/{judge_report_id}
   GET  /replay/{run_id}
+
+Phase 10 surface:
+
+  POST /safety/scan
+  GET  /model-quality-matrix
 
 The service binds to ``127.0.0.1:8000`` by default (``Makefile``
 ``demo-api`` target). Local-only by design.
@@ -55,11 +60,13 @@ from app.api.routes.config import router as config_router  # noqa: E402
 from app.api.routes.decision_thresholds import router as decision_thresholds_router  # noqa: E402
 from app.api.routes.defensive_fixes import router as defensive_fixes_router  # noqa: E402
 from app.api.routes.judge import router as judge_router  # noqa: E402
+from app.api.routes.model_quality import router as model_quality_router  # noqa: E402
 from app.api.routes.model_vulnerabilities import router as model_vulnerabilities_router  # noqa: E402
 from app.api.routes.red_team import router as red_team_router  # noqa: E402
 from app.api.routes.replay import router as replay_router  # noqa: E402
 from app.api.routes.rounds import router as rounds_router  # noqa: E402
 from app.api.routes.runs import router as runs_router  # noqa: E402
+from app.api.routes.safety import router as safety_router  # noqa: E402
 from app.api.routes.schema import router as schema_router  # noqa: E402
 from app.api.routes.scoring import router as scoring_router  # noqa: E402
 from app.api.routes.synthetic import router as synthetic_router  # noqa: E402
@@ -68,10 +75,11 @@ app = FastAPI(
     title="Project Atlas — local API",
     description=(
         "Synthetic, public-safe local-only FastAPI service. "
-        "Phase 4–9 surface: metadata, scoring, judge, red-team search, "
-        "defensive-fix lifecycle, runs/rounds/replay."
+        "Phase 4–10 surface: metadata, scoring, judge, red-team search, "
+        "defensive-fix lifecycle, runs/rounds/replay, safety scan, "
+        "model-quality matrix."
     ),
-    version="0.9.0",
+    version="0.10.0",
 )
 
 
@@ -92,3 +100,5 @@ app.include_router(runs_router)
 app.include_router(rounds_router)
 app.include_router(model_vulnerabilities_router)
 app.include_router(replay_router)
+app.include_router(safety_router)
+app.include_router(model_quality_router)

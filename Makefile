@@ -16,11 +16,12 @@ API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
 
 .PHONY: help setup setup-python setup-web seed train run-rounds build-replay \
-        test safety-scan demo-api demo-web clean
+        bootstrap test safety-scan demo-api demo-web clean
 
 help:
 	@echo "Project Atlas commands:"
 	@echo "  make setup         install Python and Node dependencies"
+	@echo "  make bootstrap     one-command reviewer prep (seed -> train -> run-rounds -> build-replay -> safety-scan)"
 	@echo "  make seed          generate synthetic data (Phase 2)"
 	@echo "  make train         train baseline mock scorer (Phase 4)"
 	@echo "  make run-rounds    run three red-team/defense rounds (Phase 8)"
@@ -59,6 +60,9 @@ build-replay:
 	fi; \
 	RUN_ID=$$(basename $$(ls -t outputs/runs/*.json | head -1) .json); \
 	PYTHONPATH=src $(PYTHON) scripts/build_replay.py --outputs-root outputs --run-id $$RUN_ID
+
+bootstrap:
+	PYTHONPATH=src $(PYTHON) scripts/bootstrap_demo.py
 
 test:
 	@if [ -d tests ] && find tests -name 'test_*.py' -o -name '*_test.py' | grep -q .; then \
