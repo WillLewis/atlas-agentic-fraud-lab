@@ -36,7 +36,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-atlas-ink text-atlas-text antialiased">
+      {/* ``suppressHydrationWarning`` covers attributes injected by
+          browser extensions (e.g. ColorZilla's ``cz-shortcut-listen``,
+          dark-mode helpers) before React hydrates. Per Next.js docs at
+          https://nextjs.org/docs/messages/react-hydration-error this is
+          the recommended escape for body-level extension noise. The
+          flag is scoped to ``<body>`` so genuine hydration mismatches
+          inside the page tree still surface. */}
+      <body
+        className="min-h-screen bg-atlas-ink text-atlas-text antialiased"
+        suppressHydrationWarning
+      >
         {/* Persistent disclaimer banner slot.
             Banner content lives in <DisclaimerBanner />; this wrapper owns
             the sticky positioning so the rest of layout doesn't have to know
