@@ -189,12 +189,45 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
     )
     monkeypatch.setattr(defensive_fixes_mod, "OUTPUTS_ROOT", outputs_root)
     monkeypatch.setattr(red_team_mod, "OUTPUTS_ROOT", outputs_root)
+
+    # Phase 9 routes (component 3+4) — point at the hermetic outputs tree
+    # so tests don't touch the real ``outputs/`` directory.
+    import app.api.routes.model_vulnerabilities as mv_mod  # noqa: E402
+    import app.api.routes.replay as replay_mod  # noqa: E402
+    import app.api.routes.rounds as rounds_mod  # noqa: E402
+    import app.api.routes.runs as runs_mod  # noqa: E402
+
+    monkeypatch.setattr(runs_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(rounds_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(replay_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(mv_mod, "OUTPUTS_ROOT", outputs_root)
+
+    # ``trained_baseline_dir`` is session-scoped, so the same
+    # ``outputs_root`` is shared across tests. Phase 4–7 tests don't
+    # touch the Phase 9 subdirs, but POST /runs / POST /rounds/run
+    # would otherwise leak persisted run/round/ledger files into later
+    # tests' views. Clear them before yielding (and after, for tidiness).
+    def _clear_phase9_dirs() -> None:
+        for sub in (
+            "runs",
+            "ledgers",
+            "demo_replays",
+            "model_vulnerabilities",
+            "defensive_fixes",
+            "reports",
+        ):
+            d = outputs_root / sub
+            if d.exists():
+                shutil.rmtree(d)
+
+    _clear_phase9_dirs()
     reset_scoring_caches()
     reset_judge_caches()
     reset_red_team_caches()
     reset_defensive_fixes_caches()
     with TestClient(app) as client:
         yield client
+    _clear_phase9_dirs()
     reset_scoring_caches()
     reset_judge_caches()
     reset_red_team_caches()

@@ -39,6 +39,14 @@ REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 DEFAULT_OUTPUTS_ROOT: Final[Path] = REPO_ROOT / "outputs"
 RUNS_SUBDIR: Final[str] = "runs"
 LEDGERS_SUBDIR: Final[str] = "ledgers"
+# Phase 9 read helpers reuse these subdir names — kept here as the
+# single source. The Phase 6/7 writers under
+# ``atlas.red_team.model_vulnerability_packager`` /
+# ``atlas.blue_team.manifest`` / ``atlas.blue_team.fix_applier`` continue
+# to own writes; ledger read helpers only consume.
+MODEL_VULNERABILITIES_SUBDIR: Final[str] = "model_vulnerabilities"
+DEFENSIVE_FIXES_SUBDIR: Final[str] = "defensive_fixes"
+REPORTS_SUBDIR: Final[str] = "reports"
 
 DEFAULT_BASELINE_MODEL_VERSION: Final[str] = "baseline_v1"
 DEFAULT_BASELINE_THRESHOLD_VERSION: Final[str] = "thresholds_v1"
@@ -64,6 +72,11 @@ class MissingRunError(FileNotFoundError):
 class MissingLedgerError(FileNotFoundError):
     """``outputs/ledgers/<run_id>.jsonl`` is absent — surface as
     503 / "run ``make run-rounds`` first"."""
+
+
+class MissingJudgeReportError(FileNotFoundError):
+    """``outputs/reports/<judge_report_id>.json`` is absent — surface as
+    404 in Phase 9 route handlers."""
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +164,18 @@ def runs_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
 
 def ledgers_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
     return outputs_root / LEDGERS_SUBDIR
+
+
+def model_vulnerabilities_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
+    return outputs_root / MODEL_VULNERABILITIES_SUBDIR
+
+
+def defensive_fixes_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
+    return outputs_root / DEFENSIVE_FIXES_SUBDIR
+
+
+def reports_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
+    return outputs_root / REPORTS_SUBDIR
 
 
 # ---------------------------------------------------------------------------
@@ -329,29 +354,167 @@ def load_ledger_records(
     return out
 
 
+# ---------------------------------------------------------------------------
+# Phase 9 read helpers — list runs + bulk-load round states + per-run
+# vulnerability/fix records + single judge reports. All operate on the
+# persisted artifacts from Phase 6/7/8; no business logic lives here.
+# ---------------------------------------------------------------------------
+
+
+_ROUND_STEM_SUFFIX = ".round_"
+
+
+def list_run_states(
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> list[RunState]:
+    """Walk ``outputs/runs/`` and load every ``RunState`` file.
+
+    Filters out the per-round companion files (``<run_id>.round_NN.json``)
+    so only the run-level snapshots are returned. Returns an empty list
+    when the directory is missing or empty (no error).
+
+    Order: alphabetical by ``run_id`` for stable test output.
+    """
+    rdir = runs_dir(outputs_root)
+    if not rdir.exists():
+        return []
+    out: list[RunState] = []
+    for path in sorted(rdir.glob("*.json")):
+        # Skip per-round companion files (run_xxx.round_01.json).
+        if _ROUND_STEM_SUFFIX in path.stem:
+            continue
+        with path.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        try:
+            out.append(RunState(**raw))
+        except TypeError:
+            # Unexpected JSON (e.g. partial write); skip rather than
+            # blowing up the listing route.
+            continue
+    return out
+
+
+def load_round_states(
+    run_id: str, outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> list[RoundState]:
+    """Load every persisted ``RoundState`` for a run, ordered by
+    ``round_id`` ascending.
+
+    Returns ``[]`` when no round-state companions exist yet (e.g. a
+    freshly-created run). Does not raise — callers compose with
+    ``load_run_state`` to detect missing runs.
+    """
+    rdir = runs_dir(outputs_root)
+    if not rdir.exists():
+        return []
+    pattern = f"{run_id}{_ROUND_STEM_SUFFIX}*.json"
+    out: list[RoundState] = []
+    for path in sorted(rdir.glob(pattern)):
+        with path.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        out.append(RoundState(**raw))
+    out.sort(key=lambda rs: rs.round_id)
+    return out
+
+
+def load_judge_report(
+    judge_report_id: str, outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> dict[str, Any]:
+    """Load one persisted judge report by id.
+
+    Raises ``MissingJudgeReportError`` if absent so route handlers can
+    map the absence uniformly to HTTP 404.
+    """
+    path = reports_dir(outputs_root) / f"{judge_report_id}.json"
+    if not path.exists():
+        raise MissingJudgeReportError(
+            f"judge report not found at {path}. "
+            "Run `make run-rounds` first."
+        )
+    with path.open("r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def load_run_model_vulnerability_records(
+    run_id: str, outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> list[dict[str, Any]]:
+    """Load all model-vulnerability records belonging to ``run_id``.
+
+    Filters ``outputs/model_vulnerabilities/*.json`` by the in-record
+    ``run_id`` field. Returns ``[]`` when the directory is missing or
+    contains no matching records.
+
+    Order: alphabetical by file name (deterministic across machines).
+    """
+    mdir = model_vulnerabilities_dir(outputs_root)
+    if not mdir.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for path in sorted(mdir.glob("*.json")):
+        with path.open("r", encoding="utf-8") as fh:
+            record = json.load(fh)
+        if record.get("run_id") == run_id:
+            out.append(record)
+    return out
+
+
+def load_run_defensive_fix_manifests(
+    run_id: str, outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> list[dict[str, Any]]:
+    """Load all defensive-fix manifests belonging to ``run_id``.
+
+    Filters ``outputs/defensive_fixes/*.json`` by the in-record
+    ``run_id`` field. Returns ``[]`` when the directory is missing or
+    contains no matching records. Used by ``RoundDetail`` projection in
+    Phase 9 component 3 alongside the vulnerability + judge readers.
+    """
+    fdir = defensive_fixes_dir(outputs_root)
+    if not fdir.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for path in sorted(fdir.glob("*.json")):
+        with path.open("r", encoding="utf-8") as fh:
+            record = json.load(fh)
+        if record.get("run_id") == run_id:
+            out.append(record)
+    return out
+
+
 __all__ = [
     "DEFAULT_AGENT_ROSTER_VERSION",
     "DEFAULT_BASELINE_MODEL_VERSION",
     "DEFAULT_BASELINE_THRESHOLD_VERSION",
     "DEFAULT_OUTPUTS_ROOT",
+    "DEFENSIVE_FIXES_SUBDIR",
     "LEDGERS_SUBDIR",
     "LedgerRecord",
+    "MODEL_VULNERABILITIES_SUBDIR",
+    "MissingJudgeReportError",
     "MissingLedgerError",
     "MissingRunError",
+    "REPORTS_SUBDIR",
     "ROUND_STATUSES",
     "RUNS_SUBDIR",
     "RUN_STATUSES",
     "RoundState",
     "RunState",
     "append_ledger_record",
+    "defensive_fixes_dir",
     "ledgers_dir",
+    "list_run_states",
+    "load_judge_report",
     "load_ledger_records",
     "load_round_state",
+    "load_round_states",
+    "load_run_defensive_fix_manifests",
+    "load_run_model_vulnerability_records",
     "load_run_state",
     "make_run_id",
+    "model_vulnerabilities_dir",
     "persist_round_state",
     "persist_run_state",
     "read_dataset_reference_now_utc",
+    "reports_dir",
     "round_state_path",
     "runs_dir",
 ]

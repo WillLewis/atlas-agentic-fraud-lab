@@ -1,6 +1,8 @@
 // app/web/components/charts/FrictionChart.tsx
 // Customer-friction rates across rounds: challenge, alert, decline.
 //
+// Phase 9: pure function of `metrics`.
+//
 // All three series are plotted on the same percentage y-axis. Decline rate
 // renders very small relative to challenge / alert — that visual flatness
 // is the point: the safety story is that defensive fixes do not push
@@ -8,17 +10,19 @@
 // The aria_label and the per-series tooltips make this readable for
 // screen-reader users.
 
-import { getRoundMetrics } from "../../lib/fixtures";
 import { formatRate } from "../../lib/formatters";
+import type { MetricSnapshot } from "../../lib/types";
 import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
-export function FrictionChart() {
-  const snapshots = getRoundMetrics();
+interface FrictionChartProps {
+  metrics: MetricSnapshot[];
+}
 
+export function FrictionChart({ metrics }: FrictionChartProps) {
   const challenge: LinePlotSeries = {
     name: "Challenge rate",
     color_token: "accent",
-    points: snapshots.map((s) => ({
+    points: metrics.map((s) => ({
       x_label: s.round_label,
       value: s.challenge_rate,
       is_anchor: s.kind !== "interpolated"
@@ -28,7 +32,7 @@ export function FrictionChart() {
   const alert: LinePlotSeries = {
     name: "Alert rate",
     color_token: "warn",
-    points: snapshots.map((s) => ({
+    points: metrics.map((s) => ({
       x_label: s.round_label,
       value: s.alert_rate,
       is_anchor: s.kind !== "interpolated"
@@ -38,7 +42,7 @@ export function FrictionChart() {
   const decline: LinePlotSeries = {
     name: "Decline rate",
     color_token: "danger",
-    points: snapshots.map((s) => ({
+    points: metrics.map((s) => ({
       x_label: s.round_label,
       value: s.decline_rate,
       is_anchor: s.kind !== "interpolated"
@@ -52,7 +56,7 @@ export function FrictionChart() {
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
       show_legend
-      aria_label="Customer-friction rates across baseline and three rounds: challenge, alert, and decline. All series stay below the configured action-rate limits."
+      aria_label="Customer-friction rates across baseline and synthetic rounds: challenge, alert, and decline. All series stay below the configured action-rate limits."
     />
   );
 }

@@ -1,23 +1,27 @@
 // app/web/components/charts/RecallRecoveryChart.tsx
 // Recall at fixed action-rate limit, across rounds.
 //
-// Bible §16.3: recall_at_fixed_action_rate is the right metric for "did the
-// fix actually catch more high-risk synthetic events without raising
-// customer friction?" Up is good for this metric. The chart axis label
-// names the fixed-action-rate context so a viewer doesn't read it as a
-// general recall metric.
+// Phase 9: pure function of `metrics`. Up is good for this metric.
+//
+// Bible §16.3: recall_at_fixed_action_rate is the right metric for "did
+// the fix actually catch more high-risk synthetic events without
+// raising customer friction?" The chart axis label names the
+// fixed-action-rate context so a viewer doesn't read it as a general
+// recall metric.
 
-import { getRoundMetrics } from "../../lib/fixtures";
 import { formatRate } from "../../lib/formatters";
+import type { MetricSnapshot } from "../../lib/types";
 import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
-export function RecallRecoveryChart() {
-  const snapshots = getRoundMetrics();
+interface RecallRecoveryChartProps {
+  metrics: MetricSnapshot[];
+}
 
+export function RecallRecoveryChart({ metrics }: RecallRecoveryChartProps) {
   const series: LinePlotSeries = {
     name: "Recall at fixed action-rate limit",
     color_token: "ok",
-    points: snapshots.map((s) => ({
+    points: metrics.map((s) => ({
       x_label: s.round_label,
       value: s.recall_at_fixed_action_rate,
       is_anchor: s.kind !== "interpolated"
@@ -31,7 +35,7 @@ export function RecallRecoveryChart() {
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
       y_max={1}
-      aria_label="Recall at the fixed action-rate limit across baseline and three rounds; higher is better."
+      aria_label="Recall at the fixed action-rate limit across baseline and synthetic rounds; higher is better."
     />
   );
 }

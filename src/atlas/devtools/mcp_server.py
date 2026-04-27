@@ -1,4 +1,5 @@
-"""Local MCP wrapper over the Phase 4 + Phase 6 + Phase 7 FastAPI service.
+"""Local MCP wrapper over the Phase 4 + Phase 6 + Phase 7 + Phase 9
+FastAPI service.
 
 Thin local wrapper that exposes the implemented routes as callable
 functions over ``ATLAS_API_BASE_URL`` (set in ``.mcp.json``).
@@ -8,13 +9,16 @@ Surface:
               ``score_event``, ``batch_score_events``.
   * Phase 6 — ``run_red_team_search``.
   * Phase 7 — ``propose_defensive_fixes``, ``apply_defensive_fix``.
+  * Phase 9 — ``create_run``, ``list_runs``, ``get_run_detail``,
+              ``run_rounds``, ``get_replay_payload``.
 
 A proper MCP-protocol server can wrap these functions in a future phase
 without changing the underlying calls.
 
 The wrapper does NOT add any new business logic — it forwards to the
 local FastAPI service, which is the only authoritative path for scoring,
-metadata, red-team search, and defensive-fix proposal/apply.
+metadata, red-team search, defensive-fix proposal/apply, and the Phase 9
+run/round/replay surface.
 """
 
 from __future__ import annotations
@@ -153,6 +157,88 @@ def apply_defensive_fix(
 
 
 # ---------------------------------------------------------------------------
+# Phase 9 — runs / rounds / replay
+# ---------------------------------------------------------------------------
+
+
+def create_run(
+    seed: int,
+    run_label: str | None = None,
+    demo_mode: str = "public",
+    max_rounds: int = 3,
+) -> dict[str, Any]:
+    """Seed an initial ``RunState`` (status=``created``,
+    current_round=0). Does NOT execute rounds — call ``run_rounds`` next.
+
+    ``run_id`` is deterministic from ``(seed, run_label, demo_mode)``.
+    """
+    payload: dict[str, Any] = {
+        "seed": seed,
+        "demo_mode": demo_mode,
+        "max_rounds": max_rounds,
+    }
+    if run_label is not None:
+        payload["run_label"] = run_label
+    with _client() as client:
+        r = client.post("/runs", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+def list_runs() -> dict[str, Any]:
+    """List all persisted ``RunState`` snapshots from ``outputs/runs/``.
+
+    Returns ``{"runs": []}`` when no runs exist yet.
+    """
+    with _client() as client:
+        r = client.get("/runs")
+        r.raise_for_status()
+        return r.json()
+
+
+def get_run_detail(run_id: str) -> dict[str, Any]:
+    """Fetch ``RunDetail`` — RunSummary + persisted RoundSummaries +
+    ``latest_metrics`` derived from the latest round's judge report.
+    """
+    with _client() as client:
+        r = client.get(f"/runs/{run_id}")
+        r.raise_for_status()
+        return r.json()
+
+
+def run_rounds(
+    run_id: str,
+    start_round: int = 1,
+    round_count: int = 1,
+) -> dict[str, Any]:
+    """Execute one or more rounds against an existing run. Calls
+    ``execute_one_round`` per round and threads carry-forward versions.
+    Returns ``RoundRunResponse`` with the completed RoundSummaries.
+
+    422 when ``start_round + round_count - 1 > run.max_rounds``.
+    """
+    payload: dict[str, Any] = {
+        "run_id": run_id,
+        "start_round": start_round,
+        "round_count": round_count,
+    }
+    with _client() as client:
+        r = client.post("/rounds/run", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+def get_replay_payload(run_id: str) -> dict[str, Any]:
+    """Fetch the public-safe ``ReplayPayload`` envelope (run +
+    five_step_story + charts.round_metrics) for a run. 404 if missing.
+    """
+    with _client() as client:
+        r = client.get(f"/replay/{run_id}")
+        r.raise_for_status()
+        return r.json()
+
+
+# ---------------------------------------------------------------------------
 # Tool registry — printed by main() so callers can introspect the surface
 # ---------------------------------------------------------------------------
 
@@ -197,6 +283,42 @@ TOOLS: dict[str, dict[str, str]] = {
             "applied=false (judge-rejected) with a governance rationale."
         ),
         "method": "POST /defensive-fixes/apply",
+    },
+    "create_run": {
+        "description": (
+            "Seed an initial RunState (status=created, current_round=0). "
+            "Does NOT execute rounds — call run_rounds next. run_id is "
+            "deterministic from (seed, run_label, demo_mode)."
+        ),
+        "method": "POST /runs",
+    },
+    "list_runs": {
+        "description": (
+            "List all persisted RunState snapshots from outputs/runs/."
+        ),
+        "method": "GET /runs",
+    },
+    "get_run_detail": {
+        "description": (
+            "Fetch RunDetail — RunSummary + persisted RoundSummaries + "
+            "latest_metrics derived from the latest round's judge report."
+        ),
+        "method": "GET /runs/{run_id}",
+    },
+    "run_rounds": {
+        "description": (
+            "Execute one or more rounds against an existing run. Calls "
+            "execute_one_round per round and threads carry-forward "
+            "versions. Returns RoundRunResponse."
+        ),
+        "method": "POST /rounds/run",
+    },
+    "get_replay_payload": {
+        "description": (
+            "Fetch the public-safe ReplayPayload envelope (run + "
+            "five_step_story + charts.round_metrics) for a run."
+        ),
+        "method": "GET /replay/{run_id}",
     },
 }
 

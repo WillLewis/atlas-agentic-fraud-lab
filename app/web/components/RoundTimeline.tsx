@@ -1,19 +1,20 @@
 // app/web/components/RoundTimeline.tsx
-// Three-round timeline showing before/after model_miss_rate and
+// Round-by-round timeline showing before/after model_miss_rate and
 // recall_at_fixed_action_rate. Visual only — no interactivity, no replay
-// scrubbing yet. Phase 9 will hook this up to a run selector.
+// scrubbing yet.
 //
-// Each round panel pulls the round's "before" metrics from the prior
-// MetricSnapshot and "after" from its own snapshot:
-//   Round 1: before=snapshots[0] (baseline)        after=snapshots[1]
-//   Round 2: before=snapshots[1]                   after=snapshots[2]
-//   Round 3: before=snapshots[2]                   after=snapshots[3]
+// Phase 9: pure function of `metrics`. The page composes the data
+// source — live replay (component 8) or `getRoundMetrics()` in
+// fixture-mode demos. Each round panel pulls "before" from the prior
+// snapshot and "after" from its own:
+//   Round 1: before=metrics[0] (baseline)         after=metrics[1]
+//   Round 2: before=metrics[1]                    after=metrics[2]
+//   Round 3: before=metrics[2]                    after=metrics[3]
 //
-// Round 1's "after" is the only judge-derived value in the fixture; rounds
-// 2 and 3 are Phase 1 placeholder extrapolations from fixtures.ts. The
-// connector chevrons between rounds are decorative.
+// When live replay carries fewer than 4 snapshots (a partially-completed
+// run), the timeline renders only as many panels as it can derive
+// (snapshots.length - 1). Empty input → empty list, no throw.
 
-import { getRoundMetrics } from "../lib/fixtures";
 import { formatRate } from "../lib/formatters";
 import type { MetricSnapshot } from "../lib/types";
 
@@ -24,19 +25,28 @@ interface TimelineRound {
   after: MetricSnapshot;
 }
 
-export function RoundTimeline() {
-  const snapshots = getRoundMetrics();
-  if (snapshots.length < 4) {
-    throw new Error(
-      "RoundTimeline: getRoundMetrics() returned fewer than 4 snapshots."
-    );
-  }
+interface RoundTimelineProps {
+  metrics: MetricSnapshot[];
+}
 
-  const rounds: TimelineRound[] = [
-    { round_id: 1, label: "Round 1", before: snapshots[0]!, after: snapshots[1]! },
-    { round_id: 2, label: "Round 2", before: snapshots[1]!, after: snapshots[2]! },
-    { round_id: 3, label: "Round 3", before: snapshots[2]!, after: snapshots[3]! }
-  ];
+export function RoundTimeline({ metrics }: RoundTimelineProps) {
+  // Pair each non-baseline snapshot with the prior one. ``rounds[i]``'s
+  // before is ``metrics[i]`` and after is ``metrics[i+1]``. We yield
+  // one panel per round we have a (before, after) pair for; an empty
+  // ``metrics`` array (or one with only a baseline) produces zero
+  // panels and we render an empty list rather than throwing.
+  const rounds: TimelineRound[] = [];
+  for (let i = 0; i + 1 < metrics.length; i += 1) {
+    const before = metrics[i];
+    const after = metrics[i + 1];
+    if (!before || !after) continue;
+    rounds.push({
+      round_id: after.round_id,
+      label: after.round_label,
+      before,
+      after
+    });
+  }
 
   return (
     <ol

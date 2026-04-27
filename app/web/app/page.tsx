@@ -1,45 +1,45 @@
 // app/web/app/page.tsx
-// Phase 1 page composition: sidebar + five narrative sections.
+// Phase 9 component 8 — replay-driven five-section page.
 //
-// Sections 1 (AgentRoster) and 2 (EnvironmentOverview) own their own
-// <section id="…"> wrappers. Sections 3, 4, and 5 are composed inline here
-// because their content is built from existing card and chart components.
+// The page is an async server component. It calls
+// `loadActiveReplay(searchParams)` once and fans out to 0–3 per-round
+// `getRunRoundDetail(...)` fetches in parallel for the rich
+// JudgeDecisionCard + slim vulnerability/fix renderings. Phase 9
+// invariant (a)(5): there is NO silent fixture fallback. When the
+// replay is missing, the page renders a clear local-only empty state
+// with a remediation hint pointing at the right Make target.
 //
-// Phase 1 placeholder behavior: rounds 2 and 3 reuse the single fixture
-// records from project_atlas_sample_data.json (mv_round1_001,
-// fix_round1_graph_risk_feature, judge_round1_fix_graph_risk). A small
-// inline notice on each placeholder section makes the reuse explicit.
-// Phase 8 ledger replay will populate real per-round records and these
-// notices become unnecessary.
+// Sections 1 (AgentRoster) and 2 (EnvironmentOverview) are static and
+// always render (they don't depend on a particular run). Sections 3,
+// 4, 5 are replay-backed.
+//
+// JudgeDecisionCard is reused from Phase 1 — its data shape aligns
+// with the persisted judge report. ModelVulnerabilityCard and
+// DefensiveFixCard are NOT reused on the live path: the persisted
+// records are intentionally slim (Phase 7 manifest TypedDict) and the
+// rich cards expect fields that aren't preserved. Instead, slim
+// inline renderers below project ONLY the fields actually present in
+// the live records — no invented data, no parallel data contract.
 
 import { AgentRoster } from "../components/AgentRoster";
-import { DefensiveFixCard } from "../components/DefensiveFixCard";
 import { EnvironmentOverview } from "../components/EnvironmentOverview";
 import { JudgeDecisionCard } from "../components/JudgeDecisionCard";
 import { LeftSidebar } from "../components/LeftSidebar";
-// Component name shadows the type name; alias the type on import.
-import { ModelVulnerabilityCard } from "../components/ModelVulnerabilityCard";
 import { RoundTimeline } from "../components/RoundTimeline";
+import { RunComparisonMatrix } from "../components/RunComparisonMatrix";
+import { SafeTranscriptPanel } from "../components/SafeTranscriptPanel";
 import { FrictionChart } from "../components/charts/FrictionChart";
 import { MissRateChart } from "../components/charts/MissRateChart";
 import { RecallRecoveryChart } from "../components/charts/RecallRecoveryChart";
 import { SyntheticLossChart } from "../components/charts/SyntheticLossChart";
-import {
-  getDefensiveFixCandidates,
-  getJudgeReports,
-  getLedgerRecords,
-  getModelVulnerabilityCards
-} from "../lib/fixtures";
-import type {
-  DefensiveFixCandidate,
-  JudgeReport,
-  LedgerRecord,
-  ModelVulnerabilityCard as ModelVulnerabilityCardData
-} from "../lib/types";
+import { getRunRoundDetail } from "../lib/api";
+import { getModelQualityMatrix } from "../lib/modelQualityMatrix";
+import { loadActiveReplay } from "../lib/replay";
+import type { ReplayPayload, RoundDetail, RoundSummary } from "../lib/replay";
+import type { JudgeReport, MetricSnapshot } from "../lib/types";
 
 // ---------------------------------------------------------------------------
-// Section narrative — Bible §8 main messages. Eyebrow text matches the
-// sidebar step numbering (Step 1 / 2 / 3 / 4 / 5).
+// Section narrative — Bible §8
 // ---------------------------------------------------------------------------
 
 interface SectionNarrative {
@@ -48,82 +48,122 @@ interface SectionNarrative {
   subtitle: string;
 }
 
-const ROUND_NARRATIVE: Record<"round_1" | "round_2" | "round_3", SectionNarrative> = {
-  round_1: {
+const ROUND_NARRATIVE: Record<1 | 2 | 3, SectionNarrative> = {
+  1: {
     eyebrow: "Step 3",
     title: "Round 1 — Test and Response",
     subtitle:
-      "Red-team agents identify the first synthetic model vulnerability; bank-defense agents propose a fix; the judge checks whether measured improvement is real."
+      "Red-team agents identify the first synthetic model vulnerability; bank-defense agents propose a fix; the deterministic judge checks whether measured improvement is real."
   },
-  round_2: {
+  2: {
     eyebrow: "Step 4",
     title: "Round 2 — Adaptive Pressure",
     subtitle:
-      "The value is not one-time testing; it is repeated adaptation with disciplined measurement."
+      "Red-team agents adapt; bank-defense agents respond; the judge holds the locked adaptive holdout as the gate."
   },
-  round_3: {
+  3: {
     eyebrow: "Step 5",
     title: "Round 3 — Final Report",
     subtitle:
-      "Agentic defense improves resilience only when paired with deterministic evaluation and strict customer-friction limits."
+      "Final round metrics, ledger, and the public-safe model-tier comparison matrix."
   }
 };
 
 // ---------------------------------------------------------------------------
-// Page
+// Page entry
 // ---------------------------------------------------------------------------
 
-export default function HomePage() {
-  const mvCards = getModelVulnerabilityCards();
-  const fixCandidates = getDefensiveFixCandidates();
-  const judgeReports = getJudgeReports();
-  const ledgerRecords = getLedgerRecords();
-
-  const sharedMv = mvCards[0];
-  const sharedFix = fixCandidates[0];
-  const sharedJudge = judgeReports[0];
-  const sharedLedger = ledgerRecords[0];
-  if (!sharedMv || !sharedFix || !sharedJudge || !sharedLedger) {
-    throw new Error(
-      "page.tsx: project_atlas_sample_data.json is missing one or more required fixture records."
-    );
-  }
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const result = await loadActiveReplay(params);
+  const matrix = getModelQualityMatrix();
 
   return (
     <div className="flex">
       <LeftSidebar />
       <main className="min-w-0 flex-1">
-        {/* Section 1 + Section 2 own their own <section id="…"> */}
         <AgentRoster />
         <EnvironmentOverview />
 
-        {/* Section 3 — Round 1 */}
-        <RoundSection
-          id="round-1"
-          narrative={ROUND_NARRATIVE.round_1}
-          mv={sharedMv}
-          fix={sharedFix}
-          judge={sharedJudge}
-        />
-
-        {/* Section 4 — Round 2 (placeholder reuse of Round 1 fixture record) */}
-        <RoundSection
-          id="round-2"
-          narrative={ROUND_NARRATIVE.round_2}
-          mv={sharedMv}
-          fix={sharedFix}
-          judge={sharedJudge}
-          is_placeholder
-        />
-
-        {/* Section 5 — Round 3 final report */}
-        <FinalReportSection
-          id="round-3"
-          narrative={ROUND_NARRATIVE.round_3}
-          ledger={sharedLedger}
-        />
+        {result.kind === "ready" ? (
+          <ReadyReplayBody payload={result.payload} matrix={matrix} />
+        ) : (
+          <EmptyOrErrorState
+            kind={result.kind}
+            reason={result.reason}
+            remediation={result.remediation}
+          />
+        )}
       </main>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ready: replay-driven sections 3–5
+// ---------------------------------------------------------------------------
+
+async function ReadyReplayBody({
+  payload,
+  matrix
+}: {
+  payload: ReplayPayload;
+  matrix: ReturnType<typeof getModelQualityMatrix>;
+}) {
+  const run_id = payload.run.run_id;
+  const rounds = payload.run.rounds ?? [];
+  const metrics: MetricSnapshot[] = payload.charts.round_metrics ?? [];
+
+  // Fan out per-round detail fetches in parallel. A 404 on any one
+  // round becomes a `null` entry so the section renders the slim
+  // round_summary fallback instead of crashing the page.
+  const detailEntries = await Promise.all(
+    rounds.map(async (r) => {
+      try {
+        const detail = await getRunRoundDetail(run_id, r.round_id);
+        return [r.round_id, detail] as const;
+      } catch {
+        return [r.round_id, null] as const;
+      }
+    })
+  );
+  const detailByRound = new Map<number, RoundDetail | null>(detailEntries);
+
+  return (
+    <>
+      {/* Section 3 — Round 1 */}
+      <RoundSection
+        id="round-1"
+        narrative={ROUND_NARRATIVE[1]}
+        round={rounds.find((r) => r.round_id === 1)}
+        detail={detailByRound.get(1) ?? null}
+        metrics={metrics}
+      />
+
+      {/* Section 4 — Round 2 */}
+      <RoundSection
+        id="round-2"
+        narrative={ROUND_NARRATIVE[2]}
+        round={rounds.find((r) => r.round_id === 2)}
+        detail={detailByRound.get(2) ?? null}
+        metrics={metrics}
+      />
+
+      {/* Section 5 — Round 3 + final report */}
+      <FinalReportSection
+        id="round-3"
+        narrative={ROUND_NARRATIVE[3]}
+        round={rounds.find((r) => r.round_id === 3)}
+        detail={detailByRound.get(3) ?? null}
+        payload={payload}
+        metrics={metrics}
+        matrix={matrix}
+      />
+    </>
   );
 }
 
@@ -131,23 +171,19 @@ export default function HomePage() {
 // Round section (Sections 3 and 4)
 // ---------------------------------------------------------------------------
 
-interface RoundSectionProps {
-  id: string;
-  narrative: SectionNarrative;
-  mv: ModelVulnerabilityCardData;
-  fix: DefensiveFixCandidate;
-  judge: JudgeReport;
-  is_placeholder?: boolean;
-}
-
 function RoundSection({
   id,
   narrative,
-  mv,
-  fix,
-  judge,
-  is_placeholder
-}: RoundSectionProps) {
+  round,
+  detail,
+  metrics
+}: {
+  id: string;
+  narrative: SectionNarrative;
+  round: RoundSummary | undefined;
+  detail: RoundDetail | null;
+  metrics: MetricSnapshot[];
+}) {
   return (
     <section
       id={id}
@@ -167,31 +203,53 @@ function RoundSection({
         <p className="mt-3 text-sm leading-relaxed text-atlas-muted">
           {narrative.subtitle}
         </p>
-        {is_placeholder ? <PlaceholderNote /> : null}
       </header>
 
-      {/* Three cards: vulnerability, fix, judge decision */}
-      <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ModelVulnerabilityCard vulnerability={mv} />
-        <DefensiveFixCard candidate={fix} />
-        <JudgeDecisionCard report={judge} />
-      </div>
+      {round === undefined ? (
+        <RoundNotRunYet />
+      ) : (
+        <>
+          {/* Slim cards strip — vulnerabilities, fixes, judge */}
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <SlimVulnerabilityCard
+              records={detail?.model_vulnerabilities ?? []}
+              round_id={round.round_id}
+            />
+            <SlimFixCard
+              records={detail?.defensive_fixes ?? []}
+              round_id={round.round_id}
+            />
+            <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+          </div>
 
-      {/* Chart strip — focused subset for round-level reading */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Model miss rate"
-          hint="Lower is better. Anchored at Baseline and Round 1; Rounds 2–3 are Phase 1 placeholders."
-        >
-          <MissRateChart />
-        </ChartCard>
-        <ChartCard
-          title="Recall at fixed action-rate limit"
-          hint="Higher is better. Anchored at Baseline and Round 1; Rounds 2–3 are Phase 1 placeholders."
-        >
-          <RecallRecoveryChart />
-        </ChartCard>
-      </div>
+          {/* Sanitized transcript */}
+          {detail?.transcript_summary ? (
+            <div className="mb-8">
+              <SafeTranscriptPanel
+                summary={detail.transcript_summary}
+                safety_scan_passed={detail.safety_scan_passed ?? true}
+                round_label={`Round ${round.round_id}`}
+              />
+            </div>
+          ) : null}
+
+          {/* Chart strip — focused subset for round-level reading */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ChartCard
+              title="Model miss rate"
+              hint="Lower is better. Trend across baseline + completed rounds."
+            >
+              <MissRateChart metrics={metrics} />
+            </ChartCard>
+            <ChartCard
+              title="Recall at fixed action-rate limit"
+              hint="Higher is better."
+            >
+              <RecallRecoveryChart metrics={metrics} />
+            </ChartCard>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -200,13 +258,25 @@ function RoundSection({
 // Final report section (Section 5)
 // ---------------------------------------------------------------------------
 
-interface FinalReportSectionProps {
+function FinalReportSection({
+  id,
+  narrative,
+  round,
+  detail,
+  payload,
+  metrics,
+  matrix
+}: {
   id: string;
   narrative: SectionNarrative;
-  ledger: LedgerRecord;
-}
+  round: RoundSummary | undefined;
+  detail: RoundDetail | null;
+  payload: ReplayPayload;
+  metrics: MetricSnapshot[];
+  matrix: ReturnType<typeof getModelQualityMatrix>;
+}) {
+  const finalReportCard = findFinalReportCard(payload);
 
-function FinalReportSection({ id, narrative, ledger }: FinalReportSectionProps) {
   return (
     <section
       id={id}
@@ -228,45 +298,449 @@ function FinalReportSection({ id, narrative, ledger }: FinalReportSectionProps) 
         </p>
       </header>
 
+      {round !== undefined ? (
+        <>
+          {/* Round 3 cards strip */}
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <SlimVulnerabilityCard
+              records={detail?.model_vulnerabilities ?? []}
+              round_id={round.round_id}
+            />
+            <SlimFixCard
+              records={detail?.defensive_fixes ?? []}
+              round_id={round.round_id}
+            />
+            <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+          </div>
+
+          {/* Sanitized round-3 transcript */}
+          {detail?.transcript_summary ? (
+            <div className="mb-8">
+              <SafeTranscriptPanel
+                summary={detail.transcript_summary}
+                safety_scan_passed={detail.safety_scan_passed ?? true}
+                round_label="Round 3"
+              />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="mb-8">
+          <RoundNotRunYet />
+        </div>
+      )}
+
       {/* Round timeline */}
       <div className="mb-10">
         <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
           Round timeline
         </h3>
-        <RoundTimeline />
+        <RoundTimeline metrics={metrics} />
       </div>
 
       {/* All four charts in a 2x2 grid */}
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Model miss rate"
-          hint="Trend across rounds. Anchors at Baseline and Round 1."
+          hint="Trend across rounds."
         >
-          <MissRateChart />
+          <MissRateChart metrics={metrics} />
         </ChartCard>
         <ChartCard
           title="Recall at fixed action-rate limit"
           hint="Higher is better."
         >
-          <RecallRecoveryChart />
+          <RecallRecoveryChart metrics={metrics} />
         </ChartCard>
         <ChartCard
           title="Synthetic loss allowed"
           hint="In synthetic currency units. Lower is better."
         >
-          <SyntheticLossChart />
+          <SyntheticLossChart metrics={metrics} />
         </ChartCard>
         <ChartCard
           title="Customer-friction rates"
           hint="Challenge, alert, and decline rates. All series remain below configured action-rate limits."
         >
-          <FrictionChart />
+          <FrictionChart metrics={metrics} />
         </ChartCard>
       </div>
 
-      {/* Run ledger */}
-      <LedgerSummary record={ledger} />
+      {/* Final-report summary card */}
+      {finalReportCard ? (
+        <div className="mb-10">
+          <FinalReportSummaryCard card={finalReportCard} />
+        </div>
+      ) : null}
+
+      {/* Run summary / ledger-style facts */}
+      <div className="mb-10">
+        <RunFacts payload={payload} />
+      </div>
+
+      {/* Model-tier comparison matrix */}
+      <RunComparisonMatrix
+        tiers={matrix.tiers}
+        runs={matrix.runs}
+        expose_concrete_model_names={matrix.expose_concrete_model_names}
+        summary_templates={matrix.summary_templates}
+      />
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Slim renderers — work directly off persisted records (no invented fields)
+// ---------------------------------------------------------------------------
+
+function SlimVulnerabilityCard({
+  records,
+  round_id
+}: {
+  records: Record<string, unknown>[];
+  round_id: number;
+}) {
+  const filtered = records.filter((r) => r.round_id === round_id);
+  if (filtered.length === 0) {
+    return (
+      <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
+        <header>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+            Model vulnerabilities
+          </p>
+        </header>
+        <p className="mt-3 italic">No vulnerabilities recorded for this round.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="flex h-full flex-col rounded-lg border border-atlas-danger/40 bg-atlas-panel/60 p-5">
+      <header className="border-b border-atlas-border/60 pb-3">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-danger">
+          Model Vulnerabilities · Round {round_id}
+        </p>
+        <p className="mt-1 font-mono text-[11px] text-atlas-muted">
+          {filtered.length} record{filtered.length === 1 ? "" : "s"} persisted
+        </p>
+      </header>
+      <ul className="mt-3 space-y-3">
+        {filtered.map((r) => {
+          const id = String(r.model_vulnerability_id ?? "");
+          const family = String(r.family_id ?? "");
+          const summary = String(r.summary ?? "");
+          const missRate = typeof r.model_miss_rate === "number" ? r.model_miss_rate : null;
+          const recommended = Array.isArray(r.recommended_defensive_fix_types)
+            ? (r.recommended_defensive_fix_types as string[])
+            : [];
+          return (
+            <li
+              key={id}
+              className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
+            >
+              <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
+                family · {family}
+              </p>
+              {summary ? (
+                <p className="mt-2 text-xs leading-relaxed text-atlas-text/90">{summary}</p>
+              ) : null}
+              {missRate !== null ? (
+                <p className="mt-2 font-mono text-[11px] text-atlas-muted">
+                  model_miss_rate ·{" "}
+                  <span className="text-atlas-text">{(missRate * 100).toFixed(1)}%</span>
+                </p>
+              ) : null}
+              {recommended.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {recommended.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full border border-atlas-accent/40 bg-atlas-accent/10 px-2 py-0.5 font-mono text-[10px] text-atlas-accent"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  );
+}
+
+function SlimFixCard({
+  records,
+  round_id
+}: {
+  records: Record<string, unknown>[];
+  round_id: number;
+}) {
+  const filtered = records.filter((r) => r.round_id === round_id);
+  if (filtered.length === 0) {
+    return (
+      <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
+        <header>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+            Defensive fix candidates
+          </p>
+        </header>
+        <p className="mt-3 italic">No defensive fixes proposed for this round.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="flex h-full flex-col rounded-lg border border-atlas-accent/40 bg-atlas-panel/60 p-5">
+      <header className="border-b border-atlas-border/60 pb-3">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-accent">
+          Defensive Fix Candidates · Round {round_id}
+        </p>
+        <p className="mt-1 font-mono text-[11px] text-atlas-muted">
+          {filtered.length} candidate{filtered.length === 1 ? "" : "s"} persisted
+        </p>
+      </header>
+      <ul className="mt-3 space-y-3">
+        {filtered.map((r) => {
+          const id = String(r.defensive_fix_id ?? "");
+          const fixType = String(r.fix_type ?? "");
+          const vulnerabilityId = String(r.vulnerability_id ?? "");
+          const overrides = (r.proposed_threshold_overrides ?? {}) as Record<
+            string,
+            number
+          >;
+          return (
+            <li
+              key={id}
+              className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
+            >
+              <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
+                fix_type · {fixType}
+              </p>
+              {vulnerabilityId ? (
+                <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
+                  targets · {vulnerabilityId}
+                </p>
+              ) : null}
+              {Object.keys(overrides).length > 0 ? (
+                <div className="mt-2 font-mono text-[11px] text-atlas-muted">
+                  overrides:
+                  <ul className="mt-1 space-y-0.5">
+                    {Object.entries(overrides).map(([k, v]) => (
+                      <li key={k}>
+                        <span className="text-atlas-muted">{k}: </span>
+                        <span className="text-atlas-text">{v}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  );
+}
+
+function RoundJudgeCard({ reports }: { reports: JudgeReport[] }) {
+  const report = reports[0];
+  if (!report) {
+    return (
+      <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
+        <header>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+            Judge decision
+          </p>
+        </header>
+        <p className="mt-3 italic">No judge report recorded for this round.</p>
+      </article>
+    );
+  }
+  // Phase 8 evaluates one fix per round — render the first report.
+  return <JudgeDecisionCard report={report} />;
+}
+
+// ---------------------------------------------------------------------------
+// Final-report card + run-facts panel
+// ---------------------------------------------------------------------------
+
+function findFinalReportCard(
+  payload: ReplayPayload
+): Record<string, unknown> | null {
+  const step5 = payload.five_step_story.find((s) => s.step_id === 5);
+  if (!step5) return null;
+  const card = step5.cards.find((c) => c.category === "final_report");
+  return card ?? null;
+}
+
+function FinalReportSummaryCard({
+  card
+}: {
+  card: Record<string, unknown>;
+}) {
+  const summary = String(card.summary ?? "");
+  const acceptedCount = typeof card.accepted_count === "number" ? card.accepted_count : null;
+  const trend = Array.isArray(card.miss_rate_trend)
+    ? (card.miss_rate_trend as number[])
+    : [];
+  const safetyOk = card.safety_scan_passed === true;
+
+  return (
+    <article className="rounded-lg border border-atlas-ok/40 bg-atlas-panel/60 p-5">
+      <header className="flex items-center justify-between gap-3 border-b border-atlas-border/60 pb-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-ok">
+            Final report
+          </p>
+          <h3 className="mt-1 text-base font-semibold text-atlas-text">
+            Closed-enum summary
+          </h3>
+        </div>
+        <span
+          className={[
+            "rounded-full border px-2 py-0.5 font-mono text-[10px]",
+            safetyOk
+              ? "border-atlas-ok/40 bg-atlas-ok/10 text-atlas-ok"
+              : "border-atlas-warn/40 bg-atlas-warn/10 text-atlas-warn"
+          ].join(" ")}
+          aria-label={safetyOk ? "Safety scan passed" : "Safety scan flagged for review"}
+        >
+          <span aria-hidden="true">{safetyOk ? "✓" : "⚠"}</span> safety_scan
+        </span>
+      </header>
+      <p className="mt-3 font-mono text-[11px] leading-relaxed text-atlas-text/90">
+        {summary}
+      </p>
+      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs md:grid-cols-2">
+        {acceptedCount !== null ? (
+          <Fact label="Accepted defensive fixes" value={String(acceptedCount)} />
+        ) : null}
+        {trend.length > 0 ? (
+          <Fact
+            label="Miss-rate trend"
+            value={trend.map((v) => v.toFixed(4)).join(" → ")}
+          />
+        ) : null}
+      </dl>
+    </article>
+  );
+}
+
+function RunFacts({ payload }: { payload: ReplayPayload }) {
+  const r = payload.run;
+  return (
+    <article className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-5">
+      <header>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+          Run summary
+        </p>
+        <h3 className="mt-1 text-base font-semibold text-atlas-text">
+          Reproducibility record
+        </h3>
+      </header>
+      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs md:grid-cols-2">
+        <Fact label="Run ID" value={r.run_id} mono />
+        <Fact label="Seed" value={String(r.seed)} mono />
+        <Fact label="Demo mode" value={r.demo_mode} mono />
+        <Fact label="Status" value={r.status} mono />
+        <Fact label="Current round" value={String(r.current_round ?? 0)} mono />
+        <Fact label="Created at (dataset reference)" value={r.created_at_utc ?? "-"} mono />
+      </dl>
+    </article>
+  );
+}
+
+function Fact({
+  label,
+  value,
+  mono = false
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-atlas-muted">{label}</dt>
+      <dd
+        className={[
+          mono ? "font-mono tabular-nums" : "",
+          "text-atlas-text"
+        ].join(" ")}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Empty / error state
+// ---------------------------------------------------------------------------
+
+function EmptyOrErrorState({
+  kind,
+  reason,
+  remediation
+}: {
+  kind: "empty" | "error";
+  reason: string;
+  remediation: string | null;
+}) {
+  const tone = kind === "empty" ? "muted" : "danger";
+  return (
+    <section
+      id="empty-state"
+      aria-label={kind === "empty" ? "No replay available" : "Replay load error"}
+      className="scroll-mt-16 border-t border-atlas-border/40 px-8 py-24"
+    >
+      <div className="mx-auto max-w-2xl rounded-lg border border-atlas-border bg-atlas-panel/60 p-8 text-center">
+        <p
+          className={[
+            "font-mono text-[10px] uppercase tracking-widest",
+            tone === "danger" ? "text-atlas-danger" : "text-atlas-muted"
+          ].join(" ")}
+        >
+          {kind === "empty" ? "No replay yet" : "Replay load error"}
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-atlas-text">
+          {kind === "empty"
+            ? "There is no completed run to replay."
+            : "Could not load replay data."}
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{reason}</p>
+        {remediation ? (
+          <div className="mt-6 inline-flex flex-col items-stretch gap-1 rounded-md border border-atlas-border/60 bg-atlas-surface/60 px-4 py-3 text-left">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+              Run locally
+            </span>
+            <code className="font-mono text-xs text-atlas-text">{remediation}</code>
+          </div>
+        ) : null}
+        <p className="mt-6 text-[11px] text-atlas-muted/80">
+          Local-only by design — there is no remote fallback. Data is loaded
+          from <span className="font-mono">http://127.0.0.1:8000</span>.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function RoundNotRunYet() {
+  return (
+    <div className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-6 text-sm text-atlas-muted">
+      <p className="font-mono text-[10px] uppercase tracking-widest">
+        Round not yet executed
+      </p>
+      <p className="mt-2">
+        Run <code className="font-mono">make run-rounds</code> to populate this
+        round&apos;s artifacts.
+      </p>
+    </div>
   );
 }
 
@@ -291,112 +765,5 @@ function ChartCard({
       </header>
       <div className="mt-4">{children}</div>
     </article>
-  );
-}
-
-function PlaceholderNote() {
-  return (
-    <p
-      className="mt-4 inline-flex max-w-2xl items-start gap-2 rounded-md border border-atlas-warn/30 bg-atlas-warn/10 px-3 py-2 text-[11px] leading-relaxed"
-      role="note"
-    >
-      <span aria-hidden="true" className="text-atlas-warn">
-        ⚠
-      </span>
-      <span className="text-atlas-text/80">
-        Phase 1 shell: this round reuses the Round 1 fixture record as placeholder
-        content. Phase 8 ledger replay will populate real per-round records.
-      </span>
-    </p>
-  );
-}
-
-function LedgerSummary({ record }: { record: LedgerRecord }) {
-  return (
-    <article className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-5">
-      <header>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-          Run ledger
-        </p>
-        <h3 className="mt-1 text-base font-semibold text-atlas-text">
-          Reproducibility record
-        </h3>
-      </header>
-      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs md:grid-cols-2">
-        <LedgerRow label="Run ID" value={record.run_id} mono />
-        <LedgerRow label="Round ID" value={String(record.round_id)} mono />
-        <LedgerRow label="Seed" value={String(record.seed)} mono />
-        <LedgerRow label="Demo mode" value={record.demo_mode} mono />
-        <LedgerRow
-          label="Model version (before)"
-          value={record.model_version_before}
-          mono
-        />
-        <LedgerRow
-          label="Model version (after)"
-          value={record.model_version_after}
-          mono
-        />
-        <LedgerRow
-          label="Threshold version (before)"
-          value={record.decision_threshold_version_before}
-          mono
-        />
-        <LedgerRow
-          label="Threshold version (after)"
-          value={record.decision_threshold_version_after}
-          mono
-        />
-        <LedgerRow
-          label="Agent roster version"
-          value={record.agent_roster_version}
-          mono
-        />
-        <LedgerRow
-          label="Safety scan"
-          value={record.safety_scan_passed ? "✓ Passed" : "✗ Failed"}
-          tone={record.safety_scan_passed ? "ok" : "danger"}
-        />
-      </dl>
-      <div className="mt-4 border-t border-atlas-border/60 pt-3 space-y-1 text-[11px] text-atlas-muted">
-        <p>
-          Judge report:{" "}
-          <span className="font-mono break-all text-atlas-text/80">
-            {record.judge_report_path}
-          </span>
-        </p>
-        <p>
-          Vulnerability card:{" "}
-          <span className="font-mono break-all text-atlas-text/80">
-            {record.model_vulnerability_card_path}
-          </span>
-        </p>
-      </div>
-    </article>
-  );
-}
-
-function LedgerRow({
-  label,
-  value,
-  mono,
-  tone
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  tone?: "ok" | "danger";
-}) {
-  const valueClass = [
-    mono ? "font-mono tabular-nums" : "",
-    tone === "ok" ? "text-atlas-ok" : tone === "danger" ? "text-atlas-danger" : "text-atlas-text"
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-atlas-muted">{label}</dt>
-      <dd className={valueClass}>{value}</dd>
-    </div>
   );
 }
