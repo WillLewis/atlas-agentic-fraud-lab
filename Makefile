@@ -50,10 +50,15 @@ train:
 	PYTHONPATH=src $(PYTHON) scripts/train_baseline.py
 
 run-rounds:
-	@echo "TODO Phase 8: implement scripts/run_rounds.py"
+	PYTHONPATH=src $(PYTHON) scripts/run_rounds.py --seed 42 --outputs-root outputs --demo-mode public --max-rounds 3
 
 build-replay:
-	@echo "TODO Phase 8: implement scripts/build_replay.py"
+	@if [ ! -d outputs/runs ] || [ -z "$$(ls -A outputs/runs 2>/dev/null)" ]; then \
+		echo "error: no run state found under outputs/runs/. Run 'make run-rounds' first."; \
+		exit 2; \
+	fi; \
+	RUN_ID=$$(basename $$(ls -t outputs/runs/*.json | head -1) .json); \
+	PYTHONPATH=src $(PYTHON) scripts/build_replay.py --outputs-root outputs --run-id $$RUN_ID
 
 test:
 	@if [ -d tests ] && find tests -name 'test_*.py' -o -name '*_test.py' | grep -q .; then \

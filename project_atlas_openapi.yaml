@@ -1030,6 +1030,10 @@ components:
           type: array
           items:
             type: string
+        judge_report_id:
+          type: string
+        governance_rationale:
+          type: string
       required: [defensive_fix_id, applied]
     JudgeEvaluationRequest:
       type: object

@@ -170,8 +170,26 @@ def apply_fix(
     defensive_fix_id: str,
     outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
     data_dir: Path = DEFAULT_DATA_DIR,
+    current_model_version: str | None = None,
+    current_threshold_version: str | None = None,
+    found_adaptive_set_event_ids: list[str] | None = None,
 ) -> FixApplyOutcome:
     """Apply the manifest, run the judge in-process, format governance.
+
+    Phase 8 round-state extension (non-breaking — defaults preserve
+    Phase 7 behavior):
+
+      * ``current_model_version`` / ``current_threshold_version`` —
+        when the round engine carries forward an accepted fix from a
+        previous round, these are the round-state's accepted versions.
+        The judge compares the candidate against these instead of the
+        hard-coded ``baseline_v1`` / ``thresholds_v1``. ``None`` falls
+        back to the Phase 7 defaults.
+      * ``found_adaptive_set_event_ids`` — Phase 6 search output for
+        the current round. The judge already accepts this kwarg
+        (``atlas.judge.evaluate.evaluate_fix``) and will evaluate the
+        ``found_adaptive_set`` holdout if non-empty. ``None`` falls
+        back to Phase 7 (judge skips that holdout).
 
     Raises:
         MissingManifestError: ``defensive_fix_id`` has no manifest on disk.
@@ -189,15 +207,33 @@ def apply_fix(
         )
     )
 
+    # Phase 8: round-state baseline versions, fall through to Phase 7
+    # constants when the kwargs are None.
+    baseline_model_version = (
+        current_model_version
+        if current_model_version is not None
+        else _BASELINE_MODEL_VERSION
+    )
+    baseline_threshold_version = (
+        current_threshold_version
+        if current_threshold_version is not None
+        else _BASELINE_THRESHOLD_VERSION
+    )
+
     # Run the judge in-process.
     report = evaluate_fix(
         run_id=manifest.run_id,
         round_id=manifest.round_id,
         defensive_fix_id=manifest.defensive_fix_id,
-        baseline_model_version=_BASELINE_MODEL_VERSION,
+        baseline_model_version=baseline_model_version,
         candidate_model_version=candidate_model_version,
-        baseline_threshold_version=_BASELINE_THRESHOLD_VERSION,
+        baseline_threshold_version=baseline_threshold_version,
         candidate_threshold_version=candidate_threshold_version,
+        found_adaptive_set_event_ids=(
+            list(found_adaptive_set_event_ids)
+            if found_adaptive_set_event_ids
+            else None
+        ),
         data_dir=data_dir,
     )
 
