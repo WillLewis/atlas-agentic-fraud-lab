@@ -174,15 +174,25 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
     """Resolve a ``DecisionPolicyConfig`` for the requested
     ``threshold_version``.
 
-    Resolution order:
-      1. ``threshold_version is None`` or matches the persisted
-         baseline ``decision_threshold_version`` → return the cached
-         persisted config.
-      2. Phase 7 candidate file at
-         ``ALTERNATE_THRESHOLDS_ROOT / "{version}.yaml"`` exists → load
-         it via the same ``load_decision_policy_config`` (same YAML
-         shape as the baseline). Cached by version.
-      3. Otherwise raise ``UnknownThresholdVersionError``.
+    Resolution order (Phase 11+):
+
+      1. Translate ``None`` to the in-repo template's
+         ``decision_threshold_version`` so the lookup has a name to
+         resolve.
+      2. ``ALTERNATE_THRESHOLDS_ROOT / "{version}.yaml"`` — checked
+         FIRST so:
+           * fitted baseline thresholds (``thresholds_v1.yaml`` written
+             by ``train_baseline_model``) take precedence over the
+             in-repo template, and
+           * Phase 7 candidate threshold files (``fix_*_policy_fix.yaml``)
+             continue to resolve as before.
+      3. Fall back to the in-repo ``config/decision_thresholds.yaml``
+         template ONLY when the file under
+         ``ALTERNATE_THRESHOLDS_ROOT`` is missing AND the requested
+         version matches the template's own
+         ``decision_threshold_version``. This keeps fresh-checkout
+         tests (no ``make train`` yet) working.
+      4. Otherwise raise ``UnknownThresholdVersionError``.
 
     Caching: only successful loads are cached. A request for an unknown
     version that later gains a candidate file resolves correctly without
@@ -193,32 +203,39 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
     if persisted is None:
         persisted = load_decision_policy_config(DEFAULT_THRESHOLDS_CONFIG_PATH)
         _CONFIG_CACHE["__persisted__"] = persisted
-    if threshold_version is None or threshold_version == persisted.threshold_version:
-        return persisted
 
-    cached = _CONFIG_CACHE.get(threshold_version)
+    requested = threshold_version or persisted.threshold_version
+
+    cached = _CONFIG_CACHE.get(requested)
     if cached is not None:
         return cached
 
-    candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{threshold_version}.yaml"
+    # Outputs file wins — fitted baseline + Phase 7 candidates land here.
+    candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{requested}.yaml"
     if candidate_path.exists():
         candidate = load_decision_policy_config(candidate_path)
         # Defensive: the candidate's stored ``threshold_version`` must
         # match what the caller asked for — otherwise the cache key and
         # the loaded identity would diverge. Raise a clear error rather
         # than silently mis-tagging the config.
-        if candidate.threshold_version != threshold_version:
+        if candidate.threshold_version != requested:
             raise UnknownThresholdVersionError(
                 f"candidate file {candidate_path} declares "
                 f"decision_threshold_version={candidate.threshold_version!r} "
-                f"but was requested as {threshold_version!r}."
+                f"but was requested as {requested!r}."
             )
-        _CONFIG_CACHE[threshold_version] = candidate
+        _CONFIG_CACHE[requested] = candidate
         return candidate
 
+    # Fall back to the in-repo template only when the requested version
+    # is the template's own version.
+    if requested == persisted.threshold_version:
+        _CONFIG_CACHE[requested] = persisted
+        return persisted
+
     raise UnknownThresholdVersionError(
-        f"unknown threshold_version {threshold_version!r}; "
-        f"not the persisted {persisted.threshold_version!r} and no "
+        f"unknown threshold_version {requested!r}; "
+        f"not the in-repo {persisted.threshold_version!r} and no "
         f"candidate file at {candidate_path}."
     )
 

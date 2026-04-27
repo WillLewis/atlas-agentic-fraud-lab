@@ -31,7 +31,7 @@ def test_holdouts_refused_by_loader():
 
 def test_train_writes_four_artifacts(tmp_path: Path):
     out = tmp_path / "baseline"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
     for rel in (
         "model.joblib",
         "calibration.json",
@@ -45,8 +45,12 @@ def test_same_seed_byte_identical_artifacts(tmp_path: Path):
     """Same training inputs + same seed produce byte-identical artifacts."""
     out1 = tmp_path / "run1"
     out2 = tmp_path / "run2"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out1)
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out2)
+    train_baseline_model(
+        seed=DEFAULT_TRAIN_SEED, output_dir=out1, fit_thresholds=False,
+    )
+    train_baseline_model(
+        seed=DEFAULT_TRAIN_SEED, output_dir=out2, fit_thresholds=False,
+    )
     for rel in (
         "model.joblib",
         "calibration.json",
@@ -60,7 +64,7 @@ def test_same_seed_byte_identical_artifacts(tmp_path: Path):
 
 def test_calibration_metadata_uses_validation_only(tmp_path: Path):
     out = tmp_path / "baseline"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
     cal = json.loads((out / "calibration.json").read_text())
     assert cal["fit_partition"] == "validation"
     assert cal["method"] == "platt"
@@ -70,7 +74,7 @@ def test_calibration_metadata_uses_validation_only(tmp_path: Path):
 
 def test_baseline_summary_shape(tmp_path: Path):
     out = tmp_path / "baseline"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
     summary = json.loads((out / "baseline_summary.json").read_text())
     assert summary["model_version"] == MODEL_VERSION
     assert summary["threshold_version"] == THRESHOLD_VERSION
@@ -93,7 +97,7 @@ def test_baseline_summary_shape(tmp_path: Path):
 
 def test_feature_columns_artifact_15_fields(tmp_path: Path):
     out = tmp_path / "baseline"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
     columns = json.loads((out / "feature_columns.json").read_text())
     assert columns["model_version"] == MODEL_VERSION
     assert tuple(columns["feature_columns"]) == FEATURE_COLUMNS
@@ -159,7 +163,72 @@ def test_train_baseline_does_not_emit_convergence_warning(tmp_path: Path):
     out = tmp_path / "baseline"
     with warnings.catch_warnings():
         warnings.simplefilter("error", ConvergenceWarning)
-        train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+        train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
+
+
+def test_train_persists_fitted_thresholds_yaml_under_outputs(tmp_path: Path):
+    """Phase 11+: ``train_baseline_model`` writes
+    ``<fitted_thresholds_dir>/thresholds_v1.yaml`` so the Phase 5 judge
+    picks up distribution-aware thresholds via the existing alternate-
+    thresholds resolution path.
+    """
+    import yaml
+
+    out = tmp_path / "baseline"
+    fitted_dir = tmp_path / "decision_thresholds"
+    train_baseline_model(
+        seed=DEFAULT_TRAIN_SEED,
+        output_dir=out,
+        fitted_thresholds_dir=fitted_dir,
+    )
+    fitted_path = fitted_dir / "thresholds_v1.yaml"
+    assert fitted_path.exists(), "fitted thresholds yaml not written"
+    doc = yaml.safe_load(fitted_path.read_text())
+    assert doc["decision_threshold_version"] == "thresholds_v1"
+    th = doc["decision_thresholds"]
+    # All three thresholds in [0, 1]; ordering enforced.
+    for k in ("challenge_score_threshold", "alert_score_threshold", "decline_score_threshold"):
+        assert 0.0 <= th[k] <= 1.0
+    assert th["challenge_score_threshold"] <= th["alert_score_threshold"]
+    assert th["alert_score_threshold"] <= th["decline_score_threshold"]
+    # action_rate_limits + decision_bands + allowed_reason_codes copied
+    # verbatim from the in-repo template.
+    assert "action_rate_limits" in doc
+    assert "decision_bands" in doc
+    assert "allowed_reason_codes" in doc
+
+
+def test_fitted_thresholds_yield_non_degenerate_actions_on_clean_holdout(tmp_path: Path):
+    """Loading the trained baseline + fitted thresholds and scoring
+    clean_holdout must NOT produce all-``accept`` decisions. This pins
+    the round-loop fix: fits at action-rate-cap quantiles ensure at
+    least some events fall into ``challenge`` / ``alert`` / ``decline``.
+    """
+    from collections import Counter
+
+    from atlas.judge.holdouts import load_eval_set
+    from atlas.judge.metrics import score_eval_set
+    from atlas.model.policy import load_decision_policy_config
+    from atlas.model.scorer import load_baseline_bundle
+
+    out = tmp_path / "baseline"
+    fitted_dir = tmp_path / "decision_thresholds"
+    train_baseline_model(
+        seed=DEFAULT_TRAIN_SEED,
+        output_dir=out,
+        fitted_thresholds_dir=fitted_dir,
+    )
+
+    bundle = load_baseline_bundle(out)
+    fitted_yaml = fitted_dir / "thresholds_v1.yaml"
+    config = load_decision_policy_config(fitted_yaml)
+
+    records = load_eval_set("clean_holdout")
+    scored = score_eval_set(records, bundle, config)
+    actions = Counter(r["decision_action"] for r in scored)
+    assert actions["accept"] < len(scored), (
+        f"baseline still all-accept after fitting: {dict(actions)}"
+    )
 
 
 def test_train_baseline_persists_pipeline_with_standardize_step(tmp_path: Path):
@@ -171,7 +240,7 @@ def test_train_baseline_persists_pipeline_with_standardize_step(tmp_path: Path):
     from sklearn.pipeline import Pipeline
 
     out = tmp_path / "baseline"
-    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out)
+    train_baseline_model(seed=DEFAULT_TRAIN_SEED, output_dir=out, fit_thresholds=False)
     pipeline = joblib.load(out / "model.joblib")
     assert isinstance(pipeline, Pipeline)
     assert "standardize" in pipeline.named_steps

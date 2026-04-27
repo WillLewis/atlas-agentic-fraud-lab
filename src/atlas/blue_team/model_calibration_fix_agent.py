@@ -135,6 +135,10 @@ def apply_calibration_fix(
         output_dir=output_dir,
         model_version=candidate_version,
         c_override=float(manifest.proposed_l2_strength),
+        # Candidate uses baseline's fitted thresholds (per the Phase 7
+        # ``thresholds_v1`` convention in ``fix_applier``); do NOT
+        # overwrite ``outputs/decision_thresholds/thresholds_v1.yaml``.
+        fit_thresholds=False,
     )
 
     # Surface relative paths matching what the strategy agent's

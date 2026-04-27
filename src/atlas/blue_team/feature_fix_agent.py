@@ -229,6 +229,10 @@ def apply_feature_fix(
         output_dir=output_dir,
         model_version=candidate_version,
         pre_model_step=transformer,
+        # Candidate uses baseline's fitted thresholds (per the Phase 7
+        # ``thresholds_v1`` convention in ``fix_applier``); do NOT
+        # overwrite ``outputs/decision_thresholds/thresholds_v1.yaml``.
+        fit_thresholds=False,
     )
 
     rel_root = f"outputs/{CANDIDATE_MODELS_SUBDIR}/{candidate_version}"

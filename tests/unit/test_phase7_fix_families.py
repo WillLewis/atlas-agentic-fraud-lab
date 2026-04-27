@@ -52,19 +52,35 @@ def outputs(tmp_path) -> Path:
 
 
 def test_propose_policy_fix_per_family():
+    """Phase 11+: multiplicative factor (0.95) per family."""
     o = propose_policy_fix(
         family_id="score_boundary_cluster", baseline_challenge_threshold=0.74,
     )
-    assert o == {"challenge_score_threshold": 0.69}
+    assert o == {"challenge_score_threshold": 0.703}  # 0.74 * 0.95
 
 
 def test_propose_policy_fix_clamps_to_unit_interval():
-    """Even if baseline is unusually low, the override is clamped to [0, 1]."""
-    low = propose_policy_fix(family_id="score_boundary_cluster", baseline_challenge_threshold=0.02)
+    """Bounds preserved across the multiplicative factor."""
+    # Very small baseline still clamps at 0.0 (positive scaler can't
+    # produce a negative, but rounding may emit 0.0 for ~tiny inputs).
+    low = propose_policy_fix(family_id="score_boundary_cluster", baseline_challenge_threshold=0.0)
     assert low["challenge_score_threshold"] == 0.0
+    # Above-1 baseline still clamps to 1.0.
     high = propose_policy_fix(family_id="score_boundary_cluster", baseline_challenge_threshold=2.0)
-    # baseline 2.0 + (-0.05) = 1.95 → clamped to 1.0
+    # 2.0 * 0.95 = 1.9 → clamped to 1.0
     assert high["challenge_score_threshold"] == 1.0
+
+
+def test_propose_policy_fix_relative_to_fitted_baseline_regime():
+    """Phase 11+: factor is meaningful at any baseline regime, including
+    the fitted-low ~0.06 range. The blind ``-0.05`` delta would have
+    clamped the result to 0.0, challenging every event.
+    """
+    o = propose_policy_fix(
+        family_id="score_boundary_cluster", baseline_challenge_threshold=0.06,
+    )
+    assert o["challenge_score_threshold"] == 0.057  # 0.06 * 0.95
+    assert o["challenge_score_threshold"] > 0.0
 
 
 def _policy_manifest():
@@ -198,6 +214,74 @@ def _calibration_manifest():
         vulnerability_id="mv_round2_label_noise_mislearned",
         fix_type="model_calibration_fix",
         proposed_training_seed=1001, proposed_l2_strength=0.5,
+    )
+
+
+@pytest.mark.slow
+def test_apply_calibration_fix_produces_non_identical_judge_metrics(
+    outputs, monkeypatch, tmp_path,
+):
+    """Phase 11+ regression: with distribution-aware fitted thresholds,
+    a calibration_fix candidate's score distribution shifts enough that
+    the judge sees baseline ≠ fixed metric snapshots. Pins the
+    round-loop fix; would have been all-zero deltas under the old
+    all-``accept`` regime.
+    """
+    import atlas.judge.evaluate as evaluate_mod
+    from atlas.blue_team.model_calibration_fix_agent import (
+        apply_calibration_fix, candidate_models_dir,
+    )
+    from atlas.judge.evaluate import evaluate_fix
+    from atlas.model.train import train_baseline_model
+
+    # 1) Train the baseline into a hermetic dir; fitted thresholds land
+    # under tmp_path/decision_thresholds/thresholds_v1.yaml so the
+    # judge picks them up via the patched ALTERNATE_THRESHOLDS_ROOT.
+    baseline_dir = candidate_models_dir(outputs) / "baseline_v1"
+    train_baseline_model(
+        seed=42,
+        data_dir=DATA_DIR,
+        output_dir=baseline_dir,
+        model_version="baseline_v1",
+        fitted_thresholds_dir=outputs / "decision_thresholds",
+    )
+
+    # 2) Apply the calibration_fix candidate (retrains with c_override).
+    apply_calibration_fix(
+        _calibration_manifest(), outputs_root=outputs, data_dir=DATA_DIR,
+    )
+
+    # 3) Point the judge at the hermetic dirs.
+    monkeypatch.setattr(
+        evaluate_mod, "BASELINE_MODELS_ROOT", candidate_models_dir(outputs),
+    )
+    monkeypatch.setattr(
+        evaluate_mod, "ALTERNATE_THRESHOLDS_ROOT",
+        outputs / "decision_thresholds",
+    )
+    evaluate_mod.reset_caches()
+
+    # 4) Run the judge and compare snapshots.
+    candidate_id = _calibration_manifest().defensive_fix_id
+    report = evaluate_fix(
+        run_id="r", round_id=1, defensive_fix_id=candidate_id,
+        baseline_model_version="baseline_v1",
+        candidate_model_version=candidate_id,
+        baseline_threshold_version="thresholds_v1",
+        candidate_threshold_version="thresholds_v1",
+        data_dir=DATA_DIR,
+    )
+    baseline = dict(report["baseline"])
+    fixed = {k: v for k, v in report["fixed"].items() if k != "synthetic_loss_prevented"}
+    # Pre-fix: baseline.miss_rate was 1.0 (all-accept). Post-fix: < 1.0.
+    assert baseline["model_miss_rate"] < 1.0, (
+        f"baseline still all-accept: {baseline}"
+    )
+    # Pre-fix: every fix produced byte-identical metrics. Post-fix:
+    # at least one family shifts something.
+    assert baseline != fixed, (
+        f"calibration_fix produced byte-identical metrics: "
+        f"baseline={baseline}, fixed={fixed}"
     )
 
 

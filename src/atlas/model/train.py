@@ -35,11 +35,12 @@ from pathlib import Path
 import joblib
 import numpy as np
 import sklearn
+import yaml
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from atlas.model.calibration import fit_calibrator
+from atlas.model.calibration import apply_calibrator, fit_calibrator
 from atlas.model.loader import (
     DEFAULT_DATA_DIR,
     DEFAULT_OUTPUT_DIR,
@@ -70,6 +71,20 @@ THRESHOLD_VERSION: str = "thresholds_v1"
 
 # Manifest path for reading reference_now_utc from the Phase 2/3 dataset.
 _MANIFEST_PATH_REL: str = "manifest.json"
+
+# Where ``train_baseline_model`` writes the fitted thresholds YAML and
+# the path to the in-repo template it copies non-fitted sections from.
+# Both expressed relative to the repo root so the trainer can be
+# called from anywhere.
+_REPO_ROOT: Path = Path(__file__).resolve().parents[3]
+_FITTED_THRESHOLDS_DIR: Path = _REPO_ROOT / "outputs" / "decision_thresholds"
+_THRESHOLDS_TEMPLATE_PATH: Path = (
+    _REPO_ROOT / "config" / "decision_thresholds.yaml"
+)
+
+# Decimal places for the persisted threshold floats. Matches the
+# in-repo template's precision and keeps the YAML byte-stable.
+_THRESHOLD_FLOAT_PRECISION: int = 4
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +135,153 @@ def _write_json(path: Path, obj: object) -> None:
         fh.write("\n")
 
 
+# ---------------------------------------------------------------------------
+# Threshold fitting (Phase 11+)
+#
+# The in-repo ``config/decision_thresholds.yaml`` carries demo-constant
+# thresholds chosen for a hypothetical high-variance scorer. The actual
+# calibrated logistic on the small synthetic training set produces a
+# narrow score band — so the persisted thresholds put every event into
+# ``accept`` and the round loop becomes degenerate (model_miss_rate=1.0,
+# every fix looks like a no-op).
+#
+# These helpers fit ``(challenge, alert, decline)`` thresholds at the
+# upper-tail quantiles of validation calibrated scores corresponding to
+# the configured action-rate caps. ``train_baseline_model`` writes the
+# result to ``outputs/decision_thresholds/<threshold_version>.yaml`` so
+# the Phase 5 judge picks it up via the existing alternate-thresholds
+# resolution path. The in-repo template is preserved verbatim and acts
+# as the fallback on fresh checkouts.
+# ---------------------------------------------------------------------------
+
+
+def _calibrated_validation_scores(
+    base_pipeline: Pipeline,
+    val_data: list[LabeledFeature],
+    columns: tuple[str, ...],
+    calibration: dict,
+) -> np.ndarray:
+    """Apply the trained pipeline + Platt calibrator to the validation
+    set and return the calibrated scores (one float per record, in
+    ``[0, 1]``).
+
+    Mirrors what ``atlas.model.scorer.score_features`` does at runtime,
+    so the fitted thresholds operate on the exact distribution the
+    scoring API will produce.
+    """
+    x_val = np.asarray(
+        [feature_vector_to_array(lf["feature_vector"], columns) for lf in val_data],
+        dtype=float,
+    )
+    raw = base_pipeline.predict_proba(x_val)[:, 1]
+    params = calibration["parameters"]
+    slope = float(params["slope"])
+    intercept = float(params["intercept"])
+    return np.asarray(
+        [apply_calibrator(float(r), slope=slope, intercept=intercept) for r in raw],
+        dtype=float,
+    )
+
+
+def _fit_baseline_thresholds(
+    calibrated_scores: np.ndarray,
+    action_rate_limits: dict,
+) -> tuple[float, float, float]:
+    """Fit ``(challenge, alert, decline)`` thresholds at the upper-tail
+    quantiles corresponding to the configured action-rate caps.
+
+    For each rate cap ``r`` the threshold is the ``(1 - r)``-th
+    percentile of the calibrated validation scores — i.e. the score
+    above which approximately ``r`` fraction of validation events sit.
+    Order is enforced (challenge ≤ alert ≤ decline); each value is
+    clamped to ``[0, 1]`` and rounded to 4 decimals for byte-stable
+    persistence.
+
+    Args:
+        calibrated_scores: 1-D array of validation scores in ``[0, 1]``.
+        action_rate_limits: mapping from
+            ``config/decision_thresholds.yaml.action_rate_limits``.
+
+    Returns:
+        ``(challenge_threshold, alert_threshold, decline_threshold)``.
+    """
+    if calibrated_scores.size == 0:
+        raise ValueError("cannot fit thresholds — calibrated_scores is empty")
+
+    # Pull caps out of the action_rate_limits block. ``decline`` is
+    # in basis points (1 bp = 0.01%); ``alert`` and ``challenge`` are
+    # percentages.
+    decline_cap = float(action_rate_limits.get("decline_rate_limit_bps", 25)) / 10000.0
+    alert_cap = float(action_rate_limits.get("alert_rate_limit_pct", 15.0)) / 100.0
+    challenge_cap = float(action_rate_limits.get("challenge_rate_limit_pct", 8.0)) / 100.0
+
+    # Each cap r maps to the (1 - r) quantile.  numpy.quantile uses the
+    # 'linear' method by default — deterministic across runs.
+    challenge_q = float(np.quantile(calibrated_scores, 1.0 - challenge_cap))
+    alert_q = float(np.quantile(calibrated_scores, 1.0 - alert_cap))
+    decline_q = float(np.quantile(calibrated_scores, 1.0 - decline_cap))
+
+    # Enforce challenge ≤ alert ≤ decline (could violate ordering on
+    # tied / very small distributions).
+    alert_q = max(alert_q, challenge_q)
+    decline_q = max(decline_q, alert_q)
+
+    # Clamp + round.
+    def _clip(v: float) -> float:
+        return round(max(0.0, min(1.0, v)), _THRESHOLD_FLOAT_PRECISION)
+
+    return _clip(challenge_q), _clip(alert_q), _clip(decline_q)
+
+
+def _persist_fitted_thresholds(
+    challenge: float,
+    alert: float,
+    decline: float,
+    *,
+    threshold_version: str,
+    template_path: Path,
+    output_dir: Path,
+) -> Path:
+    """Write the fitted thresholds YAML at
+    ``output_dir/<threshold_version>.yaml``.
+
+    Copies ``action_rate_limits``, ``customer_friction_tolerances``,
+    ``decision_bands``, and ``allowed_reason_codes`` verbatim from the
+    in-repo template so the file is a drop-in replacement that
+    ``atlas.model.policy.load_decision_policy_config`` parses without
+    changes.
+    """
+    if not template_path.exists():
+        raise FileNotFoundError(
+            f"decision-thresholds template not found at {template_path}. "
+            "Phase 11 threshold fitting needs the in-repo template as the "
+            "source of action-rate limits + decision-band labels."
+        )
+    with template_path.open("r", encoding="utf-8") as fh:
+        template = yaml.safe_load(fh) or {}
+
+    fitted_doc: dict = {}
+    for key, value in template.items():
+        if key == "decision_threshold_version":
+            fitted_doc[key] = threshold_version
+        elif key == "decision_thresholds":
+            fitted_doc[key] = {
+                "challenge_score_threshold": challenge,
+                "alert_score_threshold": alert,
+                "decline_score_threshold": decline,
+            }
+        else:
+            # action_rate_limits, customer_friction_tolerances,
+            # decision_bands, allowed_reason_codes — copy verbatim.
+            fitted_doc[key] = value
+
+    out_path = output_dir / f"{threshold_version}.yaml"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(fitted_doc, fh, sort_keys=True, default_flow_style=False)
+    return out_path
+
+
 def train_baseline_model(
     seed: int = DEFAULT_TRAIN_SEED,
     data_dir: Path = DEFAULT_DATA_DIR,
@@ -128,6 +290,9 @@ def train_baseline_model(
     model_version: str | None = None,
     c_override: float | None = None,
     pre_model_step=None,
+    fit_thresholds: bool = True,
+    fitted_thresholds_dir: Path = _FITTED_THRESHOLDS_DIR,
+    thresholds_template_path: Path = _THRESHOLDS_TEMPLATE_PATH,
 ) -> BaselineSummary:
     """Train + calibrate + persist a baseline-shape model.
 
@@ -175,6 +340,23 @@ def train_baseline_model(
     LogisticRegression)])``. The scorer / calibrator only require an
     estimator with ``predict_proba``; ``Pipeline`` forwards that to
     its terminal step transparently.
+
+    Phase 11 threshold-fitting:
+
+      * ``fit_thresholds`` (default ``True``) — score the validation
+        set with the calibrated pipeline and write
+        ``<fitted_thresholds_dir>/<THRESHOLD_VERSION>.yaml`` with
+        thresholds at the upper-tail quantiles corresponding to the
+        action-rate caps in
+        ``config/decision_thresholds.yaml.action_rate_limits``. The
+        Phase 5 judge resolves ``thresholds_v1`` to this file when
+        present (falling back to the in-repo template otherwise).
+      * Phase 7 candidate retraining (``feature_fix`` /
+        ``model_calibration_fix``) passes ``fit_thresholds=False`` so
+        candidate models reuse the baseline's fitted thresholds and
+        do not overwrite ``thresholds_v1.yaml``.
+      * ``fitted_thresholds_dir`` / ``thresholds_template_path``
+        kwargs are exposed so tests can point at hermetic paths.
     """
     train_data = load_train_labeled_features(data_dir)
     val_data = load_validation_labeled_features(data_dir)
@@ -210,6 +392,38 @@ def train_baseline_model(
 
     # --- Calibrate on VALIDATION only ---
     calibration = fit_calibrator(base, val_data, columns)
+
+    # --- Phase 11: fit decision thresholds from validation distribution ---
+    # Default-on for the baseline path; opted-out by Phase 7 candidate
+    # retraining (which reuses baseline's fitted thresholds).
+    if fit_thresholds:
+        # Read the in-repo template once for action-rate caps + verbatim
+        # sections (decision_bands, allowed_reason_codes, etc.).
+        if not thresholds_template_path.exists():
+            raise FileNotFoundError(
+                f"decision-thresholds template not found at "
+                f"{thresholds_template_path}. Threshold fitting needs the "
+                "in-repo template as the source of action-rate limits."
+            )
+        with thresholds_template_path.open("r", encoding="utf-8") as fh:
+            template_doc = yaml.safe_load(fh) or {}
+        action_rate_limits = template_doc.get("action_rate_limits") or {}
+        threshold_version = str(
+            template_doc.get("decision_threshold_version", THRESHOLD_VERSION)
+        )
+
+        calibrated_scores = _calibrated_validation_scores(
+            base, val_data, columns, calibration
+        )
+        challenge, alert, decline = _fit_baseline_thresholds(
+            calibrated_scores, action_rate_limits
+        )
+        _persist_fitted_thresholds(
+            challenge, alert, decline,
+            threshold_version=threshold_version,
+            template_path=thresholds_template_path,
+            output_dir=fitted_thresholds_dir,
+        )
 
     # --- Persist artifacts ---
     output_dir.mkdir(parents=True, exist_ok=True)

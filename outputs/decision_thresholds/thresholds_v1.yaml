@@ -1,0 +1,31 @@
+action_rate_limits:
+  alert_rate_limit_pct: 15.0
+  challenge_rate_limit_pct: 8.0
+  decline_rate_limit_bps: 25
+  review_rate_limit_pct: 3.0
+allowed_reason_codes:
+- recent_activity_change
+- entity_graph_risk
+- device_novelty
+- security_recovery_recent
+- cash_movement_velocity_high
+- new_recipient_low_tenure
+- region_change_recent
+- score_boundary_cluster
+- shared_device_high_degree
+- shared_recipient_high_degree
+customer_friction_tolerances:
+  max_alert_rate_increase_pct: 0.5
+  max_challenge_rate_increase: 0.005
+  max_decline_rate_increase_bps: 2
+  max_false_positive_rate_increase: 0.001
+decision_bands:
+  accept_band: accept_threshold_band
+  alert_band: alert_threshold_band
+  challenge_band: challenge_threshold_band
+  decline_band: decline_threshold_band
+decision_threshold_version: thresholds_v1
+decision_thresholds:
+  alert_score_threshold: 0.057
+  challenge_score_threshold: 0.057
+  decline_score_threshold: 0.0659

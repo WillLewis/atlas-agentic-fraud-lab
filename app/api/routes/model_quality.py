@@ -1,4 +1,4 @@
-"""Phase 10 ``GET /model-quality-matrix`` route — thin projection of
+"""``GET /model-quality-matrix`` route — thin projection of
 ``config/model_quality_matrix.yaml`` into the OpenAPI
 ``ModelQualityMatrix`` shape.
 
@@ -9,13 +9,14 @@ The handler:
     ``(red_team_model_tier, blue_team_model_tier)`` (OpenAPI),
   * sources ``matrix_version`` from
     ``model_quality_matrix_version`` in YAML,
-  * uses a closed-enum ``caveat`` string disclaiming Phase 13
-    ownership of measured metric values.
+  * uses a closed-enum ``caveat`` string disclaiming that per-cell
+    metric values are placeholders.
 
-Phase 10 invariant (a)(8): NO live multi-tier comparison computation.
+Invariant: NO live multi-tier comparison computation in this route.
 The route ONLY reads existing read-only public-safe configuration; all
 ``average_*`` metrics are zeroed and ``fixed_action_rate_pass`` is
-``True`` until Phase 13 fills measured values.
+``True``. Live multi-tier comparison runs are not included in this
+local demo.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ CAVEAT: str = (
     "Read-only public-safe configuration. Per-cell metric values "
     "(average_model_miss_rate, average_recall_recovery_points, "
     "fixed_action_rate_pass) are placeholders; live multi-tier "
-    "comparison runs land in Phase 13."
+    "comparison runs are not included in this local demo."
 )
 
 

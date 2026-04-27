@@ -50,19 +50,25 @@ def alternate_thresholds_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Per-family closed-enum proposal deltas
+# Per-family closed-enum proposal factors
 # ---------------------------------------------------------------------------
 
 
-# Keep deltas small enough that the friction caps in
-# ``config/decision_thresholds.yaml.customer_friction_tolerances`` stay
-# at least nominally satisfiable for some round/dataset combinations —
-# the judge enforces the actual acceptance ruling.
-_POLICY_CHALLENGE_DELTA_BY_FAMILY: Final[dict[str, float]] = {
-    "low_velocity_high_graph_risk": -0.05,
-    "score_boundary_cluster":       -0.05,
-    "overfit_fix_failure":          -0.03,
+# Multiplicative factor on the baseline ``challenge_score_threshold``.
+# Phase 11+ uses factors instead of absolute deltas because the fitted
+# baseline thresholds (Phase 11 ``train_baseline_model`` distribution-
+# aware fitting) live in a much narrower regime than the Phase-1 demo
+# constants — an absolute ``-0.05`` delta would clamp to zero and
+# challenge every event.  Factors stay meaningful at any baseline
+# threshold magnitude. The judge enforces the actual acceptance ruling.
+_POLICY_CHALLENGE_FACTOR_BY_FAMILY: Final[dict[str, float]] = {
+    "low_velocity_high_graph_risk": 0.95,  # 5% lower → catches more events
+    "score_boundary_cluster":       0.95,
+    "overfit_fix_failure":          0.97,  # tighter (smaller move)
 }
+
+# Default fallback factor for families without a registered entry.
+_DEFAULT_POLICY_CHALLENGE_FACTOR: Final[float] = 0.95
 
 
 # ---------------------------------------------------------------------------
@@ -76,11 +82,16 @@ def propose_policy_fix(
     """Return the per-family ``challenge_score_threshold`` override.
 
     Pure function; closed enum on ``family_id``; deterministic.
+    Multiplicative on the baseline so the proposal is meaningful at
+    any score regime (Phase 11+ baseline thresholds are fit from the
+    actual calibrated validation distribution).
     Returns ``{"challenge_score_threshold": new_value}`` clamped to
     ``[0, 1]`` and rounded to 4 decimals.
     """
-    delta = _POLICY_CHALLENGE_DELTA_BY_FAMILY.get(family_id, -0.05)
-    new_value = max(0.0, min(1.0, baseline_challenge_threshold + delta))
+    factor = _POLICY_CHALLENGE_FACTOR_BY_FAMILY.get(
+        family_id, _DEFAULT_POLICY_CHALLENGE_FACTOR,
+    )
+    new_value = max(0.0, min(1.0, baseline_challenge_threshold * factor))
     return {"challenge_score_threshold": round(float(new_value), 4)}
 
 

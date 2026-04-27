@@ -111,8 +111,8 @@ notes.
 - **Model-tier comparison is read-only.** `GET /model-quality-matrix` and the
   `RunComparisonMatrix` UI project tier metadata from
   `config/model_quality_matrix.yaml`. Per-cell `average_*` metrics are
-  placeholders; live multi-tier comparison runs are Phase 13 work and are
-  intentionally absent here.
+  placeholders; live multi-tier comparison runs are not included in this
+  local demo.
 - **Locked holdouts are gated.** `src/atlas/judge/holdouts.py` blocks runtime
   access from simulation agents; `.claude/settings.json` denies Claude Code
   reads of locked holdout files.

@@ -70,8 +70,10 @@ def test_model_quality_matrix_caveat_non_empty(api_client):
     body = api_client.get("/model-quality-matrix").json()
     assert isinstance(body["caveat"], str)
     assert len(body["caveat"]) > 0
-    # Caveat surfaces the Phase 13 boundary.
-    assert "Phase 13" in body["caveat"]
+    # User-facing wording must NOT reference internal phase labels.
+    assert "Phase 13" not in body["caveat"]
+    # Caveat must still convey that the matrix is read-only / placeholder.
+    assert "not included" in body["caveat"] or "placeholder" in body["caveat"]
 
 
 def test_model_quality_matrix_cell_a_is_frontier_frontier(api_client):

@@ -4,8 +4,8 @@
 // Sources data EXCLUSIVELY from `config/model_quality_matrix.yaml` via
 // the server-side loader. The judge is deterministic code, not an agent
 // tier — so the matrix's per-run cells only carry red_team_tier and
-// bank_defense_tier. Phase 9 invariant (a)(7): NO live model-tier
-// comparison generation; that's Phase 13.
+// bank_defense_tier. Live multi-tier comparison runs are not included
+// in this local demo.
 //
 // Public-safe by construction: the YAML loader exposes only the public
 // `public_safe_label` for each tier unless the demo config explicitly
@@ -75,8 +75,8 @@ export function RunComparisonMatrix({
         </ul>
       ) : null}
       <p className="mt-3 border-t border-atlas-border/40 pt-2 text-[10px] text-atlas-muted/80">
-        Phase 9: read-only public-safe configuration. Live multi-tier comparison
-        runs are Phase 13 work and are intentionally absent here.
+        Read-only public-safe configuration. Live multi-tier comparison runs
+        are not included in this local demo.
       </p>
     </article>
   );
