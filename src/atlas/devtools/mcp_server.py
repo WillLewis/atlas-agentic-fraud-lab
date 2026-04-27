@@ -1,4 +1,4 @@
-"""Local MCP wrapper over the Phase 4 + Phase 6 FastAPI service.
+"""Local MCP wrapper over the Phase 4 + Phase 6 + Phase 7 FastAPI service.
 
 Thin local wrapper that exposes the implemented routes as callable
 functions over ``ATLAS_API_BASE_URL`` (set in ``.mcp.json``).
@@ -7,13 +7,14 @@ Surface:
   * Phase 4 — ``get_decision_thresholds``, ``get_synthetic_sample``,
               ``score_event``, ``batch_score_events``.
   * Phase 6 — ``run_red_team_search``.
+  * Phase 7 — ``propose_defensive_fixes``, ``apply_defensive_fix``.
 
 A proper MCP-protocol server can wrap these functions in a future phase
 without changing the underlying calls.
 
 The wrapper does NOT add any new business logic — it forwards to the
 local FastAPI service, which is the only authoritative path for scoring,
-metadata, and red-team search.
+metadata, red-team search, and defensive-fix proposal/apply.
 """
 
 from __future__ import annotations
@@ -101,6 +102,56 @@ def run_red_team_search(
         return r.json()
 
 
+def propose_defensive_fixes(
+    run_id: str,
+    round_id: int,
+    model_vulnerability_ids: list[str],
+    allowed_fix_types: list[str],
+) -> dict[str, Any]:
+    """Propose deterministic defensive-fix candidates for one or more
+    model vulnerabilities.
+
+    Returns the ``DefensiveFixProposalResponse`` shape — one
+    ``DefensiveFixCandidate`` per (vulnerability_id, fix_type) pair
+    that survives the three-way intersection (request ∩ round_config ∩
+    card recommendation).
+    """
+    payload: dict[str, Any] = {
+        "run_id": run_id,
+        "round_id": round_id,
+        "model_vulnerability_ids": model_vulnerability_ids,
+        "allowed_fix_types": allowed_fix_types,
+    }
+    with _client() as client:
+        r = client.post("/defensive-fixes/propose", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+def apply_defensive_fix(
+    run_id: str,
+    round_id: int,
+    defensive_fix_id: str,
+) -> dict[str, Any]:
+    """Materialize the candidate, run the judge in-process, and return
+    the ``DefensiveFixApplyResponse`` (``applied`` flag +
+    ``governance_rationale`` from the closed-enum formatter).
+
+    ``applied=true`` ⇔ judge accepted the candidate.
+    ``applied=false`` ⇔ judge rejected; artifacts still on disk under
+    ``outputs/`` for traceability.
+    """
+    payload: dict[str, Any] = {
+        "run_id": run_id,
+        "round_id": round_id,
+        "defensive_fix_id": defensive_fix_id,
+    }
+    with _client() as client:
+        r = client.post("/defensive-fixes/apply", json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
 # ---------------------------------------------------------------------------
 # Tool registry — printed by main() so callers can introspect the surface
 # ---------------------------------------------------------------------------
@@ -129,6 +180,23 @@ TOOLS: dict[str, dict[str, str]] = {
             "model-vulnerability cards plus found_adaptive_set event-ids."
         ),
         "method": "POST /red-team/search",
+    },
+    "propose_defensive_fixes": {
+        "description": (
+            "Propose deterministic Phase 7 bank-defense fix candidates "
+            "for the given model_vulnerability_ids. Three-way intersects "
+            "request fix types ∩ round_config ∩ card recommendations."
+        ),
+        "method": "POST /defensive-fixes/propose",
+    },
+    "apply_defensive_fix": {
+        "description": (
+            "Apply a Phase 7 defensive-fix candidate: materialize "
+            "candidate threshold or model artifacts, evaluate via the "
+            "judge in-process, return applied=true (judge-accepted) or "
+            "applied=false (judge-rejected) with a governance rationale."
+        ),
+        "method": "POST /defensive-fixes/apply",
     },
 }
 

@@ -37,6 +37,10 @@ from app.api.schemas.red_team import (  # noqa: E402
     RedTeamSearchRequest,
     RedTeamSearchResponse,
 )
+from atlas.blue_team.manifest import (  # noqa: E402
+    DEFAULT_OUTPUTS_ROOT,
+    persist_cards_as_records,
+)
 import atlas.red_team.fraud_scenario_agent as fsa_mod  # noqa: E402
 from atlas.red_team.fraud_scenario_agent import run_search  # noqa: E402
 from atlas.red_team.model_vulnerability_packager import (  # noqa: E402
@@ -47,6 +51,12 @@ from atlas.model.loader import MissingDatasetError  # noqa: E402
 from atlas.model.scorer import MissingBaselineModelError  # noqa: E402
 
 router = APIRouter()
+
+
+# Phase 7 hook — persist Phase 6 cards as ModelVulnerabilityRecords so
+# ``POST /defensive-fixes/propose`` can resolve ``model_vulnerability_id``
+# without re-running search. Tests monkeypatch this to a tmp dir.
+OUTPUTS_ROOT = DEFAULT_OUTPUTS_ROOT
 
 
 def reset_caches() -> None:
@@ -97,6 +107,19 @@ def post_red_team_search(req: RedTeamSearchRequest) -> dict:
         round_id=result.round_id,
         random_baseline=result.by_method.get("random"),
     )
+
+    # Phase 7 hook — durable lookup keyed by model_vulnerability_id.
+    # Non-breaking: failure to write (e.g., read-only fs) is non-fatal
+    # because Phase 6 search itself doesn't depend on persistence.
+    try:
+        persist_cards_as_records(
+            cards,
+            run_id=result.run_id,
+            found_adaptive_set_event_ids=list(result.found_adaptive_set_event_ids),
+            outputs_root=OUTPUTS_ROOT,
+        )
+    except OSError:
+        pass
 
     return {
         "run_id": result.run_id,

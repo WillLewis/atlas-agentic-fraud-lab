@@ -116,6 +116,13 @@ class JudgeReport(TypedDict):
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 BASELINE_MODELS_ROOT: Final[Path] = REPO_ROOT / "outputs" / "baseline_models"
 
+# Phase 7 candidate threshold versions land here. The Phase 5 judge
+# resolves alternate ``threshold_version`` values to
+# ``ALTERNATE_THRESHOLDS_ROOT / <version>.yaml`` — same shape as the
+# persisted ``config/decision_thresholds.yaml`` so
+# ``load_decision_policy_config`` handles it without changes.
+ALTERNATE_THRESHOLDS_ROOT: Final[Path] = REPO_ROOT / "outputs" / "decision_thresholds"
+
 # Float rounding precision at the report-emit boundary. Matches Phase 4's
 # artifact convention (4dp in calibration.json + baseline_summary.json).
 _REPORT_FLOAT_PRECISION: Final[int] = 4
@@ -132,8 +139,12 @@ def reset_caches() -> None:
 
 class UnknownThresholdVersionError(ValueError):
     """Raised when the request specifies a threshold_version that isn't
-    backed by a known on-disk config. Phase 5 only knows about the
-    persisted ``thresholds_v1``; Phase 7 will introduce alternates.
+    backed by either:
+
+      * the persisted ``config/decision_thresholds.yaml`` (Phase 4/5
+        baseline ``thresholds_v1``), or
+      * a Phase 7 candidate file at
+        ``outputs/decision_thresholds/<version>.yaml``.
     """
 
 
@@ -163,9 +174,20 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
     """Resolve a ``DecisionPolicyConfig`` for the requested
     ``threshold_version``.
 
-    Phase 5 only supports the persisted version (``thresholds_v1``).
-    A non-default request raises ``UnknownThresholdVersionError`` —
-    Phase 7's threshold-fix will introduce alternates.
+    Resolution order:
+      1. ``threshold_version is None`` or matches the persisted
+         baseline ``decision_threshold_version`` → return the cached
+         persisted config.
+      2. Phase 7 candidate file at
+         ``ALTERNATE_THRESHOLDS_ROOT / "{version}.yaml"`` exists → load
+         it via the same ``load_decision_policy_config`` (same YAML
+         shape as the baseline). Cached by version.
+      3. Otherwise raise ``UnknownThresholdVersionError``.
+
+    Caching: only successful loads are cached. A request for an unknown
+    version that later gains a candidate file resolves correctly without
+    a process restart (only ``reset_caches()`` invalidates a successful
+    load, never a miss).
     """
     persisted = _CONFIG_CACHE.get("__persisted__")
     if persisted is None:
@@ -173,10 +195,31 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
         _CONFIG_CACHE["__persisted__"] = persisted
     if threshold_version is None or threshold_version == persisted.threshold_version:
         return persisted
+
+    cached = _CONFIG_CACHE.get(threshold_version)
+    if cached is not None:
+        return cached
+
+    candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{threshold_version}.yaml"
+    if candidate_path.exists():
+        candidate = load_decision_policy_config(candidate_path)
+        # Defensive: the candidate's stored ``threshold_version`` must
+        # match what the caller asked for — otherwise the cache key and
+        # the loaded identity would diverge. Raise a clear error rather
+        # than silently mis-tagging the config.
+        if candidate.threshold_version != threshold_version:
+            raise UnknownThresholdVersionError(
+                f"candidate file {candidate_path} declares "
+                f"decision_threshold_version={candidate.threshold_version!r} "
+                f"but was requested as {threshold_version!r}."
+            )
+        _CONFIG_CACHE[threshold_version] = candidate
+        return candidate
+
     raise UnknownThresholdVersionError(
         f"unknown threshold_version {threshold_version!r}; "
-        f"Phase 5 only supports {persisted.threshold_version!r}. "
-        f"Alternate threshold versions arrive in Phase 7."
+        f"not the persisted {persisted.threshold_version!r} and no "
+        f"candidate file at {candidate_path}."
     )
 
 

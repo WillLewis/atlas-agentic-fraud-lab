@@ -14,9 +14,14 @@ Phase 5 surface:
 
   POST /judge/evaluate-fix
 
-Phase 6 surface (component 1 stub — body lands in component 8):
+Phase 6 surface:
 
   POST /red-team/search
+
+Phase 7 surface (component 1 stubs — bodies land in component 8):
+
+  POST /defensive-fixes/propose
+  POST /defensive-fixes/apply
 
 The service binds to ``127.0.0.1:8000`` by default (``Makefile``
 ``demo-api`` target). Local-only by design.
@@ -36,6 +41,7 @@ if str(SRC) not in sys.path:
 
 from app.api.routes.config import router as config_router  # noqa: E402
 from app.api.routes.decision_thresholds import router as decision_thresholds_router  # noqa: E402
+from app.api.routes.defensive_fixes import router as defensive_fixes_router  # noqa: E402
 from app.api.routes.judge import router as judge_router  # noqa: E402
 from app.api.routes.red_team import router as red_team_router  # noqa: E402
 from app.api.routes.schema import router as schema_router  # noqa: E402
@@ -64,3 +70,4 @@ app.include_router(synthetic_router)
 app.include_router(scoring_router)
 app.include_router(judge_router)
 app.include_router(red_team_router)
+app.include_router(defensive_fixes_router)

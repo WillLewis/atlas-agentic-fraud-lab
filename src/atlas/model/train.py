@@ -28,6 +28,7 @@ import joblib
 import numpy as np
 import sklearn
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
 
 from atlas.model.calibration import fit_calibrator
 from atlas.model.loader import (
@@ -109,8 +110,12 @@ def train_baseline_model(
     seed: int = DEFAULT_TRAIN_SEED,
     data_dir: Path = DEFAULT_DATA_DIR,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
+    *,
+    model_version: str | None = None,
+    c_override: float | None = None,
+    pre_model_step=None,
 ) -> BaselineSummary:
-    """Train + calibrate + persist the Phase 4 baseline.
+    """Train + calibrate + persist a baseline-shape model.
 
     Reads:
         ``data_dir/features/{train,validation}.json``
@@ -126,7 +131,28 @@ def train_baseline_model(
     Returns the baseline summary dict (also written to disk).
 
     Holdout partitions are NEVER touched — the loader refuses them at the
-    `load_features_for_partition` entry point.
+    ``load_features_for_partition`` entry point.
+
+    Phase 7 keyword-only extensions (non-breaking; defaults preserve
+    Phase 4 behavior):
+
+      * ``model_version`` — embed this version string in
+        ``feature_columns.json`` and ``baseline_summary.json`` instead
+        of the Phase-4 default ``MODEL_VERSION`` (``"baseline_v1"``).
+        Used by the bank-defense calibration / feature-fix appliers so
+        the candidate artifact carries the candidate's
+        ``defensive_fix_id`` as its identity.
+      * ``c_override`` — override the sklearn ``LogisticRegression(C=…)``
+        inverse-regularization parameter. ``None`` keeps the Phase 4
+        baseline ``_BASE_C = 1.0``. Used by the calibration-fix family
+        to surface alternate L2 strengths.
+      * ``pre_model_step`` — optional sklearn-compatible transformer
+        prepended to the model. When provided, the persisted artifact
+        is a ``Pipeline([("pre_model", pre_model_step), ("model",
+        LogisticRegression)])`` so the SAME transform runs at fit and
+        predict time. Used by the feature-fix family to bake a closed-
+        enum training-data transform into the candidate artifact while
+        preserving the public ``/score`` ``FeatureVector`` shape.
     """
     train_data = load_train_labeled_features(data_dir)
     val_data = load_validation_labeled_features(data_dir)
@@ -135,13 +161,24 @@ def train_baseline_model(
     x_train, y_train = _build_matrices(train_data, columns)
     x_val, _ = _build_matrices(val_data, columns)
 
+    effective_model_version = model_version if model_version is not None else MODEL_VERSION
+    effective_c = float(c_override) if c_override is not None else _BASE_C
+
     # --- Fit baseline on TRAIN only ---
-    base = LogisticRegression(
-        C=_BASE_C,
+    inner_model = LogisticRegression(
+        C=effective_c,
         solver=_BASE_SOLVER,
         random_state=seed,
         max_iter=_BASE_MAX_ITER,
     )
+    if pre_model_step is not None:
+        # Pipeline applies pre_model_step.transform(X) at both fit AND
+        # predict time, so the public /score path stays consistent.
+        base = Pipeline(
+            [("pre_model_step", pre_model_step), ("model", inner_model)]
+        )
+    else:
+        base = inner_model
     base.fit(x_train, y_train)
 
     # --- Calibrate on VALIDATION only ---
@@ -159,13 +196,13 @@ def train_baseline_model(
     _write_json(
         columns_path,
         {
-            "model_version": MODEL_VERSION,
+            "model_version": effective_model_version,
             "feature_columns": list(columns),
         },
     )
 
     summary: BaselineSummary = {
-        "model_version": MODEL_VERSION,
+        "model_version": effective_model_version,
         "threshold_version": THRESHOLD_VERSION,
         "train_seed": seed,
         "reference_now_utc": _read_reference_now_utc(data_dir),
@@ -184,11 +221,13 @@ def train_baseline_model(
         },
     }
     _write_json(summary_path, summary)
-    # Stash sklearn version on the summary post-hoc so callers (component 7
-    # CLI, web app) can see provenance without it being part of the
-    # BaselineSummary TypedDict contract.
+    # Stash sklearn version + the effective L2 strength on the summary
+    # post-hoc so callers (component 7 CLI, web app, judge tests) can
+    # see provenance without it being part of the BaselineSummary
+    # TypedDict contract.
     summary_with_provenance = dict(summary)
     summary_with_provenance["sklearn_version"] = sklearn.__version__
+    summary_with_provenance["l2_strength_c"] = effective_c
     _write_json(summary_path, summary_with_provenance)
 
     return summary

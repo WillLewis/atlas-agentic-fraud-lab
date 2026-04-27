@@ -131,17 +131,22 @@ def features_per_partition(dataset) -> dict[str, list[FeatureVector]]:
 def trained_baseline_dir(tmp_path_factory) -> Path:
     """Train the Phase 4 baseline once per test session into a tmp dir.
 
-    Layout: ``<tmp_root>/baseline_v1/{model.joblib,calibration.json,...}``.
-    The ``baseline_v1`` nesting matches the on-disk convention Phase 5's
-    ``evaluate_fix`` expects (``outputs/baseline_models/{model_version}/``)
-    while still letting Phase 4 tests pass the artifact directory itself
-    to ``load_baseline_bundle``.
+    Layout: ``<tmp_outputs_root>/baseline_models/baseline_v1/{model.joblib,calibration.json,...}``.
+
+    The full ``baseline_models/baseline_v1`` nesting matches the
+    production layout under ``outputs/baseline_models/baseline_v1/`` so
+    Phase 7's blue-team appliers (which write candidates to
+    ``<outputs_root>/baseline_models/<defensive_fix_id>/``) and the
+    judge's ``BASELINE_MODELS_ROOT`` resolve to the same parent directory.
+
+    Returns the leaf directory containing the four artifacts so Phase 4
+    tests can pass it directly to ``load_baseline_bundle``.
     """
     from atlas.model.train import train_baseline_model
 
-    root = tmp_path_factory.mktemp("phase4_baseline")
-    out = root / "baseline_v1"
-    out.mkdir()
+    outputs_root = tmp_path_factory.mktemp("phase4_outputs")
+    out = outputs_root / "baseline_models" / "baseline_v1"
+    out.mkdir(parents=True)
     train_baseline_model(seed=DEFAULT_TEST_SEED, output_dir=out)
     return out
 
@@ -161,19 +166,36 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
     import atlas.judge.evaluate as evaluate_mod
     import atlas.model.scorer as scorer_mod
     from app.api.main import app
+    import app.api.routes.defensive_fixes as defensive_fixes_mod
+    import app.api.routes.red_team as red_team_mod
+    from app.api.routes.defensive_fixes import (
+        reset_caches as reset_defensive_fixes_caches,
+    )
     from app.api.routes.judge import reset_caches as reset_judge_caches
     from app.api.routes.red_team import reset_caches as reset_red_team_caches
     from app.api.routes.scoring import reset_caches as reset_scoring_caches
 
+    # trained_baseline_dir = <outputs_root>/baseline_models/baseline_v1
+    # → outputs_root  = trained_baseline_dir.parent.parent
+    # → baseline_models_root = trained_baseline_dir.parent
+    outputs_root = trained_baseline_dir.parent.parent
+    baseline_models_root = trained_baseline_dir.parent
+
     monkeypatch.setattr(scorer_mod, "DEFAULT_OUTPUT_DIR", trained_baseline_dir)
+    monkeypatch.setattr(evaluate_mod, "BASELINE_MODELS_ROOT", baseline_models_root)
     monkeypatch.setattr(
-        evaluate_mod, "BASELINE_MODELS_ROOT", trained_baseline_dir.parent
+        evaluate_mod, "ALTERNATE_THRESHOLDS_ROOT",
+        outputs_root / "decision_thresholds",
     )
+    monkeypatch.setattr(defensive_fixes_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(red_team_mod, "OUTPUTS_ROOT", outputs_root)
     reset_scoring_caches()
     reset_judge_caches()
     reset_red_team_caches()
+    reset_defensive_fixes_caches()
     with TestClient(app) as client:
         yield client
     reset_scoring_caches()
     reset_judge_caches()
     reset_red_team_caches()
+    reset_defensive_fixes_caches()
