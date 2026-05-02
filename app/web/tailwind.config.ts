@@ -10,16 +10,16 @@ const config: Config = {
     extend: {
       colors: {
         atlas: {
-          ink: "#0b1020",
-          surface: "#101729",
-          panel: "#161e34",
-          border: "#243054",
-          muted: "#8a93b2",
-          text: "#e6e9f2",
-          accent: "#6ea8fe",
-          warn: "#f4b860",
-          danger: "#f06a6a",
-          ok: "#7bd88f"
+          ink: "#f6f7fb",
+          surface: "#eef2f7",
+          panel: "#ffffff",
+          border: "#d8dee9",
+          muted: "#667085",
+          text: "#1f2937",
+          accent: "#1f6feb",
+          warn: "#b54708",
+          danger: "#d92d20",
+          ok: "#027a48"
         }
       },
       fontFamily: {

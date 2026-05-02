@@ -51,12 +51,12 @@ export interface LinePlotProps {
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const VIEWBOX_WIDTH = 480;
-const VIEWBOX_HEIGHT = 240;
-const PADDING_TOP = 18;
-const PADDING_RIGHT = 16;
-const PADDING_BOTTOM = 40;
-const PADDING_LEFT = 64;
+const VIEWBOX_WIDTH = 520;
+const VIEWBOX_HEIGHT = 248;
+const PADDING_TOP = 28;
+const PADDING_RIGHT = 44;
+const PADDING_BOTTOM = 46;
+const PADDING_LEFT = 78;
 
 const PLOT_WIDTH = VIEWBOX_WIDTH - PADDING_LEFT - PADDING_RIGHT;
 const PLOT_HEIGHT = VIEWBOX_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
@@ -72,10 +72,8 @@ const SERIES_COLOR_CLASS: Record<SeriesColorToken, string> = {
   ok: "text-atlas-ok"
 };
 
-// Color for anchor-dot fill — matches the body background so a hollow dot
-// looks "punched out" of the line. Kept as a constant so a Phase 14 theme
-// swap stays in one place.
-const ANCHOR_HOLLOW_FILL = "#0b1020";
+const ANCHOR_HOLLOW_FILL = "var(--atlas-chart-empty-fill)";
+const GRID_STROKE = "var(--atlas-chart-grid)";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -141,8 +139,8 @@ export function LinePlot({
       >
         {/* Y-axis label */}
         <text
-          x={PADDING_LEFT - 60}
-          y={PADDING_TOP - 6}
+          x={PLOT_X0}
+          y={14}
           className="fill-atlas-muted font-mono text-[10px] uppercase tracking-wider"
         >
           {y_axis_label}
@@ -156,7 +154,7 @@ export function LinePlot({
               x2={VIEWBOX_WIDTH - PADDING_RIGHT}
               y1={yAt(tick)}
               y2={yAt(tick)}
-              stroke="#243054"
+              stroke={GRID_STROKE}
               strokeDasharray="2 3"
               strokeWidth={1}
             />
@@ -177,7 +175,7 @@ export function LinePlot({
             key={`xlabel-${i}`}
             x={xAt(i)}
             y={PLOT_Y0 + 18}
-            textAnchor="middle"
+            textAnchor={i === 0 ? "start" : i === xLabels.length - 1 ? "end" : "middle"}
             className="fill-atlas-muted text-[10px]"
           >
             {label}
