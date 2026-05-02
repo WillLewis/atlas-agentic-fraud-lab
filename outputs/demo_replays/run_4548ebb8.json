@@ -2,52 +2,52 @@
   "charts": {
     "round_metrics": [
       {
-        "alert_rate": 0.0,
+        "alert_rate": 0.2069,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0,
-        "false_positive_rate_at_fixed_action_rate": 0.0,
+        "decline_rate": 0.0172,
+        "false_positive_rate_at_fixed_action_rate": 0.2157,
         "kind": "baseline",
-        "model_miss_rate": 1.0,
-        "recall_at_fixed_action_rate": 0.0,
+        "model_miss_rate": 0.7143,
+        "recall_at_fixed_action_rate": 0.2857,
         "round_id": 0,
         "round_label": "Baseline",
-        "synthetic_loss_allowed": 1012000.0
+        "synthetic_loss_allowed": 508000.0
       },
       {
-        "alert_rate": 0.0,
+        "alert_rate": 0.2069,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0,
-        "false_positive_rate_at_fixed_action_rate": 0.0,
+        "decline_rate": 0.0172,
+        "false_positive_rate_at_fixed_action_rate": 0.2157,
         "kind": "fixed",
-        "model_miss_rate": 1.0,
-        "recall_at_fixed_action_rate": 0.0,
+        "model_miss_rate": 0.7143,
+        "recall_at_fixed_action_rate": 0.2857,
         "round_id": 1,
         "round_label": "Round 1",
-        "synthetic_loss_allowed": 1012000.0
+        "synthetic_loss_allowed": 508000.0
       },
       {
-        "alert_rate": 0.0,
+        "alert_rate": 0.2069,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0,
-        "false_positive_rate_at_fixed_action_rate": 0.0,
+        "decline_rate": 0.0172,
+        "false_positive_rate_at_fixed_action_rate": 0.2157,
         "kind": "fixed",
-        "model_miss_rate": 1.0,
-        "recall_at_fixed_action_rate": 0.0,
+        "model_miss_rate": 0.7143,
+        "recall_at_fixed_action_rate": 0.2857,
         "round_id": 2,
         "round_label": "Round 2",
-        "synthetic_loss_allowed": 1012000.0
+        "synthetic_loss_allowed": 508000.0
       },
       {
-        "alert_rate": 0.0,
+        "alert_rate": 0.2069,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0,
-        "false_positive_rate_at_fixed_action_rate": 0.0,
+        "decline_rate": 0.0172,
+        "false_positive_rate_at_fixed_action_rate": 0.2157,
         "kind": "fixed",
-        "model_miss_rate": 1.0,
-        "recall_at_fixed_action_rate": 0.0,
+        "model_miss_rate": 0.7143,
+        "recall_at_fixed_action_rate": 0.2857,
         "round_id": 3,
         "round_label": "Round 3",
-        "synthetic_loss_allowed": 1012000.0
+        "synthetic_loss_allowed": 508000.0
       }
     ]
   },
@@ -180,8 +180,8 @@
           "accepted_fix_id": "",
           "category": "round_summary",
           "judge_report_id": "judge_run_4548ebb8_1_fix_round1_low_velocity_high_graph_risk_feature_fix",
-          "model_miss_rate_after": 1.0,
-          "model_miss_rate_before": 1.0,
+          "model_miss_rate_after": 0.7143,
+          "model_miss_rate_before": 0.7143,
           "model_version_after": "baseline_v1",
           "model_version_before": "baseline_v1",
           "round_id": 1,
@@ -200,8 +200,8 @@
           "accepted_fix_id": "",
           "category": "round_summary",
           "judge_report_id": "judge_run_4548ebb8_2_fix_round2_activity_channel_shift_feature_fix",
-          "model_miss_rate_after": 1.0,
-          "model_miss_rate_before": 1.0,
+          "model_miss_rate_after": 0.7143,
+          "model_miss_rate_before": 0.7143,
           "model_version_after": "baseline_v1",
           "model_version_before": "baseline_v1",
           "round_id": 2,
@@ -220,8 +220,8 @@
           "accepted_fix_id": "",
           "category": "round_summary",
           "judge_report_id": "judge_run_4548ebb8_3_fix_round3_label_noise_mislearned_model_calibration_fix",
-          "model_miss_rate_after": 1.0,
-          "model_miss_rate_before": 1.0,
+          "model_miss_rate_after": 0.7143,
+          "model_miss_rate_before": 0.7143,
           "model_version_after": "baseline_v1",
           "model_version_before": "baseline_v1",
           "round_id": 3,
@@ -236,12 +236,12 @@
           "final_model_version": "baseline_v1",
           "final_threshold_version": "thresholds_v1",
           "miss_rate_trend": [
-            1.0,
-            1.0,
-            1.0
+            0.7143,
+            0.7143,
+            0.7143
           ],
           "safety_scan_passed": true,
-          "summary": "Run run_4548ebb8: 3 rounds completed; 0 accepted defensive fix(es); model_miss_rate trend: 1.0000 → 1.0000 → 1.0000; final model=baseline_v1, threshold=thresholds_v1."
+          "summary": "Run run_4548ebb8: 3 rounds completed; 0 accepted defensive fix(es); model_miss_rate trend: 0.7143 → 0.7143 → 0.7143; final model=baseline_v1, threshold=thresholds_v1."
         }
       ],
       "step_id": 5,
@@ -253,47 +253,47 @@
     "current_round": 3,
     "demo_mode": "public",
     "latest_metrics": {
-      "alert_rate": 0.0,
+      "alert_rate": 0.2069,
       "challenge_rate": 0.0,
-      "decline_rate": 0.0,
-      "false_positive_rate_at_fixed_action_rate": 0.0,
+      "decline_rate": 0.0172,
+      "false_positive_rate_at_fixed_action_rate": 0.2157,
       "kind": "fixed",
-      "model_miss_rate": 1.0,
-      "recall_at_fixed_action_rate": 0.0,
+      "model_miss_rate": 0.7143,
+      "recall_at_fixed_action_rate": 0.2857,
       "round_id": 3,
       "round_label": "Round 3",
-      "synthetic_loss_allowed": 1012000.0
+      "synthetic_loss_allowed": 508000.0
     },
     "rounds": [
       {
-        "model_miss_rate_after": 1.0,
-        "model_miss_rate_before": 1.0,
+        "model_miss_rate_after": 0.7143,
+        "model_miss_rate_before": 0.7143,
         "model_version_after": "baseline_v1",
         "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.0,
-        "recall_at_fixed_action_rate_before": 0.0,
+        "recall_at_fixed_action_rate_after": 0.2857,
+        "recall_at_fixed_action_rate_before": 0.2857,
         "round_id": 1,
         "run_id": "run_4548ebb8",
         "status": "completed"
       },
       {
-        "model_miss_rate_after": 1.0,
-        "model_miss_rate_before": 1.0,
+        "model_miss_rate_after": 0.7143,
+        "model_miss_rate_before": 0.7143,
         "model_version_after": "baseline_v1",
         "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.0,
-        "recall_at_fixed_action_rate_before": 0.0,
+        "recall_at_fixed_action_rate_after": 0.2857,
+        "recall_at_fixed_action_rate_before": 0.2857,
         "round_id": 2,
         "run_id": "run_4548ebb8",
         "status": "completed"
       },
       {
-        "model_miss_rate_after": 1.0,
-        "model_miss_rate_before": 1.0,
+        "model_miss_rate_after": 0.7143,
+        "model_miss_rate_before": 0.7143,
         "model_version_after": "baseline_v1",
         "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.0,
-        "recall_at_fixed_action_rate_before": 0.0,
+        "recall_at_fixed_action_rate_after": 0.2857,
+        "recall_at_fixed_action_rate_before": 0.2857,
         "round_id": 3,
         "run_id": "run_4548ebb8",
         "status": "completed"

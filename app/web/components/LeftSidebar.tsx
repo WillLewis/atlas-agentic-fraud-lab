@@ -39,10 +39,9 @@ export const SIDEBAR_STEPS: readonly SidebarStep[] = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// IntersectionObserver hook — picks the topmost visible section as active.
-// Falls back to the first step when no section is intersecting (e.g., user
-// has scrolled above the first section) and the last step when all sections
-// have scrolled past.
+// Scroll-spy hook — picks the last section whose top has crossed the
+// viewport marker. This keeps the rail aligned with the section the reader is
+// actually in, instead of jumping early when the next section peeks into view.
 // ---------------------------------------------------------------------------
 
 function useActiveStepId(steps: readonly SidebarStep[]): string {
@@ -58,31 +57,31 @@ function useActiveStepId(steps: readonly SidebarStep[]): string {
 
     if (elements.length === 0) return;
 
-    // Account for the sticky disclaimer banner (~52px) at the top by
-    // shrinking the observable region from the top, and bias the active
-    // state toward sections in the upper half of the viewport.
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort(
-            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
-          );
-        if (visible.length > 0) {
-          const top = visible[0]!.target.id;
-          setActiveId(top);
+    const updateActive = () => {
+      const markerY = 96;
+      let nextActive = elements[0]?.id ?? fallback;
+
+      for (const el of elements) {
+        const top = el.getBoundingClientRect().top;
+        if (top <= markerY) {
+          nextActive = el.id;
+        } else {
+          break;
         }
-      },
-      {
-        rootMargin: "-64px 0px -50% 0px",
-        threshold: [0, 0.1, 0.25, 0.5]
       }
-    );
 
-    for (const el of elements) observer.observe(el);
+      setActiveId((current) => (current === nextActive ? current : nextActive));
+    };
 
-    return () => observer.disconnect();
-  }, [steps]);
+    updateActive();
+    window.addEventListener("scroll", updateActive, { passive: true });
+    window.addEventListener("resize", updateActive);
+
+    return () => {
+      window.removeEventListener("scroll", updateActive);
+      window.removeEventListener("resize", updateActive);
+    };
+  }, [fallback, steps]);
 
   return activeId;
 }
@@ -98,7 +97,7 @@ export function LeftSidebar() {
   return (
     <nav
       aria-label="Project Atlas — five-step narrative navigation"
-      className="sticky top-12 hidden h-[calc(100vh-3rem)] shrink-0 border-r border-atlas-border bg-atlas-ink/60 px-3 py-6 md:block"
+      className="sticky top-12 hidden h-[calc(100vh-3rem)] shrink-0 border-r border-atlas-border bg-atlas-panel/85 px-3 py-6 backdrop-blur md:block"
       style={{ width: "var(--atlas-sidebar-width)" }}
     >
       <p className="px-3 pb-4 font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
@@ -116,8 +115,8 @@ export function LeftSidebar() {
                 className={[
                   "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                   isActive
-                    ? "bg-atlas-panel text-atlas-text"
-                    : "text-atlas-muted hover:bg-atlas-panel/60 hover:text-atlas-text"
+                    ? "bg-atlas-surface text-atlas-text shadow-sm"
+                    : "text-atlas-muted hover:bg-atlas-surface/70 hover:text-atlas-text"
                 ].join(" ")}
               >
                 {/* Abstract step indicator: numbered circle.
@@ -127,8 +126,8 @@ export function LeftSidebar() {
                   className={[
                     "relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold tabular-nums",
                     isActive
-                      ? "border-atlas-accent bg-atlas-accent/15 text-atlas-accent"
-                      : "border-atlas-border bg-atlas-surface text-atlas-muted group-hover:border-atlas-muted"
+                      ? "border-atlas-accent bg-atlas-accent/10 text-atlas-accent"
+                      : "border-atlas-border bg-atlas-panel text-atlas-muted group-hover:border-atlas-muted"
                   ].join(" ")}
                 >
                   {step.step_number}

@@ -58,7 +58,12 @@ build-replay:
 		echo "error: no run state found under outputs/runs/. Run 'make run-rounds' first."; \
 		exit 2; \
 	fi; \
-	RUN_ID=$$(basename $$(ls -t outputs/runs/*.json | head -1) .json); \
+	RUN_FILE=$$(find outputs/runs -maxdepth 1 -type f -name 'run_*.json' ! -name '*.round_*.json' -exec ls -t {} + | head -1); \
+	if [ -z "$$RUN_FILE" ]; then \
+		echo "error: no top-level run state found under outputs/runs/. Run 'make run-rounds' first."; \
+		exit 2; \
+	fi; \
+	RUN_ID=$$(basename "$$RUN_FILE" .json); \
 	PYTHONPATH=src $(PYTHON) scripts/build_replay.py --outputs-root outputs --run-id $$RUN_ID
 
 bootstrap:
