@@ -66,7 +66,7 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
         <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
           Judge-derived metrics
         </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 min-[1180px]:grid-cols-2">
           <MetricCard
             label="Recall at fixed action-rate"
             value={report.fixed.recall_at_fixed_action_rate}
@@ -138,7 +138,7 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             (narrative summary)
           </span>
         </p>
-        <blockquote className="mt-2 border-l-2 border-atlas-border/60 pl-3 text-xs italic leading-relaxed text-atlas-muted">
+        <blockquote className="mt-2 break-words border-l-2 border-atlas-border/60 pl-3 text-xs italic leading-relaxed text-atlas-muted">
           {report.judge_notes}
         </blockquote>
       </section>

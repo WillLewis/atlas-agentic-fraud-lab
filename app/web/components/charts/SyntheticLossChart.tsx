@@ -15,11 +15,15 @@ import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
 interface SyntheticLossChartProps {
   metrics: MetricSnapshot[];
+  candidate_metrics?: MetricSnapshot[];
 }
 
-export function SyntheticLossChart({ metrics }: SyntheticLossChartProps) {
-  const series: LinePlotSeries = {
-    name: "Synthetic loss allowed",
+export function SyntheticLossChart({
+  metrics,
+  candidate_metrics
+}: SyntheticLossChartProps) {
+  const carryForwardSeries: LinePlotSeries = {
+    name: "Carry-forward state",
     color_token: "warn",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -27,13 +31,29 @@ export function SyntheticLossChart({ metrics }: SyntheticLossChartProps) {
       is_anchor: s.kind !== "interpolated"
     }))
   };
+  const selectedCandidateSeries: LinePlotSeries | null = candidate_metrics
+    ? {
+        name: "Selected candidate result",
+        color_token: "accent",
+        stroke_dasharray: "4 3",
+        points: candidate_metrics.map((s) => ({
+          x_label: s.round_label,
+          value: s.synthetic_loss_allowed,
+          is_anchor: s.kind !== "interpolated"
+        }))
+      }
+    : null;
+  const series = selectedCandidateSeries
+    ? [carryForwardSeries, selectedCandidateSeries]
+    : [carryForwardSeries];
 
   return (
     <LinePlot
-      series={[series]}
+      series={series}
       y_axis_label="Synthetic loss allowed"
       y_format={(v) => formatSyntheticCurrency(v, { compact: true })}
       y_min={0}
+      show_legend={series.length > 1}
       aria_label="Synthetic loss allowed across baseline and synthetic rounds, in synthetic currency units; lower is better."
     />
   );

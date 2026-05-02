@@ -132,6 +132,7 @@ async function ReadyReplayBody({
     })
   );
   const detailByRound = new Map<number, RoundDetail | null>(detailEntries);
+  const candidateMetrics = buildSelectedCandidateMetrics(metrics, detailByRound);
 
   return (
     <>
@@ -142,6 +143,7 @@ async function ReadyReplayBody({
         round={rounds.find((r) => r.round_id === 1)}
         detail={detailByRound.get(1) ?? null}
         metrics={metrics}
+        candidateMetrics={candidateMetrics}
       />
 
       {/* Section 4 — Round 2 */}
@@ -151,6 +153,7 @@ async function ReadyReplayBody({
         round={rounds.find((r) => r.round_id === 2)}
         detail={detailByRound.get(2) ?? null}
         metrics={metrics}
+        candidateMetrics={candidateMetrics}
       />
 
       {/* Section 5 — Round 3 + final report */}
@@ -161,10 +164,31 @@ async function ReadyReplayBody({
         detail={detailByRound.get(3) ?? null}
         payload={payload}
         metrics={metrics}
+        candidateMetrics={candidateMetrics}
         matrix={matrix}
       />
     </>
   );
+}
+
+function buildSelectedCandidateMetrics(
+  metrics: MetricSnapshot[],
+  detailByRound: Map<number, RoundDetail | null>
+): MetricSnapshot[] {
+  return metrics.map((snapshot) => {
+    if (snapshot.round_id === 0) return snapshot;
+    const report = detailByRound.get(snapshot.round_id)?.judge_reports?.[0];
+    if (!report) return snapshot;
+    return {
+      ...snapshot,
+      kind: "fixed",
+      model_miss_rate: report.fixed.model_miss_rate,
+      recall_at_fixed_action_rate: report.fixed.recall_at_fixed_action_rate,
+      false_positive_rate_at_fixed_action_rate:
+        report.fixed.false_positive_rate_at_fixed_action_rate,
+      synthetic_loss_allowed: report.fixed.synthetic_loss_allowed
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -176,13 +200,15 @@ function RoundSection({
   narrative,
   round,
   detail,
-  metrics
+  metrics,
+  candidateMetrics
 }: {
   id: string;
   narrative: SectionNarrative;
   round: RoundSummary | undefined;
   detail: RoundDetail | null;
   metrics: MetricSnapshot[];
+  candidateMetrics: MetricSnapshot[];
 }) {
   return (
     <section
@@ -210,16 +236,22 @@ function RoundSection({
       ) : (
         <>
           {/* Slim cards strip — vulnerabilities, fixes, judge */}
-          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <SlimVulnerabilityCard
-              records={detail?.model_vulnerabilities ?? []}
-              round_id={round.round_id}
-            />
-            <SlimFixCard
-              records={detail?.defensive_fixes ?? []}
-              round_id={round.round_id}
-            />
-            <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+          <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+            <div className="min-w-0">
+              <SlimVulnerabilityCard
+                records={detail?.model_vulnerabilities ?? []}
+                round_id={round.round_id}
+              />
+            </div>
+            <div className="min-w-0">
+              <SlimFixCard
+                records={detail?.defensive_fixes ?? []}
+                round_id={round.round_id}
+              />
+            </div>
+            <div className="min-w-0 xl:col-span-2 2xl:col-span-1">
+              <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+            </div>
           </div>
 
           {/* Sanitized transcript */}
@@ -237,15 +269,21 @@ function RoundSection({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
               title="Model miss rate"
-              hint="Lower is better. Trend across baseline + completed rounds."
+              hint="Lower is better. Carry-forward state plus selected candidate result."
             >
-              <MissRateChart metrics={metrics} />
+              <MissRateChart
+                metrics={metrics}
+                candidate_metrics={candidateMetrics}
+              />
             </ChartCard>
             <ChartCard
               title="Recall at fixed action-rate limit"
-              hint="Higher is better."
+              hint="Higher is better. Carry-forward state plus selected candidate result."
             >
-              <RecallRecoveryChart metrics={metrics} />
+              <RecallRecoveryChart
+                metrics={metrics}
+                candidate_metrics={candidateMetrics}
+              />
             </ChartCard>
           </div>
         </>
@@ -265,6 +303,7 @@ function FinalReportSection({
   detail,
   payload,
   metrics,
+  candidateMetrics,
   matrix
 }: {
   id: string;
@@ -273,6 +312,7 @@ function FinalReportSection({
   detail: RoundDetail | null;
   payload: ReplayPayload;
   metrics: MetricSnapshot[];
+  candidateMetrics: MetricSnapshot[];
   matrix: ReturnType<typeof getModelQualityMatrix>;
 }) {
   const finalReportCard = findFinalReportCard(payload);
@@ -301,16 +341,22 @@ function FinalReportSection({
       {round !== undefined ? (
         <>
           {/* Round 3 cards strip */}
-          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <SlimVulnerabilityCard
-              records={detail?.model_vulnerabilities ?? []}
-              round_id={round.round_id}
-            />
-            <SlimFixCard
-              records={detail?.defensive_fixes ?? []}
-              round_id={round.round_id}
-            />
-            <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+          <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+            <div className="min-w-0">
+              <SlimVulnerabilityCard
+                records={detail?.model_vulnerabilities ?? []}
+                round_id={round.round_id}
+              />
+            </div>
+            <div className="min-w-0">
+              <SlimFixCard
+                records={detail?.defensive_fixes ?? []}
+                round_id={round.round_id}
+              />
+            </div>
+            <div className="min-w-0 xl:col-span-2 2xl:col-span-1">
+              <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+            </div>
           </div>
 
           {/* Sanitized round-3 transcript */}
@@ -342,21 +388,30 @@ function FinalReportSection({
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Model miss rate"
-          hint="Trend across rounds."
+          hint="Carry-forward state plus selected candidate result before judge rejection."
         >
-          <MissRateChart metrics={metrics} />
+          <MissRateChart
+            metrics={metrics}
+            candidate_metrics={candidateMetrics}
+          />
         </ChartCard>
         <ChartCard
           title="Recall at fixed action-rate limit"
-          hint="Higher is better."
+          hint="Higher is better. Carry-forward state plus selected candidate result."
         >
-          <RecallRecoveryChart metrics={metrics} />
+          <RecallRecoveryChart
+            metrics={metrics}
+            candidate_metrics={candidateMetrics}
+          />
         </ChartCard>
         <ChartCard
           title="Synthetic loss allowed"
-          hint="In synthetic currency units. Lower is better."
+          hint="Lower is better. Carry-forward state plus selected candidate result."
         >
-          <SyntheticLossChart metrics={metrics} />
+          <SyntheticLossChart
+            metrics={metrics}
+            candidate_metrics={candidateMetrics}
+          />
         </ChartCard>
         <ChartCard
           title="Customer-friction rates"

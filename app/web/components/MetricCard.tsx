@@ -99,17 +99,17 @@ export function MetricCard({ label, value, format, comparison, hint }: MetricCar
   const trendInfo = comparison ? deriveTrend(value, comparison) : null;
 
   return (
-    <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
+      <p className="break-words font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
         {label}
       </p>
-      <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-atlas-text">
+      <p className="mt-2 break-words font-mono text-xl font-semibold tabular-nums text-atlas-text sm:text-2xl">
         {valueStr}
       </p>
       {trendInfo && comparison ? (
         <p
           className={[
-            "mt-2 flex items-baseline gap-1.5 text-[11px]",
+            "mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11px]",
             trendInfo.tone === "good"
               ? "text-atlas-ok"
               : trendInfo.tone === "bad"
@@ -120,13 +120,13 @@ export function MetricCard({ label, value, format, comparison, hint }: MetricCar
           <span aria-hidden="true" className="text-sm leading-none">
             {trendInfo.arrow}
           </span>
-          <span className="font-mono">
+          <span className="break-words font-mono">
             {formatDelta(value - comparison.baseline_value, format)}
           </span>
-          <span className="text-atlas-muted">
+          <span className="break-words text-atlas-muted">
             ({formatRelative(value, comparison.baseline_value)})
           </span>
-          <span className="text-atlas-muted">
+          <span className="break-words text-atlas-muted">
             {comparison.baseline_label ?? "from"}{" "}
             <span className="font-mono">
               {formatValue(comparison.baseline_value, format)}

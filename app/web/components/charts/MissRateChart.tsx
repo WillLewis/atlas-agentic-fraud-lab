@@ -16,11 +16,12 @@ import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
 interface MissRateChartProps {
   metrics: MetricSnapshot[];
+  candidate_metrics?: MetricSnapshot[];
 }
 
-export function MissRateChart({ metrics }: MissRateChartProps) {
-  const series: LinePlotSeries = {
-    name: "Model miss rate",
+export function MissRateChart({ metrics, candidate_metrics }: MissRateChartProps) {
+  const carryForwardSeries: LinePlotSeries = {
+    name: "Carry-forward state",
     color_token: "danger",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -28,13 +29,29 @@ export function MissRateChart({ metrics }: MissRateChartProps) {
       is_anchor: s.kind !== "interpolated"
     }))
   };
+  const selectedCandidateSeries: LinePlotSeries | null = candidate_metrics
+    ? {
+        name: "Selected candidate result",
+        color_token: "accent",
+        stroke_dasharray: "4 3",
+        points: candidate_metrics.map((s) => ({
+          x_label: s.round_label,
+          value: s.model_miss_rate,
+          is_anchor: s.kind !== "interpolated"
+        }))
+      }
+    : null;
+  const series = selectedCandidateSeries
+    ? [carryForwardSeries, selectedCandidateSeries]
+    : [carryForwardSeries];
 
   return (
     <LinePlot
-      series={[series]}
+      series={series}
       y_axis_label="Model miss rate"
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
+      show_legend={series.length > 1}
       aria_label="Model miss rate across baseline and synthetic rounds; lower is better."
     />
   );

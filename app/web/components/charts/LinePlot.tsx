@@ -30,6 +30,7 @@ export interface LinePlotSeries {
   name: string;
   color_token: SeriesColorToken;
   points: ReadonlyArray<LinePlotPoint>;
+  stroke_dasharray?: string;
 }
 
 export interface LinePlotProps {
@@ -123,7 +124,10 @@ export function LinePlot({
             >
               <span
                 aria-hidden="true"
-                className="inline-block h-0.5 w-4 rounded-full bg-current"
+                className={[
+                  "inline-block h-0 w-4 border-t-2 border-current",
+                  s.stroke_dasharray ? "border-dashed" : "border-solid"
+                ].join(" ")}
               />
               <span className="text-atlas-text">{s.name}</span>
             </span>
@@ -198,6 +202,7 @@ export function LinePlot({
               strokeWidth={1.6}
               strokeLinecap="round"
               strokeLinejoin="round"
+              strokeDasharray={s.stroke_dasharray}
             />
             {s.points.map((p, i) => (
               <circle
