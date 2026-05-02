@@ -1,7 +1,6 @@
 // app/web/components/RoundTimeline.tsx
-// Round-by-round timeline showing before/after model_miss_rate and
-// recall_at_fixed_action_rate. Visual only — no interactivity, no replay
-// scrubbing yet.
+// Round-by-round timeline showing before/after judge metrics. Visual only —
+// no interactivity, no replay scrubbing yet.
 //
 // Phase 9: pure function of `metrics`. The page composes the data
 // source — live replay (component 8) or `getRoundMetrics()` in
@@ -15,7 +14,7 @@
 // run), the timeline renders only as many panels as it can derive
 // (snapshots.length - 1). Empty input → empty list, no throw.
 
-import { formatRate } from "../lib/formatters";
+import { formatRate, formatSyntheticCurrency } from "../lib/formatters";
 import type { MetricSnapshot } from "../lib/types";
 
 interface TimelineRound {
@@ -85,7 +84,11 @@ function RoundPanel({ round }: { round: TimelineRound }) {
     round.candidate_after !== null &&
     (round.candidate_after.model_miss_rate !== round.after.model_miss_rate ||
       round.candidate_after.recall_at_fixed_action_rate !==
-        round.after.recall_at_fixed_action_rate);
+        round.after.recall_at_fixed_action_rate ||
+      round.candidate_after.false_positive_rate_at_fixed_action_rate !==
+        round.after.false_positive_rate_at_fixed_action_rate ||
+      round.candidate_after.synthetic_loss_allowed !==
+        round.after.synthetic_loss_allowed);
 
   return (
     <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
@@ -117,6 +120,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         label="Model miss rate · carry-forward"
         before_value={round.before.model_miss_rate}
         after_value={round.after.model_miss_rate}
+        format="rate"
         improvement_direction="down_is_good"
       />
       {candidateMoves && round.candidate_after ? (
@@ -124,6 +128,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
           label="Model miss rate · selected candidate"
           before_value={round.before.model_miss_rate}
           after_value={round.candidate_after.model_miss_rate}
+          format="rate"
           improvement_direction="down_is_good"
         />
       ) : null}
@@ -131,6 +136,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         label="Recall at fixed action-rate · carry-forward"
         before_value={round.before.recall_at_fixed_action_rate}
         after_value={round.after.recall_at_fixed_action_rate}
+        format="rate"
         improvement_direction="up_is_good"
       />
       {candidateMoves && round.candidate_after ? (
@@ -138,7 +144,40 @@ function RoundPanel({ round }: { round: TimelineRound }) {
           label="Recall at fixed action-rate · selected candidate"
           before_value={round.before.recall_at_fixed_action_rate}
           after_value={round.candidate_after.recall_at_fixed_action_rate}
+          format="rate"
           improvement_direction="up_is_good"
+        />
+      ) : null}
+      <BeforeAfter
+        label="False-positive rate · carry-forward"
+        before_value={round.before.false_positive_rate_at_fixed_action_rate}
+        after_value={round.after.false_positive_rate_at_fixed_action_rate}
+        format="rate"
+        improvement_direction="down_is_good"
+      />
+      {candidateMoves && round.candidate_after ? (
+        <BeforeAfter
+          label="False-positive rate · selected candidate"
+          before_value={round.before.false_positive_rate_at_fixed_action_rate}
+          after_value={round.candidate_after.false_positive_rate_at_fixed_action_rate}
+          format="rate"
+          improvement_direction="down_is_good"
+        />
+      ) : null}
+      <BeforeAfter
+        label="Synthetic loss allowed · carry-forward"
+        before_value={round.before.synthetic_loss_allowed}
+        after_value={round.after.synthetic_loss_allowed}
+        format="synthetic_currency"
+        improvement_direction="down_is_good"
+      />
+      {candidateMoves && round.candidate_after ? (
+        <BeforeAfter
+          label="Synthetic loss allowed · selected candidate"
+          before_value={round.before.synthetic_loss_allowed}
+          after_value={round.candidate_after.synthetic_loss_allowed}
+          format="synthetic_currency"
+          improvement_direction="down_is_good"
         />
       ) : null}
     </article>
@@ -153,6 +192,7 @@ interface BeforeAfterProps {
   label: string;
   before_value: number;
   after_value: number;
+  format: "rate" | "synthetic_currency";
   improvement_direction: "down_is_good" | "up_is_good";
 }
 
@@ -160,6 +200,7 @@ function BeforeAfter({
   label,
   before_value,
   after_value,
+  format,
   improvement_direction
 }: BeforeAfterProps) {
   const delta = after_value - before_value;
@@ -168,21 +209,27 @@ function BeforeAfter({
   const tone =
     isImprovement === null ? "neutral" : isImprovement ? "good" : "bad";
   const arrow = delta === 0 ? "→" : delta > 0 ? "↑" : "↓";
+  const valueLabel = (value: number): string =>
+    format === "synthetic_currency" ? formatSyntheticCurrency(value) : formatRate(value);
+  const deltaLabel =
+    format === "synthetic_currency"
+      ? formatSyntheticCurrency(Math.abs(delta))
+      : `${Math.abs(delta * 100).toFixed(2)} pp`;
 
   return (
     <div className="mt-2 flex flex-col gap-0.5">
       <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
         {label}
       </p>
-      <p className="flex items-baseline gap-2 text-sm">
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
         <span className="font-mono tabular-nums text-atlas-muted">
-          {formatRate(before_value)}
+          {valueLabel(before_value)}
         </span>
         <span aria-hidden="true" className="text-atlas-muted">
           →
         </span>
         <span className="font-mono tabular-nums text-atlas-text">
-          {formatRate(after_value)}
+          {valueLabel(after_value)}
         </span>
         <span
           className={[
@@ -194,8 +241,7 @@ function BeforeAfter({
                 : "text-atlas-muted"
           ].join(" ")}
         >
-          <span aria-hidden="true">{arrow}</span>{" "}
-          {Math.abs(delta * 100).toFixed(2)} pp
+          <span aria-hidden="true">{arrow}</span> {deltaLabel}
         </span>
       </p>
     </div>

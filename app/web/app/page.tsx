@@ -376,14 +376,6 @@ function FinalReportSection({
         </div>
       )}
 
-      {/* Round timeline */}
-      <div className="mb-10">
-        <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          Round timeline
-        </h3>
-        <RoundTimeline metrics={metrics} candidate_metrics={candidateMetrics} />
-      </div>
-
       {/* All four charts in a 2x2 grid */}
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
@@ -419,6 +411,14 @@ function FinalReportSection({
         >
           <FrictionChart metrics={metrics} />
         </ChartCard>
+      </div>
+
+      {/* Round timeline */}
+      <div className="mb-10">
+        <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
+          Round timeline
+        </h3>
+        <RoundTimeline metrics={metrics} candidate_metrics={candidateMetrics} />
       </div>
 
       {/* Final-report summary card */}
