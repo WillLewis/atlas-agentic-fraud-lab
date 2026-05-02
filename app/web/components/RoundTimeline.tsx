@@ -23,13 +23,15 @@ interface TimelineRound {
   label: string;
   before: MetricSnapshot;
   after: MetricSnapshot;
+  candidate_after: MetricSnapshot | null;
 }
 
 interface RoundTimelineProps {
   metrics: MetricSnapshot[];
+  candidate_metrics?: MetricSnapshot[];
 }
 
-export function RoundTimeline({ metrics }: RoundTimelineProps) {
+export function RoundTimeline({ metrics, candidate_metrics }: RoundTimelineProps) {
   // Pair each non-baseline snapshot with the prior one. ``rounds[i]``'s
   // before is ``metrics[i]`` and after is ``metrics[i+1]``. We yield
   // one panel per round we have a (before, after) pair for; an empty
@@ -44,7 +46,8 @@ export function RoundTimeline({ metrics }: RoundTimelineProps) {
       round_id: after.round_id,
       label: after.round_label,
       before,
-      after
+      after,
+      candidate_after: candidate_metrics?.[i + 1] ?? null
     });
   }
 
@@ -78,6 +81,11 @@ export function RoundTimeline({ metrics }: RoundTimelineProps) {
 
 function RoundPanel({ round }: { round: TimelineRound }) {
   const isPlaceholder = round.after.kind === "interpolated";
+  const candidateMoves =
+    round.candidate_after !== null &&
+    (round.candidate_after.model_miss_rate !== round.after.model_miss_rate ||
+      round.candidate_after.recall_at_fixed_action_rate !==
+        round.after.recall_at_fixed_action_rate);
 
   return (
     <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
@@ -106,17 +114,33 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       </header>
 
       <BeforeAfter
-        label="Model miss rate"
+        label="Model miss rate · carry-forward"
         before_value={round.before.model_miss_rate}
         after_value={round.after.model_miss_rate}
         improvement_direction="down_is_good"
       />
+      {candidateMoves && round.candidate_after ? (
+        <BeforeAfter
+          label="Model miss rate · selected candidate"
+          before_value={round.before.model_miss_rate}
+          after_value={round.candidate_after.model_miss_rate}
+          improvement_direction="down_is_good"
+        />
+      ) : null}
       <BeforeAfter
-        label="Recall at fixed action-rate"
+        label="Recall at fixed action-rate · carry-forward"
         before_value={round.before.recall_at_fixed_action_rate}
         after_value={round.after.recall_at_fixed_action_rate}
         improvement_direction="up_is_good"
       />
+      {candidateMoves && round.candidate_after ? (
+        <BeforeAfter
+          label="Recall at fixed action-rate · selected candidate"
+          before_value={round.before.recall_at_fixed_action_rate}
+          after_value={round.candidate_after.recall_at_fixed_action_rate}
+          improvement_direction="up_is_good"
+        />
+      ) : null}
     </article>
   );
 }

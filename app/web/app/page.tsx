@@ -381,7 +381,7 @@ function FinalReportSection({
         <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
           Round timeline
         </h3>
-        <RoundTimeline metrics={metrics} />
+        <RoundTimeline metrics={metrics} candidate_metrics={candidateMetrics} />
       </div>
 
       {/* All four charts in a 2x2 grid */}
