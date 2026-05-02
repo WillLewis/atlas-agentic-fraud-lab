@@ -114,6 +114,7 @@ class JudgeReport(TypedDict):
 # ---------------------------------------------------------------------------
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
+DEFAULT_OUTPUTS_ROOT: Final[Path] = REPO_ROOT / "outputs"
 BASELINE_MODELS_ROOT: Final[Path] = REPO_ROOT / "outputs" / "baseline_models"
 
 # Phase 7 candidate threshold versions land here. The Phase 5 judge
@@ -153,7 +154,11 @@ class UnknownThresholdVersionError(ValueError):
 # ---------------------------------------------------------------------------
 
 
-def _bundle_for_version(model_version: str) -> BaselineModelBundle:
+def _bundle_for_version(
+    model_version: str,
+    *,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> BaselineModelBundle:
     """Load the trained baseline + calibration for ``model_version``.
 
     Convention: artifacts live at
@@ -161,16 +166,22 @@ def _bundle_for_version(model_version: str) -> BaselineModelBundle:
     Raises ``MissingBaselineModelError`` if the directory or required
     artifacts are missing — the route surfaces this as 503.
     """
-    cached = _BUNDLE_CACHE.get(model_version)
+    cache_key = f"{outputs_root.resolve()}|{model_version}"
+    cached = _BUNDLE_CACHE.get(cache_key)
     if cached is not None:
         return cached
-    out_dir = BASELINE_MODELS_ROOT / model_version
+    local_dir = outputs_root / "baseline_models" / model_version
+    out_dir = local_dir if local_dir.exists() else BASELINE_MODELS_ROOT / model_version
     bundle = load_baseline_bundle(out_dir)
-    _BUNDLE_CACHE[model_version] = bundle
+    _BUNDLE_CACHE[cache_key] = bundle
     return bundle
 
 
-def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
+def _config_for_version(
+    threshold_version: str | None,
+    *,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> DecisionPolicyConfig:
     """Resolve a ``DecisionPolicyConfig`` for the requested
     ``threshold_version``.
 
@@ -206,12 +217,15 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
 
     requested = threshold_version or persisted.threshold_version
 
-    cached = _CONFIG_CACHE.get(requested)
+    cache_key = f"{outputs_root.resolve()}|{requested}"
+    cached = _CONFIG_CACHE.get(cache_key)
     if cached is not None:
         return cached
 
     # Outputs file wins — fitted baseline + Phase 7 candidates land here.
-    candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{requested}.yaml"
+    candidate_path = outputs_root / "decision_thresholds" / f"{requested}.yaml"
+    if not candidate_path.exists():
+        candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{requested}.yaml"
     if candidate_path.exists():
         candidate = load_decision_policy_config(candidate_path)
         # Defensive: the candidate's stored ``threshold_version`` must
@@ -224,13 +238,13 @@ def _config_for_version(threshold_version: str | None) -> DecisionPolicyConfig:
                 f"decision_threshold_version={candidate.threshold_version!r} "
                 f"but was requested as {requested!r}."
             )
-        _CONFIG_CACHE[requested] = candidate
+        _CONFIG_CACHE[cache_key] = candidate
         return candidate
 
     # Fall back to the in-repo template only when the requested version
     # is the template's own version.
     if requested == persisted.threshold_version:
-        _CONFIG_CACHE[requested] = persisted
+        _CONFIG_CACHE[cache_key] = persisted
         return persisted
 
     raise UnknownThresholdVersionError(
@@ -325,6 +339,7 @@ def evaluate_fix(
     candidate_threshold_version: str | None = None,
     found_adaptive_set_event_ids: Sequence[str] | None = None,
     data_dir: Path = DEFAULT_DATA_DIR,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
 ) -> JudgeReport:
     """Evaluate a defensive fix by comparing baseline vs candidate.
 
@@ -332,10 +347,18 @@ def evaluate_fix(
     rounded to 4 decimals. Same inputs always produce a byte-identical
     response (the Phase 5 acceptance criterion).
     """
-    baseline_bundle = _bundle_for_version(baseline_model_version)
-    candidate_bundle = _bundle_for_version(candidate_model_version)
-    baseline_config = _config_for_version(baseline_threshold_version)
-    candidate_config = _config_for_version(candidate_threshold_version)
+    baseline_bundle = _bundle_for_version(
+        baseline_model_version, outputs_root=outputs_root
+    )
+    candidate_bundle = _bundle_for_version(
+        candidate_model_version, outputs_root=outputs_root
+    )
+    baseline_config = _config_for_version(
+        baseline_threshold_version, outputs_root=outputs_root
+    )
+    candidate_config = _config_for_version(
+        candidate_threshold_version, outputs_root=outputs_root
+    )
 
     # Per-eval-set snapshots. Headline (baseline / fixed) come from
     # clean_holdout; per-holdout pass flags surface each set's check.

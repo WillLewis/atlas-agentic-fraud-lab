@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -88,6 +89,21 @@ def _run_state_to_summary(rs: RunState) -> dict[str, Any]:
         "current_round": rs.current_round,
         "created_at_utc": rs.created_at_utc,
     }
+
+
+def _artifact_updated_at_utc(run_id: str) -> str | None:
+    """Return local run-state file mtime as an ISO timestamp.
+
+    ``RunState.created_at_utc`` intentionally uses the dataset reference
+    time for replay stability, so all generated runs can tie there. The
+    run-list route uses this local artifact timestamp to let the web app
+    select the run the developer just generated.
+    """
+    path = OUTPUTS_ROOT / "runs" / f"{run_id}.json"
+    if not path.exists():
+        return None
+    dt = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _round_state_to_summary(rs: RoundState) -> dict[str, Any]:
@@ -209,7 +225,14 @@ def get_runs() -> dict:
     — a fresh checkout before any ``make run-rounds`` invocation.
     """
     runs = list_run_states(OUTPUTS_ROOT)
-    return {"runs": [_run_state_to_summary(r) for r in runs]}
+    summaries: list[dict[str, Any]] = []
+    for run in runs:
+        summary = _run_state_to_summary(run)
+        artifact_time = _artifact_updated_at_utc(run.run_id)
+        if artifact_time is not None:
+            summary["created_at_utc"] = artifact_time
+        summaries.append(summary)
+    return {"runs": summaries}
 
 
 # ---------------------------------------------------------------------------

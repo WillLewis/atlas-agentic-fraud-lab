@@ -37,7 +37,9 @@ constructing the NEXT round's ``RunState`` from the returned round's
 
 from __future__ import annotations
 
+import hashlib
 import json
+import random
 from pathlib import Path
 from typing import Any, Final, Sequence
 
@@ -129,14 +131,19 @@ def _select_candidates(
     candidates: Sequence[DefensiveFixCandidate],
     cards: Sequence[ModelVulnerabilityCard],
     *,
+    seed: int,
+    round_id: int,
     k: int = MAX_CANDIDATES_PER_ROUND,
 ) -> list[DefensiveFixCandidate]:
-    """Pick the top-K candidates by:
-        (model_miss_rate desc, family_id asc, fix_type asc, defensive_fix_id asc)
+    """Pick top-K candidates with seed-controlled tie-breaking.
+
+    Severity still leads: candidates with the highest model_miss_rate
+    are eligible first. When several candidates tie, use a deterministic
+    RNG split from ``(seed, round_id)`` so the same run stays
+    reproducible while different Makefile-generated seeds can exercise
+    different defensive_fix families.
 
     The ``model_miss_rate`` lookup is per-card (one card per family).
-    Tie-break by family_id then fix_type for byte-stability across
-    different proposal orderings.
     """
     if not candidates:
         return []
@@ -170,7 +177,23 @@ def _select_candidates(
         # ascending by default).
         return (-miss_rate, family_id, cand.fix_type, cand.defensive_fix_id)
 
-    return sorted(candidates, key=_key)[:k]
+    ordered = sorted(candidates, key=_key)
+    out: list[DefensiveFixCandidate] = []
+    remaining = list(ordered)
+    h = hashlib.blake2b(
+        f"{int(seed)}|{int(round_id)}|candidate_selection".encode("utf-8"),
+        digest_size=4,
+    ).hexdigest()
+    rng = random.Random(int(h, 16))
+
+    while remaining and len(out) < k:
+        top_miss = -_key(remaining[0])[0]
+        tied = [cand for cand in remaining if -_key(cand)[0] == top_miss]
+        picked = tied[rng.randrange(len(tied))]
+        out.append(picked)
+        remaining = [cand for cand in remaining if cand.defensive_fix_id != picked.defensive_fix_id]
+
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +259,7 @@ def _run_baseline_self_judge(
         candidate_threshold_version=run_state.current_threshold_version,
         found_adaptive_set_event_ids=found_adaptive_set_event_ids or None,
         data_dir=data_dir,
+        outputs_root=outputs_root,
     )
     # Persist the report so the ledger can reference it.
     report_path = reports_dir(outputs_root) / f"{report['judge_report_id']}.json"
@@ -345,7 +369,13 @@ def execute_one_round(
         )
 
     # 5. Deterministic top-K selection
-    selected = _select_candidates(fix_candidates, cards, k=MAX_CANDIDATES_PER_ROUND)
+    selected = _select_candidates(
+        fix_candidates,
+        cards,
+        seed=run_state.seed,
+        round_id=round_id,
+        k=MAX_CANDIDATES_PER_ROUND,
+    )
 
     # 6+7+8. Apply selected candidate, derive metrics
     accepted_fix_id: str | None = None

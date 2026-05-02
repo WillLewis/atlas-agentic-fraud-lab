@@ -373,13 +373,20 @@ def list_run_states(
     so only the run-level snapshots are returned. Returns an empty list
     when the directory is missing or empty (no error).
 
-    Order: alphabetical by ``run_id`` for stable test output.
+    Order: newest run-state file first, with ``run_id`` as a stable
+    tie-breaker. ``created_at_utc`` intentionally comes from the dataset
+    reference time, so filesystem mtime is the local-dev signal for
+    "the run I just generated".
     """
     rdir = runs_dir(outputs_root)
     if not rdir.exists():
         return []
     out: list[RunState] = []
-    for path in sorted(rdir.glob("*.json")):
+    paths = sorted(
+        rdir.glob("*.json"),
+        key=lambda p: (-p.stat().st_mtime_ns, p.name),
+    )
+    for path in paths:
         # Skip per-round companion files (run_xxx.round_01.json).
         if _ROUND_STEM_SUFFIX in path.stem:
             continue

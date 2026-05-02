@@ -14,6 +14,7 @@ WEB_DIR := app/web
 API_MODULE := app.api.main:app
 API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
+SEED ?= $(shell $(PYTHON) -c "import secrets; print(secrets.randbelow(2147483647) + 1)")
 
 .PHONY: help setup setup-python setup-web seed train run-rounds build-replay \
         bootstrap test safety-scan demo-api demo-web clean
@@ -31,6 +32,7 @@ help:
 	@echo "  make demo-api      start local FastAPI (Phase 4)"
 	@echo "  make demo-web      start Next.js frontend (Phase 1)"
 	@echo "  make clean         remove caches and build artifacts"
+	@echo "  SEED=42 make ...   reproduce a specific synthetic run"
 
 setup: setup-python setup-web
 
@@ -45,13 +47,13 @@ setup-web:
 	fi
 
 seed:
-	PYTHONPATH=src $(PYTHON) scripts/generate_synthetic.py
+	PYTHONPATH=src $(PYTHON) scripts/generate_synthetic.py --seed $(SEED)
 
 train:
-	PYTHONPATH=src $(PYTHON) scripts/train_baseline.py
+	PYTHONPATH=src $(PYTHON) scripts/train_baseline.py --seed $(SEED)
 
 run-rounds:
-	PYTHONPATH=src $(PYTHON) scripts/run_rounds.py --seed 42 --outputs-root outputs --demo-mode public --max-rounds 3
+	PYTHONPATH=src $(PYTHON) scripts/run_rounds.py --seed $(SEED) --outputs-root outputs --demo-mode public --max-rounds 3
 
 build-replay:
 	@if [ ! -d outputs/runs ] || [ -z "$$(ls -A outputs/runs 2>/dev/null)" ]; then \

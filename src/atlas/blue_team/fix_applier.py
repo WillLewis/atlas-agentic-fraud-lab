@@ -235,6 +235,7 @@ def apply_fix(
             else None
         ),
         data_dir=data_dir,
+        outputs_root=outputs_root,
     )
 
     _persist_judge_report(report, outputs_root)

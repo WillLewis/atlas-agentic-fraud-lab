@@ -103,7 +103,7 @@ def test_select_candidates_orders_by_miss_rate_descending():
         for fam in ("low_velocity_high_graph_risk", "score_boundary_cluster", "activity_channel_shift")
     ]
 
-    sel = _select_candidates(cands, cards, k=3)
+    sel = _select_candidates(cands, cards, seed=42, round_id=1, k=3)
     # Highest miss_rate (0.9) → first
     assert sel[0].defensive_fix_id == "fix_round1_score_boundary_cluster_policy_fix"
     assert sel[1].defensive_fix_id == "fix_round1_activity_channel_shift_policy_fix"
@@ -129,13 +129,13 @@ def test_select_candidates_top_k_one():
         DefensiveFixCandidate(defensive_fix_id="fix_round1_a_policy_fix", round_id=1, fix_type="policy_fix", description="", expected_benefit=""),
         DefensiveFixCandidate(defensive_fix_id="fix_round1_a_feature_fix", round_id=1, fix_type="feature_fix", description="", expected_benefit=""),
     ]
-    top1 = _select_candidates(cands, cards, k=1)
+    top1 = _select_candidates(cands, cards, seed=42, round_id=1, k=1)
     assert len(top1) == 1
 
 
 def test_select_candidates_empty_returns_empty():
     from atlas.ledger.round_engine import _select_candidates
-    assert _select_candidates([], [], k=1) == []
+    assert _select_candidates([], [], seed=42, round_id=1, k=1) == []
 
 
 def test_select_candidates_input_order_independent():
@@ -161,9 +161,38 @@ def test_select_candidates_input_order_independent():
         for f in ("a", "b", "c")
     ]
     cands_reversed = list(reversed(cands_forward))
-    sel_forward = _select_candidates(cands_forward, cards, k=3)
-    sel_reversed = _select_candidates(cands_reversed, cards, k=3)
+    sel_forward = _select_candidates(cands_forward, cards, seed=42, round_id=1, k=3)
+    sel_reversed = _select_candidates(cands_reversed, cards, seed=42, round_id=1, k=3)
     assert sel_forward == sel_reversed
+
+
+def test_select_candidates_uses_seed_for_equal_severity_ties():
+    """Equal-severity candidates should not collapse to alphabetical order."""
+    from atlas.blue_team.strategy_agent import DefensiveFixCandidate
+    from atlas.ledger.round_engine import _select_candidates
+    from atlas.red_team.model_vulnerability_packager import ModelVulnerabilityCard
+
+    cards = [
+        ModelVulnerabilityCard(
+            model_vulnerability_id=f"mv_round1_{fam}",
+            round_id=1, family_id=fam, summary="",
+            valid_high_risk_events_tested=10, accepted_high_risk_events=10,
+            model_miss_rate=1.0, miss_rate_lift_vs_random=1.0,
+            estimated_synthetic_loss_allowed=0.0,
+            affected_decision_action="accept", safe_cohort_definition={},
+            recommended_defensive_fix_types=("policy_fix",),
+        )
+        for fam in ("a", "b")
+    ]
+    cands = [
+        DefensiveFixCandidate(defensive_fix_id=f"fix_round1_{f}_policy_fix", round_id=1, fix_type="policy_fix", description="", expected_benefit="")
+        for f in ("a", "b")
+    ]
+
+    first = _select_candidates(cands, cards, seed=1, round_id=1, k=1)
+    second = _select_candidates(cands, cards, seed=3, round_id=1, k=1)
+
+    assert first[0].defensive_fix_id != second[0].defensive_fix_id
 
 
 # ---------------------------------------------------------------------------
