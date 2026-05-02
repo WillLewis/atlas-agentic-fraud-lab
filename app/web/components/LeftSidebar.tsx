@@ -113,10 +113,10 @@ export function LeftSidebar() {
                 href={`#${step.id}`}
                 aria-current={isActive ? "step" : undefined}
                 className={[
-                  "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  "group flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-atlas-accent/25",
                   isActive
-                    ? "bg-atlas-surface text-atlas-text shadow-sm"
-                    : "text-atlas-muted hover:bg-atlas-surface/70 hover:text-atlas-text"
+                    ? "border-atlas-accent/40 bg-atlas-accent/10 text-atlas-text shadow-sm"
+                    : "border-transparent text-atlas-muted hover:bg-atlas-surface/70 hover:text-atlas-text"
                 ].join(" ")}
               >
                 {/* Abstract step indicator: numbered circle.
