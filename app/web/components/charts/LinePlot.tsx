@@ -12,7 +12,9 @@
 // (Phase 1 placeholder extrapolations from fixtures.ts). This visual
 // distinction is the user-visible analogue of MetricSnapshot.kind.
 
-import type { JSX } from "react";
+import type { CSSProperties, JSX } from "react";
+
+import { ChartReveal } from "./ChartReveal";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,6 +78,10 @@ const SERIES_COLOR_CLASS: Record<SeriesColorToken, string> = {
 const ANCHOR_HOLLOW_FILL = "var(--atlas-chart-empty-fill)";
 const GRID_STROKE = "var(--atlas-chart-grid)";
 
+function animationDelay(seriesIndex: number, pointIndex = 0): number {
+  return 180 + seriesIndex * 130 + pointIndex * 120;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -113,8 +119,29 @@ export function LinePlot({
   // has mismatched x labels, we still draw the first series's labels.
   const xLabels = series[0]?.points.map((p) => p.x_label) ?? [];
 
+  const seriesLayouts = series.map((s, seriesIndex) => {
+    const pathD = s.points
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${xAt(i)} ${yAt(p.value)}`)
+      .join(" ");
+    const changedSegments = s.points.flatMap((p, i) => {
+      const previous = s.points[i - 1];
+      if (!previous || previous.value === p.value) {
+        return [];
+      }
+      return [
+        {
+          key: `${s.name}-change-${i}`,
+          d: `M ${xAt(i - 1)} ${yAt(previous.value)} L ${xAt(i)} ${yAt(p.value)}`,
+          delay: animationDelay(seriesIndex, i) + 150
+        }
+      ];
+    });
+
+    return { series: s, pathD, changedSegments };
+  });
+
   return (
-    <figure className="w-full">
+    <ChartReveal>
       {show_legend && series.length > 1 ? (
         <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-atlas-muted">
           {series.map((s) => (
@@ -187,16 +214,19 @@ export function LinePlot({
         ))}
 
         {/* Data series */}
-        {series.map((s) => (
+        {seriesLayouts.map(({ series: s, pathD, changedSegments }, seriesIndex) => (
           <g
             key={s.name}
-            className={SERIES_COLOR_CLASS[s.color_token]}
+            className={`line-plot-series ${SERIES_COLOR_CLASS[s.color_token]}`}
             color="currentColor"
+            style={
+              {
+                "--series-delay": `${seriesIndex * 120}ms`
+              } as CSSProperties
+            }
           >
             <path
-              d={s.points
-                .map((p, i) => `${i === 0 ? "M" : "L"} ${xAt(i)} ${yAt(p.value)}`)
-                .join(" ")}
+              d={pathD}
               fill="none"
               stroke="currentColor"
               strokeWidth={1.6}
@@ -204,6 +234,24 @@ export function LinePlot({
               strokeLinejoin="round"
               strokeDasharray={s.stroke_dasharray}
             />
+            {changedSegments.map((segment) => (
+              <path
+                key={segment.key}
+                d={segment.d}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="line-plot-change-segment"
+                style={
+                  {
+                    "--segment-delay": `${segment.delay}ms`
+                  } as CSSProperties
+                }
+              />
+            ))}
             {s.points.map((p, i) => (
               <circle
                 key={`${s.name}-pt-${i}`}
@@ -213,6 +261,12 @@ export function LinePlot({
                 fill={p.is_anchor ? "currentColor" : ANCHOR_HOLLOW_FILL}
                 stroke="currentColor"
                 strokeWidth={1.6}
+                className="line-plot-point"
+                style={
+                  {
+                    "--point-delay": `${animationDelay(seriesIndex, i)}ms`
+                  } as CSSProperties
+                }
               >
                 <title>{`${s.name} · ${p.x_label}: ${y_format(p.value)}${p.is_anchor ? "" : " (placeholder)"}`}</title>
               </circle>
@@ -222,6 +276,6 @@ export function LinePlot({
       </svg>
 
       <figcaption className="sr-only">{aria_label}</figcaption>
-    </figure>
+    </ChartReveal>
   );
 }
