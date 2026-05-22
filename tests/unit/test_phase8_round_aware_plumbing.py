@@ -124,6 +124,27 @@ def _persist_policy_manifest(outputs, fix_id="fix_test"):
     persist_fix_manifest(m, outputs_root=outputs)
 
 
+def _persist_calibration_manifest(outputs, fix_id="fix_calibration_test"):
+    from atlas.blue_team.manifest import DefensiveFixManifest, persist_fix_manifest
+    m = DefensiveFixManifest(
+        defensive_fix_id=fix_id, run_id="r", round_id=2,
+        vulnerability_id="x", fix_type="model_calibration_fix",
+        proposed_training_seed=1001,
+        proposed_l2_strength=0.5,
+    )
+    persist_fix_manifest(m, outputs_root=outputs)
+
+
+def _persist_feature_manifest(outputs, fix_id="fix_feature_test"):
+    from atlas.blue_team.manifest import DefensiveFixManifest, persist_fix_manifest
+    m = DefensiveFixManifest(
+        defensive_fix_id=fix_id, run_id="r", round_id=2,
+        vulnerability_id="x", fix_type="feature_fix",
+        proposed_feature_transforms=("boost_graph_risk",),
+    )
+    persist_fix_manifest(m, outputs_root=outputs)
+
+
 def test_apply_fix_default_kwargs_use_phase7_baseline(outputs_with_baseline):
     """Default None kwargs → judge sees ``baseline_v1`` / ``thresholds_v1``."""
     import atlas.blue_team.fix_applier as applier_mod
@@ -175,6 +196,60 @@ def test_apply_fix_current_versions_flow_to_judge(outputs_with_baseline):
         assert kw["candidate_model_version"] == "model_round1_accepted"
         assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
         assert kw["candidate_threshold_version"] == "fix_round2_test"
+
+
+def test_apply_fix_model_candidate_preserves_current_threshold(outputs_with_baseline):
+    """Model candidates compose with the current accepted threshold."""
+    import atlas.blue_team.fix_applier as applier_mod
+    from atlas.blue_team.fix_applier import apply_fix
+
+    _persist_calibration_manifest(outputs_with_baseline, "fix_model_round2")
+
+    with mock.patch.object(
+        applier_mod, "evaluate_fix", return_value=_fake_judge_report("fix_model_round2"),
+    ) as ev, mock.patch.object(
+        applier_mod, "apply_calibration_fix",
+        return_value=("fix_model_round2", ["x.joblib"]),
+    ):
+        apply_fix(
+            defensive_fix_id="fix_model_round2",
+            outputs_root=outputs_with_baseline,
+            data_dir=REPO_ROOT / "data" / "synthetic",
+            current_model_version="model_round1_accepted",
+            current_threshold_version="threshold_round1_accepted",
+        )
+        kw = ev.call_args.kwargs
+        assert kw["baseline_model_version"] == "model_round1_accepted"
+        assert kw["candidate_model_version"] == "fix_model_round2"
+        assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
+        assert kw["candidate_threshold_version"] == "threshold_round1_accepted"
+
+
+def test_apply_fix_feature_candidate_preserves_current_threshold(outputs_with_baseline):
+    """Feature candidates compose with the current accepted threshold."""
+    import atlas.blue_team.fix_applier as applier_mod
+    from atlas.blue_team.fix_applier import apply_fix
+
+    _persist_feature_manifest(outputs_with_baseline, "fix_feature_round2")
+
+    with mock.patch.object(
+        applier_mod, "evaluate_fix", return_value=_fake_judge_report("fix_feature_round2"),
+    ) as ev, mock.patch.object(
+        applier_mod, "apply_feature_fix",
+        return_value=("fix_feature_round2", ["x.joblib"]),
+    ):
+        apply_fix(
+            defensive_fix_id="fix_feature_round2",
+            outputs_root=outputs_with_baseline,
+            data_dir=REPO_ROOT / "data" / "synthetic",
+            current_model_version="model_round1_accepted",
+            current_threshold_version="threshold_round1_accepted",
+        )
+        kw = ev.call_args.kwargs
+        assert kw["baseline_model_version"] == "model_round1_accepted"
+        assert kw["candidate_model_version"] == "fix_feature_round2"
+        assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
+        assert kw["candidate_threshold_version"] == "threshold_round1_accepted"
 
 
 def test_apply_fix_found_adaptive_propagates(outputs_with_baseline):

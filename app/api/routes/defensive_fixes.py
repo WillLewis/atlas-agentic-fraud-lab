@@ -50,6 +50,11 @@ from atlas.blue_team.manifest import (  # noqa: E402
 )
 from atlas.blue_team.strategy_agent import propose_fixes  # noqa: E402
 from atlas.judge.evaluate import UnknownThresholdVersionError  # noqa: E402
+from atlas.ledger.ledger import (  # noqa: E402
+    MissingRunError,
+    load_round_state,
+    load_run_state,
+)
 from atlas.model.loader import DEFAULT_DATA_DIR, MissingDatasetError  # noqa: E402
 from atlas.model.scorer import MissingBaselineModelError  # noqa: E402
 
@@ -82,6 +87,43 @@ def _candidate_to_dict(candidate) -> dict:
     return d
 
 
+def _carry_forward_versions_for_request(
+    *,
+    run_id: str,
+    round_id: int,
+) -> tuple[str | None, str | None]:
+    """Return the versions that should be the baseline for ``round_id``.
+
+    The full round engine is the canonical carry-forward writer. These
+    standalone Phase 7 routes are still useful for direct API workflows,
+    so they derive the current versions from already-persisted run/round
+    state when present. Missing state falls back to ``None`` so legacy
+    standalone calls continue to use ``baseline_v1`` / ``thresholds_v1``.
+    """
+    if round_id <= 1:
+        return None, None
+
+    previous_round_id = round_id - 1
+    try:
+        previous = load_round_state(
+            run_id,
+            previous_round_id,
+            outputs_root=OUTPUTS_ROOT,
+        )
+        return previous.model_version_after, previous.threshold_version_after
+    except MissingRunError:
+        pass
+
+    try:
+        run_state = load_run_state(run_id, outputs_root=OUTPUTS_ROOT)
+    except MissingRunError:
+        return None, None
+
+    if run_state.current_round == previous_round_id:
+        return run_state.current_model_version, run_state.current_threshold_version
+    return None, None
+
+
 @router.post(
     "/defensive-fixes/propose",
     response_model=DefensiveFixProposalResponse,
@@ -89,12 +131,17 @@ def _candidate_to_dict(candidate) -> dict:
 )
 def post_defensive_fixes_propose(req: DefensiveFixProposalRequest) -> dict:
     try:
+        _, current_threshold_version = _carry_forward_versions_for_request(
+            run_id=req.run_id,
+            round_id=req.round_id,
+        )
         candidates = propose_fixes(
             run_id=req.run_id,
             round_id=req.round_id,
             model_vulnerability_ids=req.model_vulnerability_ids,
             allowed_fix_types=req.allowed_fix_types,
             outputs_root=OUTPUTS_ROOT,
+            current_threshold_version=current_threshold_version,
         )
     except MissingVulnerabilityError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -123,10 +170,18 @@ def post_defensive_fixes_propose(req: DefensiveFixProposalRequest) -> dict:
 )
 def post_defensive_fixes_apply(req: DefensiveFixApplyRequest) -> dict:
     try:
+        current_model_version, current_threshold_version = (
+            _carry_forward_versions_for_request(
+                run_id=req.run_id,
+                round_id=req.round_id,
+            )
+        )
         outcome = apply_fix(
             defensive_fix_id=req.defensive_fix_id,
             outputs_root=OUTPUTS_ROOT,
             data_dir=DATA_DIR,
+            current_model_version=current_model_version,
+            current_threshold_version=current_threshold_version,
         )
     except MissingManifestError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
