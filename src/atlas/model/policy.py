@@ -42,6 +42,11 @@ REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 DEFAULT_THRESHOLDS_CONFIG_PATH: Final[Path] = (
     REPO_ROOT / "config" / "decision_thresholds.yaml"
 )
+DEFAULT_OUTPUTS_ROOT: Final[Path] = REPO_ROOT / "outputs"
+DECISION_THRESHOLDS_SUBDIR: Final[str] = "decision_thresholds"
+DEFAULT_DECISION_THRESHOLDS_OUTPUT_DIR: Final[Path] = (
+    DEFAULT_OUTPUTS_ROOT / DECISION_THRESHOLDS_SUBDIR
+)
 
 # Phase 4 decision-action allow-list. NO 'review'.
 DECISION_ACTIONS: Final[tuple[str, ...]] = ("accept", "challenge", "alert", "decline")
@@ -121,6 +126,10 @@ class DecisionPolicyResult:
     reason_codes: tuple[str, ...]
 
 
+class UnknownThresholdVersionError(ValueError):
+    """Raised when a requested threshold version has no backing YAML file."""
+
+
 # ---------------------------------------------------------------------------
 # Config loader
 # ---------------------------------------------------------------------------
@@ -194,6 +203,92 @@ def load_decision_policy_config(
         decision_bands=decision_bands,
         allowed_reason_codes=tuple(allowed),
     )
+
+
+def _dedup_paths(paths: list[Path]) -> tuple[Path, ...]:
+    out: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return tuple(out)
+
+
+def resolve_decision_thresholds_path(
+    threshold_version: str | None = None,
+    *,
+    outputs_root: Path | None = DEFAULT_OUTPUTS_ROOT,
+    alternate_thresholds_root: Path | None = None,
+    template_path: Path = DEFAULT_THRESHOLDS_CONFIG_PATH,
+) -> Path:
+    """Resolve the YAML file for a decision-threshold version.
+
+    Resolution is intentionally shared by API scoring, red-team search,
+    bank-defense proposals, and the judge:
+
+      1. ``outputs_root/decision_thresholds/<version>.yaml`` when an
+         ``outputs_root`` is provided.
+      2. ``alternate_thresholds_root/<version>.yaml`` when supplied.
+      3. ``config/decision_thresholds.yaml`` only when the requested
+         version matches that template's own ``decision_threshold_version``.
+
+    This lets fitted ``thresholds_v1.yaml`` artifacts and policy-fix
+    candidate thresholds win over the static demo template, while keeping
+    a fresh checkout usable before ``make train`` has produced outputs.
+    """
+    template = load_decision_policy_config(template_path)
+    requested = threshold_version or template.threshold_version
+
+    roots: list[Path] = []
+    if outputs_root is not None:
+        roots.append(outputs_root / DECISION_THRESHOLDS_SUBDIR)
+    if alternate_thresholds_root is not None:
+        roots.append(alternate_thresholds_root)
+
+    searched: list[Path] = []
+    for root in _dedup_paths(roots):
+        candidate_path = root / f"{requested}.yaml"
+        searched.append(candidate_path)
+        if not candidate_path.exists():
+            continue
+        candidate = load_decision_policy_config(candidate_path)
+        if candidate.threshold_version != requested:
+            raise UnknownThresholdVersionError(
+                f"decision-threshold file {candidate_path} declares "
+                f"decision_threshold_version={candidate.threshold_version!r} "
+                f"but was requested as {requested!r}."
+            )
+        return candidate_path
+
+    if requested == template.threshold_version:
+        return template_path
+
+    searched_text = ", ".join(str(p) for p in searched) or "<no output roots>"
+    raise UnknownThresholdVersionError(
+        f"unknown threshold_version {requested!r}; "
+        f"not the in-repo {template.threshold_version!r} and no "
+        f"candidate file at {searched_text}."
+    )
+
+
+def resolve_decision_policy_config(
+    threshold_version: str | None = None,
+    *,
+    outputs_root: Path | None = DEFAULT_OUTPUTS_ROOT,
+    alternate_thresholds_root: Path | None = None,
+    template_path: Path = DEFAULT_THRESHOLDS_CONFIG_PATH,
+) -> DecisionPolicyConfig:
+    """Resolve and load the effective decision-policy config."""
+    path = resolve_decision_thresholds_path(
+        threshold_version,
+        outputs_root=outputs_root,
+        alternate_thresholds_root=alternate_thresholds_root,
+        template_path=template_path,
+    )
+    return load_decision_policy_config(path)
 
 
 # ---------------------------------------------------------------------------

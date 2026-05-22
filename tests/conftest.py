@@ -147,7 +147,11 @@ def trained_baseline_dir(tmp_path_factory) -> Path:
     outputs_root = tmp_path_factory.mktemp("phase4_outputs")
     out = outputs_root / "baseline_models" / "baseline_v1"
     out.mkdir(parents=True)
-    train_baseline_model(seed=DEFAULT_TEST_SEED, output_dir=out)
+    train_baseline_model(
+        seed=DEFAULT_TEST_SEED,
+        output_dir=out,
+        fitted_thresholds_dir=outputs_root / "decision_thresholds",
+    )
     return out
 
 
@@ -165,9 +169,11 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
 
     import atlas.judge.evaluate as evaluate_mod
     import atlas.model.scorer as scorer_mod
+    import app.api.routes.decision_thresholds as decision_thresholds_mod
     from app.api.main import app
     import app.api.routes.defensive_fixes as defensive_fixes_mod
     import app.api.routes.red_team as red_team_mod
+    import app.api.routes.scoring as scoring_mod
     from app.api.routes.defensive_fixes import (
         reset_caches as reset_defensive_fixes_caches,
     )
@@ -189,6 +195,8 @@ def api_client(trained_baseline_dir: Path, monkeypatch):
     )
     monkeypatch.setattr(defensive_fixes_mod, "OUTPUTS_ROOT", outputs_root)
     monkeypatch.setattr(red_team_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(scoring_mod, "OUTPUTS_ROOT", outputs_root)
+    monkeypatch.setattr(decision_thresholds_mod, "OUTPUTS_ROOT", outputs_root)
 
     # Phase 9 routes (component 3+4) — point at the hermetic outputs tree
     # so tests don't touch the real ``outputs/`` directory.

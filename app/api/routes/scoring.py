@@ -33,9 +33,10 @@ from app.api.schemas.scoring import (  # noqa: E402
 )
 import atlas.model.scorer as scorer_mod  # noqa: E402  (read DEFAULT_OUTPUT_DIR at call time)
 from atlas.model.policy import (  # noqa: E402
+    DEFAULT_OUTPUTS_ROOT,
     DecisionPolicyConfig,
     apply_decision_policy,
-    load_decision_policy_config,
+    resolve_decision_policy_config,
 )
 from atlas.model.scorer import (  # noqa: E402
     BaselineModelBundle,
@@ -45,6 +46,7 @@ from atlas.model.scorer import (  # noqa: E402
 )
 
 router = APIRouter()
+OUTPUTS_ROOT = DEFAULT_OUTPUTS_ROOT
 
 # Module-level lazy-load. The route handlers call ``_get_bundle`` /
 # ``_get_policy_config`` which cache on first use. This keeps test
@@ -69,7 +71,9 @@ def _get_bundle() -> BaselineModelBundle:
 def _get_policy_config() -> DecisionPolicyConfig:
     global _policy_config
     if _policy_config is None:
-        _policy_config = load_decision_policy_config()
+        _policy_config = resolve_decision_policy_config(
+            outputs_root=OUTPUTS_ROOT,
+        )
     return _policy_config
 
 

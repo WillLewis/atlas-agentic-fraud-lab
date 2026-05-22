@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from app.api.schemas.fix import ALLOWED_FIX_TYPES
 from atlas.blue_team.manifest import (
@@ -24,6 +25,8 @@ from atlas.blue_team.strategy_agent import (
     propose_fixes,
     reset_caches,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(autouse=True)
@@ -244,6 +247,38 @@ def test_policy_manifest_has_threshold_overrides(outputs):
     assert manifest.fix_type == "policy_fix"
     assert manifest.proposed_threshold_overrides
     assert "challenge_score_threshold" in manifest.proposed_threshold_overrides
+
+
+def test_policy_manifest_uses_current_threshold_version(outputs):
+    threshold_dir = outputs / "decision_thresholds"
+    threshold_dir.mkdir(parents=True)
+    with (REPO_ROOT / "config" / "decision_thresholds.yaml").open() as fh:
+        doc = yaml.safe_load(fh)
+    doc["decision_threshold_version"] = "threshold_round1_accepted"
+    doc["decision_thresholds"]["challenge_score_threshold"] = 0.30
+    with (threshold_dir / "threshold_round1_accepted.yaml").open("w") as fh:
+        yaml.safe_dump(doc, fh, sort_keys=True)
+
+    _persist({
+        "model_vulnerability_id": "mv_round1_score_boundary_cluster",
+        "run_id": "r", "round_id": 1,
+        "family_id": "score_boundary_cluster",
+        "found_adaptive_set_event_ids": [],
+        "model_miss_rate": 1.0,
+        "recommended_defensive_fix_types": ["policy_fix"],
+        "summary": "...",
+    }, outputs)
+    cands = propose_fixes(
+        run_id="r", round_id=1,
+        model_vulnerability_ids=["mv_round1_score_boundary_cluster"],
+        allowed_fix_types=["policy_fix"],
+        outputs_root=outputs,
+        current_threshold_version="threshold_round1_accepted",
+    )
+    manifest = load_fix_manifest(cands[0].defensive_fix_id, outputs_root=outputs)
+    assert manifest.proposed_threshold_overrides == {
+        "challenge_score_threshold": 0.285,
+    }
 
 
 def test_calibration_manifest_has_seed_and_l2(outputs):

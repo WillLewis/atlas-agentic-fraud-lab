@@ -28,6 +28,7 @@ from typing import Final
 import yaml
 
 from atlas.blue_team.manifest import DEFAULT_OUTPUTS_ROOT, DefensiveFixManifest
+from atlas.model.policy import resolve_decision_thresholds_path
 
 # ---------------------------------------------------------------------------
 # Path conventions
@@ -104,6 +105,7 @@ def apply_policy_fix(
     manifest: DefensiveFixManifest,
     *,
     outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+    baseline_threshold_version: str | None = None,
     baseline_thresholds_path: Path = DEFAULT_DECISION_THRESHOLDS_PATH,
 ) -> tuple[str, list[str]]:
     """Materialize a candidate decision-threshold YAML.
@@ -111,8 +113,9 @@ def apply_policy_fix(
     Returns ``(candidate_threshold_version, [relative changed file paths])``.
 
     Behavior:
-      * Reads the baseline ``config/decision_thresholds.yaml`` once
-        (read-only).
+      * Reads the current effective threshold YAML once (read-only).
+        ``outputs/decision_thresholds/<baseline_threshold_version>.yaml``
+        wins over the static config template when present.
       * Copies ``action_rate_limits``, ``customer_friction_tolerances``,
         ``decision_bands``, and ``allowed_reason_codes`` verbatim.
       * Replaces ``decision_threshold_version`` with the new version
@@ -140,14 +143,12 @@ def apply_policy_fix(
             f"manifest {manifest.defensive_fix_id} has no "
             "proposed_threshold_overrides — nothing to apply."
         )
-    if not baseline_thresholds_path.exists():
-        raise FileNotFoundError(
-            f"baseline decision-thresholds config not found at "
-            f"{baseline_thresholds_path}. Phase 7 policy-fix needs the "
-            "baseline as the read-only template."
-        )
-
-    with baseline_thresholds_path.open("r", encoding="utf-8") as fh:
+    effective_thresholds_path = resolve_decision_thresholds_path(
+        baseline_threshold_version,
+        outputs_root=outputs_root,
+        template_path=baseline_thresholds_path,
+    )
+    with effective_thresholds_path.open("r", encoding="utf-8") as fh:
         baseline_doc = yaml.safe_load(fh) or {}
 
     candidate_version = manifest.defensive_fix_id

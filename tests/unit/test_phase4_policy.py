@@ -1,13 +1,21 @@
 """Phase 4 decision-policy + reason-code tests."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+import yaml
 
 from atlas.model.policy import (
     DECISION_ACTIONS,
+    UnknownThresholdVersionError,
     apply_decision_policy,
     load_decision_policy_config,
+    resolve_decision_policy_config,
+    resolve_decision_thresholds_path,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _base_fv(**overrides):
@@ -119,6 +127,33 @@ def test_score_validation(config):
 def test_threshold_version_from_config(config):
     r = apply_decision_policy(0.5, _base_fv(), config)
     assert r.threshold_version == "thresholds_v1"
+
+
+def test_resolve_thresholds_v1_prefers_outputs_file(tmp_path):
+    outputs = tmp_path / "outputs"
+    threshold_dir = outputs / "decision_thresholds"
+    threshold_dir.mkdir(parents=True)
+    with (REPO_ROOT / "config" / "decision_thresholds.yaml").open() as fh:
+        doc = yaml.safe_load(fh)
+    doc["decision_thresholds"]["challenge_score_threshold"] = 0.42
+    out_path = threshold_dir / "thresholds_v1.yaml"
+    with out_path.open("w") as fh:
+        yaml.safe_dump(doc, fh, sort_keys=True)
+
+    resolved = resolve_decision_thresholds_path(outputs_root=outputs)
+    config = resolve_decision_policy_config(outputs_root=outputs)
+
+    assert resolved == out_path
+    assert config.threshold_version == "thresholds_v1"
+    assert config.challenge_score_threshold == 0.42
+
+
+def test_resolve_unknown_threshold_version_raises(tmp_path):
+    with pytest.raises(UnknownThresholdVersionError, match="unknown threshold_version"):
+        resolve_decision_policy_config(
+            "thresholds_missing",
+            outputs_root=tmp_path / "outputs",
+        )
 
 
 def test_determinism(config):

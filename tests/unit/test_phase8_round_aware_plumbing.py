@@ -144,7 +144,9 @@ def test_apply_fix_default_kwargs_use_phase7_baseline(outputs_with_baseline):
         )
         kw = ev.call_args.kwargs
         assert kw["baseline_model_version"] == "baseline_v1"
+        assert kw["candidate_model_version"] == "baseline_v1"
         assert kw["baseline_threshold_version"] == "thresholds_v1"
+        assert kw["candidate_threshold_version"] == "fix_default_test"
         assert kw.get("found_adaptive_set_event_ids") is None
 
 
@@ -170,7 +172,9 @@ def test_apply_fix_current_versions_flow_to_judge(outputs_with_baseline):
         )
         kw = ev.call_args.kwargs
         assert kw["baseline_model_version"] == "model_round1_accepted"
+        assert kw["candidate_model_version"] == "model_round1_accepted"
         assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
+        assert kw["candidate_threshold_version"] == "fix_round2_test"
 
 
 def test_apply_fix_found_adaptive_propagates(outputs_with_baseline):

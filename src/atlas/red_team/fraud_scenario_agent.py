@@ -37,9 +37,9 @@ from typing import Final, Sequence
 import yaml
 
 from atlas.model.policy import (
-    DEFAULT_THRESHOLDS_CONFIG_PATH,
+    DEFAULT_OUTPUTS_ROOT,
     DecisionPolicyConfig,
-    load_decision_policy_config,
+    resolve_decision_policy_config,
 )
 from atlas.model.scorer import (
     BaselineModelBundle,
@@ -168,45 +168,63 @@ def _seed_for_method(base_seed: int, method: str) -> int:
 
 
 def _get_bundle(model_version: str | None = None) -> BaselineModelBundle:
+    return _get_bundle_for_outputs(model_version, outputs_root=DEFAULT_OUTPUTS_ROOT)
+
+
+def _get_bundle_for_outputs(
+    model_version: str | None = None,
+    *,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> BaselineModelBundle:
     """Phase 8 extension: when ``model_version`` is None, return the
     cached default baseline (Phase 6 behavior). When set, load from
     ``outputs/baseline_models/<model_version>/`` so the round engine
     can score against round-state versions.
     """
-    cache_key = "__default__" if model_version is None else model_version
+    version = model_version or "baseline_v1"
+    cache_key = f"{outputs_root.resolve()}|{version}"
     bundle = _BUNDLE_CACHE.get(cache_key)
     if bundle is not None:
         return bundle
-    if model_version is None or model_version == "baseline_v1":
+    local_dir = outputs_root / "baseline_models" / version
+    if local_dir.exists():
+        bundle = load_baseline_bundle(local_dir)
+    elif version == "baseline_v1":
         bundle = load_baseline_bundle()
     else:
         # Phase 7 candidate models live under
         # ``outputs/baseline_models/<defensive_fix_id>/``.
-        from pathlib import Path as _P
-        candidate_dir = REPO_ROOT / "outputs" / "baseline_models" / model_version
+        candidate_dir = REPO_ROOT / "outputs" / "baseline_models" / version
         bundle = load_baseline_bundle(candidate_dir)
     _BUNDLE_CACHE[cache_key] = bundle
     return bundle
 
 
 def _get_policy_config(threshold_version: str | None = None) -> DecisionPolicyConfig:
+    return _get_policy_config_for_outputs(
+        threshold_version, outputs_root=DEFAULT_OUTPUTS_ROOT
+    )
+
+
+def _get_policy_config_for_outputs(
+    threshold_version: str | None = None,
+    *,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
+) -> DecisionPolicyConfig:
     """Phase 8 extension: when ``threshold_version`` is None, return the
     cached default config (Phase 6 behavior). When set, the persisted
-    ``thresholds_v1`` resolves to the same default; alternate versions
-    resolve to ``outputs/decision_thresholds/<version>.yaml`` (Phase 7
-    layout).
+    ``thresholds_v1`` resolves through the effective outputs-first
+    threshold resolver; alternate versions resolve to
+    ``outputs/decision_thresholds/<version>.yaml`` (Phase 7 layout).
     """
-    cache_key = "__default__" if threshold_version is None else threshold_version
+    cache_key = f"{outputs_root.resolve()}|{threshold_version or '__default__'}"
     cfg = _POLICY_CACHE.get(cache_key)
     if cfg is not None:
         return cfg
-    if threshold_version is None or threshold_version == "thresholds_v1":
-        cfg = load_decision_policy_config(DEFAULT_THRESHOLDS_CONFIG_PATH)
-    else:
-        candidate_path = (
-            REPO_ROOT / "outputs" / "decision_thresholds" / f"{threshold_version}.yaml"
-        )
-        cfg = load_decision_policy_config(candidate_path)
+    cfg = resolve_decision_policy_config(
+        threshold_version,
+        outputs_root=outputs_root,
+    )
     _POLICY_CACHE[cache_key] = cfg
     return cfg
 
@@ -281,6 +299,7 @@ def run_search(
     allowed_family_ids: Sequence[str] | None = None,
     seed: int = DEFAULT_SEARCH_SEED,
     data_dir: Path = DEFAULT_DATA_DIR,
+    outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
     round_config_path: Path = DEFAULT_ROUND_CONFIG_PATH,
     current_model_version: str | None = None,
     current_threshold_version: str | None = None,
@@ -301,7 +320,8 @@ def run_search(
             entry's ``allowed_family_ids`` and the schema's 7-family
             canonical registry (``ALLOWED_FAMILY_IDS``).
         seed: master seed for RNG splits. Defaults to ``DEFAULT_SEARCH_SEED``.
-        data_dir, round_config_path: load roots — wired in from tests.
+        data_dir, outputs_root, round_config_path: load roots — wired in
+            from tests and the round engine.
         current_model_version, current_threshold_version: Phase 8
             round-state extension. When ``None`` (default), search uses
             the persisted baseline ``baseline_v1`` + ``thresholds_v1``
@@ -356,8 +376,12 @@ def run_search(
         )
 
     # Cached resources (raise MissingBaselineModelError naturally if absent).
-    bundle = _get_bundle(current_model_version)
-    policy_config = _get_policy_config(current_threshold_version)
+    bundle = _get_bundle_for_outputs(
+        current_model_version, outputs_root=outputs_root
+    )
+    policy_config = _get_policy_config_for_outputs(
+        current_threshold_version, outputs_root=outputs_root
+    )
     base_state = _get_base_state(data_dir)
 
     # Allocate budget across (method, family) pairs.

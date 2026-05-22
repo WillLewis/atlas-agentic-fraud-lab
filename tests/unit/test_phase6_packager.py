@@ -38,7 +38,8 @@ def search_result(trained_baseline_dir, monkeypatch):
     result = run_search(
         run_id="run_test", round_id=1,
         search_methods=["random", "evolutionary", "graph_probe"],
-        max_score_queries=210,
+        max_score_queries=1200,
+        outputs_root=trained_baseline_dir.parent.parent,
     )
     yield result
     reset_caches()

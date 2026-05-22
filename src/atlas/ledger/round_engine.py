@@ -336,6 +336,7 @@ def execute_one_round(
         allowed_family_ids=allowed_family_ids,
         seed=run_state.seed,
         data_dir=data_dir,
+        outputs_root=outputs_root,
         round_config_path=round_config_path,
         current_model_version=run_state.current_model_version,
         current_threshold_version=run_state.current_threshold_version,
@@ -366,6 +367,7 @@ def execute_one_round(
             allowed_fix_types=allowed_fix_types,
             outputs_root=outputs_root,
             round_config_path=round_config_path,
+            current_threshold_version=run_state.current_threshold_version,
         )
 
     # 5. Deterministic top-K selection

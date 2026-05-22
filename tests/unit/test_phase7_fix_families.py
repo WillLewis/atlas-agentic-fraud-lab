@@ -147,6 +147,29 @@ def test_apply_policy_fix_preserves_decline_and_alert_thresholds(outputs):
         baseline_doc["decision_thresholds"]["alert_score_threshold"]
 
 
+def test_apply_policy_fix_copies_effective_fitted_thresholds(outputs):
+    fitted_dir = outputs / "decision_thresholds"
+    fitted_dir.mkdir(parents=True)
+    with BASELINE_THRESHOLDS_PATH.open() as fh:
+        fitted_doc = yaml.safe_load(fh)
+    fitted_doc["decision_thresholds"] = {
+        "challenge_score_threshold": 0.30,
+        "alert_score_threshold": 0.40,
+        "decline_score_threshold": 0.50,
+    }
+    with (fitted_dir / "thresholds_v1.yaml").open("w") as fh:
+        yaml.safe_dump(fitted_doc, fh, sort_keys=True)
+
+    apply_policy_fix(_policy_manifest(), outputs_root=outputs)
+
+    candidate_path = alternate_thresholds_dir(outputs) / "fix_round1_score_boundary_cluster_policy_fix.yaml"
+    with candidate_path.open() as fh:
+        candidate_doc = yaml.safe_load(fh)
+    assert candidate_doc["decision_thresholds"]["challenge_score_threshold"] == 0.69
+    assert candidate_doc["decision_thresholds"]["alert_score_threshold"] == 0.40
+    assert candidate_doc["decision_thresholds"]["decline_score_threshold"] == 0.50
+
+
 def test_apply_policy_fix_byte_identical_on_repeat(outputs):
     candidate_version, _ = apply_policy_fix(_policy_manifest(), outputs_root=outputs)
     out_path = alternate_thresholds_dir(outputs) / f"{candidate_version}.yaml"

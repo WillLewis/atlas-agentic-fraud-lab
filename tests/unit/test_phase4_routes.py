@@ -26,11 +26,20 @@ def test_config_demo(api_client):
 
 
 def test_decision_thresholds_match_config(api_client):
-    """API names use the OpenAPI public contract; values come from config."""
+    """API names use the OpenAPI public contract; values come from the
+    effective threshold YAML.
+    """
+    from atlas.model.policy import resolve_decision_thresholds_path
+    import app.api.routes.decision_thresholds as route_mod
+
     r = api_client.get("/decision-thresholds")
     assert r.status_code == 200
     body = r.json()
-    with open(REPO_ROOT / "config" / "decision_thresholds.yaml") as fh:
+    path = resolve_decision_thresholds_path(
+        outputs_root=route_mod.OUTPUTS_ROOT,
+        template_path=route_mod.THRESHOLDS_CONFIG_PATH,
+    )
+    with open(path) as fh:
         cfg = yaml.safe_load(fh)
     assert body["threshold_version"] == cfg["decision_threshold_version"]
     assert body["decline_score_threshold"] == cfg["decision_thresholds"]["decline_score_threshold"]

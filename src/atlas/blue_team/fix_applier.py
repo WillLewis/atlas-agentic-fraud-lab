@@ -98,6 +98,8 @@ def _materialize_candidate(
     manifest: DefensiveFixManifest,
     outputs_root: Path,
     data_dir: Path,
+    current_model_version: str | None,
+    current_threshold_version: str | None,
 ) -> tuple[str, str, list[str]]:
     """Apply the family-specific changes and return
     ``(candidate_model_version, candidate_threshold_version, changed_files)``.
@@ -105,33 +107,41 @@ def _materialize_candidate(
     Conventions:
       * ``policy_fix``           → candidate threshold version =
                                   ``manifest.defensive_fix_id``;
-                                  model version stays at ``baseline_v1``.
+                                  model version stays at the current
+                                  accepted model version.
       * ``model_calibration_fix`` → candidate model version =
                                    ``manifest.defensive_fix_id``;
-                                   threshold version stays at
-                                   ``thresholds_v1``.
+                                   threshold version stays at the current
+                                   accepted threshold version.
       * ``feature_fix``          → candidate model version =
                                    ``manifest.defensive_fix_id``;
-                                   threshold version stays at
-                                   ``thresholds_v1``.
+                                   threshold version stays at the current
+                                   accepted threshold version.
     """
+    baseline_model_version = current_model_version or _BASELINE_MODEL_VERSION
+    baseline_threshold_version = (
+        current_threshold_version or _BASELINE_THRESHOLD_VERSION
+    )
+
     if manifest.fix_type == "policy_fix":
         candidate_threshold_version, changed_files = apply_policy_fix(
-            manifest, outputs_root=outputs_root
+            manifest,
+            outputs_root=outputs_root,
+            baseline_threshold_version=baseline_threshold_version,
         )
-        return _BASELINE_MODEL_VERSION, candidate_threshold_version, changed_files
+        return baseline_model_version, candidate_threshold_version, changed_files
 
     if manifest.fix_type == "model_calibration_fix":
         candidate_model_version, changed_files = apply_calibration_fix(
             manifest, outputs_root=outputs_root, data_dir=data_dir
         )
-        return candidate_model_version, _BASELINE_THRESHOLD_VERSION, changed_files
+        return candidate_model_version, baseline_threshold_version, changed_files
 
     if manifest.fix_type == "feature_fix":
         candidate_model_version, changed_files = apply_feature_fix(
             manifest, outputs_root=outputs_root, data_dir=data_dir
         )
-        return candidate_model_version, _BASELINE_THRESHOLD_VERSION, changed_files
+        return candidate_model_version, baseline_threshold_version, changed_files
 
     raise ValueError(
         f"unknown manifest.fix_type {manifest.fix_type!r}; "
@@ -204,6 +214,8 @@ def apply_fix(
             manifest=manifest,
             outputs_root=outputs_root,
             data_dir=data_dir,
+            current_model_version=current_model_version,
+            current_threshold_version=current_threshold_version,
         )
     )
 

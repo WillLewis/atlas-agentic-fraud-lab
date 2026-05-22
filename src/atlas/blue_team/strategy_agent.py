@@ -27,6 +27,7 @@ from typing import Any, Final, Sequence
 import yaml
 
 from app.api.schemas.fix import ALLOWED_FIX_TYPES
+from atlas.model.policy import resolve_decision_thresholds_path
 from atlas.blue_team.manifest import (
     DEFAULT_OUTPUTS_ROOT,
     DefensiveFixManifest,
@@ -178,17 +179,11 @@ def _load_round_entry(round_id: int, path: Path) -> dict[str, Any]:
     )
 
 
-def _load_default_rate_limit_claim(
-    path: Path = DEFAULT_DECISION_THRESHOLDS_PATH,
-) -> dict[str, float]:
+def _load_default_rate_limit_claim(doc: dict[str, Any]) -> dict[str, float]:
     """Read customer_friction_tolerances from
-    ``config/decision_thresholds.yaml`` and project the two keys the
-    OpenAPI ``rate_limit_claim`` exposes.
+    the effective decision-threshold document and project the two keys
+    the OpenAPI ``rate_limit_claim`` exposes.
     """
-    if not path.exists():
-        return {}
-    with path.open("r", encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh) or {}
     friction = doc.get("customer_friction_tolerances") or {}
     return {
         k: float(friction.get(k, 0.0))
@@ -197,16 +192,25 @@ def _load_default_rate_limit_claim(
     }
 
 
-def _load_baseline_challenge_threshold(
-    path: Path = DEFAULT_DECISION_THRESHOLDS_PATH,
-) -> float:
-    if not path.exists():
-        return 0.74  # Phase 4 default
-    with path.open("r", encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh) or {}
+def _load_baseline_challenge_threshold(doc: dict[str, Any]) -> float:
     return float(
         (doc.get("decision_thresholds") or {}).get("challenge_score_threshold", 0.74)
     )
+
+
+def _load_effective_threshold_doc(
+    *,
+    threshold_version: str | None,
+    outputs_root: Path,
+    template_path: Path,
+) -> dict[str, Any]:
+    path = resolve_decision_thresholds_path(
+        threshold_version,
+        outputs_root=outputs_root,
+        template_path=template_path,
+    )
+    with path.open("r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +301,7 @@ def propose_fixes(
     outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
     round_config_path: Path = DEFAULT_ROUND_CONFIG_PATH,
     decision_thresholds_path: Path = DEFAULT_DECISION_THRESHOLDS_PATH,
+    current_threshold_version: str | None = None,
 ) -> list[DefensiveFixCandidate]:
     """Resolve vulnerabilities, intersect fix types, emit candidates.
 
@@ -322,8 +327,13 @@ def propose_fixes(
     round_entry = _load_round_entry(round_id, round_config_path)
     round_allowed = set(round_entry.get("defensive_fix_types_allowed") or [])
 
-    rate_limit_claim = _load_default_rate_limit_claim(decision_thresholds_path)
-    baseline_challenge = _load_baseline_challenge_threshold(decision_thresholds_path)
+    threshold_doc = _load_effective_threshold_doc(
+        threshold_version=current_threshold_version,
+        outputs_root=outputs_root,
+        template_path=decision_thresholds_path,
+    )
+    rate_limit_claim = _load_default_rate_limit_claim(threshold_doc)
+    baseline_challenge = _load_baseline_challenge_threshold(threshold_doc)
 
     # Sort the requested vulnerabilities for byte-stability
     sorted_vuln_ids = sorted(set(model_vulnerability_ids))

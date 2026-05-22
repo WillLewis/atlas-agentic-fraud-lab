@@ -88,6 +88,7 @@ def post_red_team_search(req: RedTeamSearchRequest) -> dict:
             search_methods=req.search_methods,
             max_score_queries=req.max_score_queries,
             allowed_family_ids=req.allowed_family_ids,
+            outputs_root=OUTPUTS_ROOT,
         )
     except MissingBaselineModelError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

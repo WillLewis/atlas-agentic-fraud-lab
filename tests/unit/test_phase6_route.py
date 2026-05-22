@@ -219,11 +219,13 @@ def test_search_never_exceeds_score_query_budget(api_client):
     # RedTeamSearchResult. Run via the route then re-derive using the
     # in-process orchestrator with the same args.
     from atlas.red_team.fraud_scenario_agent import run_search, reset_caches
+    import app.api.routes.red_team as route_mod
     reset_caches()
     result = run_search(
         run_id="r", round_id=1,
         search_methods=["random", "evolutionary", "graph_probe"],
         max_score_queries=200,
+        outputs_root=route_mod.OUTPUTS_ROOT,
     )
     assert result.queries_used <= 200, (
         f"queries_used={result.queries_used} exceeded budget=200"

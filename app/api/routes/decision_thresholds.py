@@ -1,7 +1,8 @@
 """GET /decision-thresholds route.
 
-Adapts the persisted-config field names to the OpenAPI public contract
-exactly once at the route boundary (the only place the translation lives).
+Resolves the effective threshold YAML, then adapts the persisted-config
+field names to the OpenAPI public contract exactly once at the route
+boundary.
 """
 
 from __future__ import annotations
@@ -17,17 +18,26 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from app.api.schemas.common import DecisionThresholdsResponse  # noqa: E402
+from atlas.model.policy import (  # noqa: E402
+    DEFAULT_OUTPUTS_ROOT,
+    resolve_decision_thresholds_path,
+)
 
 import yaml  # noqa: E402
 
 THRESHOLDS_CONFIG_PATH = REPO_ROOT / "config" / "decision_thresholds.yaml"
+OUTPUTS_ROOT = DEFAULT_OUTPUTS_ROOT
 
 router = APIRouter()
 
 
 @router.get("/decision-thresholds", response_model=DecisionThresholdsResponse)
 def get_decision_thresholds() -> DecisionThresholdsResponse:
-    with THRESHOLDS_CONFIG_PATH.open("r", encoding="utf-8") as fh:
+    path = resolve_decision_thresholds_path(
+        outputs_root=OUTPUTS_ROOT,
+        template_path=THRESHOLDS_CONFIG_PATH,
+    )
+    with path.open("r", encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh) or {}
 
     thresholds = cfg["decision_thresholds"]

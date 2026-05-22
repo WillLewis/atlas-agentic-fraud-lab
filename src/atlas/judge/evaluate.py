@@ -50,9 +50,9 @@ from atlas.judge.metrics import (
 )
 from atlas.model.loader import DEFAULT_DATA_DIR
 from atlas.model.policy import (
-    DEFAULT_THRESHOLDS_CONFIG_PATH,
     DecisionPolicyConfig,
-    load_decision_policy_config,
+    UnknownThresholdVersionError,
+    resolve_decision_policy_config,
 )
 from atlas.model.scorer import (
     BaselineModelBundle,
@@ -138,17 +138,6 @@ def reset_caches() -> None:
     _CONFIG_CACHE.clear()
 
 
-class UnknownThresholdVersionError(ValueError):
-    """Raised when the request specifies a threshold_version that isn't
-    backed by either:
-
-      * the persisted ``config/decision_thresholds.yaml`` (Phase 4/5
-        baseline ``thresholds_v1``), or
-      * a Phase 7 candidate file at
-        ``outputs/decision_thresholds/<version>.yaml``.
-    """
-
-
 # ---------------------------------------------------------------------------
 # Bundle + config resolution
 # ---------------------------------------------------------------------------
@@ -182,76 +171,22 @@ def _config_for_version(
     *,
     outputs_root: Path = DEFAULT_OUTPUTS_ROOT,
 ) -> DecisionPolicyConfig:
-    """Resolve a ``DecisionPolicyConfig`` for the requested
-    ``threshold_version``.
-
-    Resolution order (Phase 11+):
-
-      1. Translate ``None`` to the in-repo template's
-         ``decision_threshold_version`` so the lookup has a name to
-         resolve.
-      2. ``ALTERNATE_THRESHOLDS_ROOT / "{version}.yaml"`` — checked
-         FIRST so:
-           * fitted baseline thresholds (``thresholds_v1.yaml`` written
-             by ``train_baseline_model``) take precedence over the
-             in-repo template, and
-           * Phase 7 candidate threshold files (``fix_*_policy_fix.yaml``)
-             continue to resolve as before.
-      3. Fall back to the in-repo ``config/decision_thresholds.yaml``
-         template ONLY when the file under
-         ``ALTERNATE_THRESHOLDS_ROOT`` is missing AND the requested
-         version matches the template's own
-         ``decision_threshold_version``. This keeps fresh-checkout
-         tests (no ``make train`` yet) working.
-      4. Otherwise raise ``UnknownThresholdVersionError``.
-
-    Caching: only successful loads are cached. A request for an unknown
-    version that later gains a candidate file resolves correctly without
-    a process restart (only ``reset_caches()`` invalidates a successful
-    load, never a miss).
-    """
-    persisted = _CONFIG_CACHE.get("__persisted__")
-    if persisted is None:
-        persisted = load_decision_policy_config(DEFAULT_THRESHOLDS_CONFIG_PATH)
-        _CONFIG_CACHE["__persisted__"] = persisted
-
-    requested = threshold_version or persisted.threshold_version
-
-    cache_key = f"{outputs_root.resolve()}|{requested}"
+    """Resolve a ``DecisionPolicyConfig`` for the requested version."""
+    cache_key = (
+        f"{outputs_root.resolve()}|{ALTERNATE_THRESHOLDS_ROOT}|"
+        f"{threshold_version or '__default__'}"
+    )
     cached = _CONFIG_CACHE.get(cache_key)
     if cached is not None:
         return cached
 
-    # Outputs file wins — fitted baseline + Phase 7 candidates land here.
-    candidate_path = outputs_root / "decision_thresholds" / f"{requested}.yaml"
-    if not candidate_path.exists():
-        candidate_path = ALTERNATE_THRESHOLDS_ROOT / f"{requested}.yaml"
-    if candidate_path.exists():
-        candidate = load_decision_policy_config(candidate_path)
-        # Defensive: the candidate's stored ``threshold_version`` must
-        # match what the caller asked for — otherwise the cache key and
-        # the loaded identity would diverge. Raise a clear error rather
-        # than silently mis-tagging the config.
-        if candidate.threshold_version != requested:
-            raise UnknownThresholdVersionError(
-                f"candidate file {candidate_path} declares "
-                f"decision_threshold_version={candidate.threshold_version!r} "
-                f"but was requested as {requested!r}."
-            )
-        _CONFIG_CACHE[cache_key] = candidate
-        return candidate
-
-    # Fall back to the in-repo template only when the requested version
-    # is the template's own version.
-    if requested == persisted.threshold_version:
-        _CONFIG_CACHE[cache_key] = persisted
-        return persisted
-
-    raise UnknownThresholdVersionError(
-        f"unknown threshold_version {requested!r}; "
-        f"not the in-repo {persisted.threshold_version!r} and no "
-        f"candidate file at {candidate_path}."
+    config = resolve_decision_policy_config(
+        threshold_version,
+        outputs_root=outputs_root,
+        alternate_thresholds_root=ALTERNATE_THRESHOLDS_ROOT,
     )
+    _CONFIG_CACHE[cache_key] = config
+    return config
 
 
 # ---------------------------------------------------------------------------

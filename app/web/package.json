@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "description": "Project Atlas web shell — synthetic, public-safe Next.js scrollytelling demo.",
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
