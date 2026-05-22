@@ -26,6 +26,6 @@ decision_bands:
   decline_band: decline_threshold_band
 decision_threshold_version: fix_round1_low_velocity_high_graph_risk_policy_fix
 decision_thresholds:
-  alert_score_threshold: 0.86
-  challenge_score_threshold: 0.703
-  decline_score_threshold: 0.92
+  alert_score_threshold: 0.2694
+  challenge_score_threshold: 0.2559
+  decline_score_threshold: 0.2699

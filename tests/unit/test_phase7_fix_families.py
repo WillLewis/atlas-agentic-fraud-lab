@@ -419,6 +419,29 @@ def test_feature_fix_transformer_does_not_mutate_input():
     assert x[0, idx] == 0.4
 
 
+def test_recent_security_transform_adds_low_tenure_graph_interaction():
+    import numpy as np
+    from atlas.model.loader import FEATURE_COLUMNS
+
+    n_features = len(FEATURE_COLUMNS)
+    x = np.zeros((2, n_features), dtype=float)
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    x[:, recovery_idx] = 1.0
+    x[:, graph_idx] = 0.52
+    x[0, tenure_idx] = 10
+    x[1, tenure_idx] = 30
+
+    t = _FeatureFixTransformer(("boost_recent_security_signals",))
+    y = t.transform(x)
+
+    assert y[0, recovery_idx] == 2.0
+    assert y[1, recovery_idx] == 2.0
+    assert y[0, graph_idx] == pytest.approx(1.04)
+    assert y[1, graph_idx] == pytest.approx(0.52)
+
+
 def _feature_manifest():
     return DefensiveFixManifest(
         defensive_fix_id="fix_round1_low_velocity_high_graph_risk_feature_fix",

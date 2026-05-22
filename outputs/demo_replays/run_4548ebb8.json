@@ -2,52 +2,52 @@
   "charts": {
     "round_metrics": [
       {
-        "alert_rate": 0.2069,
+        "alert_rate": 0.0488,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0172,
-        "false_positive_rate_at_fixed_action_rate": 0.2157,
+        "decline_rate": 0.0,
+        "false_positive_rate_at_fixed_action_rate": 0.0286,
         "kind": "baseline",
-        "model_miss_rate": 0.7143,
-        "recall_at_fixed_action_rate": 0.2857,
+        "model_miss_rate": 0.8333,
+        "recall_at_fixed_action_rate": 0.1667,
         "round_id": 0,
         "round_label": "Baseline",
-        "synthetic_loss_allowed": 508000.0
+        "synthetic_loss_allowed": 758000.0
       },
       {
-        "alert_rate": 0.2069,
+        "alert_rate": 0.0488,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0172,
-        "false_positive_rate_at_fixed_action_rate": 0.2157,
+        "decline_rate": 0.0,
+        "false_positive_rate_at_fixed_action_rate": 0.0286,
         "kind": "fixed",
-        "model_miss_rate": 0.7143,
-        "recall_at_fixed_action_rate": 0.2857,
+        "model_miss_rate": 0.8333,
+        "recall_at_fixed_action_rate": 0.1667,
         "round_id": 1,
         "round_label": "Round 1",
-        "synthetic_loss_allowed": 508000.0
+        "synthetic_loss_allowed": 758000.0
       },
       {
-        "alert_rate": 0.2069,
+        "alert_rate": 0.0488,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0172,
-        "false_positive_rate_at_fixed_action_rate": 0.2157,
+        "decline_rate": 0.0,
+        "false_positive_rate_at_fixed_action_rate": 0.0,
         "kind": "fixed",
-        "model_miss_rate": 0.7143,
-        "recall_at_fixed_action_rate": 0.2857,
+        "model_miss_rate": 0.6667,
+        "recall_at_fixed_action_rate": 0.3333,
         "round_id": 2,
         "round_label": "Round 2",
-        "synthetic_loss_allowed": 508000.0
+        "synthetic_loss_allowed": 638000.0
       },
       {
-        "alert_rate": 0.2069,
+        "alert_rate": 0.0488,
         "challenge_rate": 0.0,
-        "decline_rate": 0.0172,
-        "false_positive_rate_at_fixed_action_rate": 0.2157,
+        "decline_rate": 0.0,
+        "false_positive_rate_at_fixed_action_rate": 0.0,
         "kind": "fixed",
-        "model_miss_rate": 0.7143,
-        "recall_at_fixed_action_rate": 0.2857,
+        "model_miss_rate": 0.6667,
+        "recall_at_fixed_action_rate": 0.3333,
         "round_id": 3,
         "round_label": "Round 3",
-        "synthetic_loss_allowed": 508000.0
+        "synthetic_loss_allowed": 638000.0
       }
     ]
   },
@@ -133,27 +133,27 @@
         {
           "category": "environment",
           "key": "devices",
-          "value": 236
+          "value": 245
         },
         {
           "category": "environment",
           "key": "external_accounts",
-          "value": 122
+          "value": 129
         },
         {
           "category": "environment",
           "key": "graph_edges",
-          "value": 526
+          "value": 561
         },
         {
           "category": "environment",
           "key": "label_records",
-          "value": 404
+          "value": 370
         },
         {
           "category": "environment",
           "key": "login_sessions",
-          "value": 2087
+          "value": 1930
         },
         {
           "category": "environment",
@@ -163,12 +163,12 @@
         {
           "category": "environment",
           "key": "security_events",
-          "value": 86
+          "value": 76
         },
         {
           "category": "environment",
           "key": "transfer_events",
-          "value": 404
+          "value": 370
         }
       ],
       "step_id": 2,
@@ -179,16 +179,16 @@
         {
           "accepted_fix_id": "",
           "category": "round_summary",
-          "judge_report_id": "judge_run_4548ebb8_1_fix_round1_low_velocity_high_graph_risk_feature_fix",
-          "model_miss_rate_after": 0.7143,
-          "model_miss_rate_before": 0.7143,
+          "judge_report_id": "judge_run_4548ebb8_1_fix_round1_low_velocity_high_graph_risk_policy_fix",
+          "model_miss_rate_after": 0.8333,
+          "model_miss_rate_before": 0.8333,
           "model_version_after": "baseline_v1",
           "model_version_before": "baseline_v1",
           "round_id": 1,
           "safety_scan_passed": true,
           "threshold_version_after": "thresholds_v1",
           "threshold_version_before": "thresholds_v1",
-          "transcript_summary": "Round 1: red-team surfaced 2 model_vulnerability cards; bank-defense proposed 3 candidate(s); judge rejected the selected candidate fix_round1_low_velocity_high_graph_risk_feature_fix. Carry-forward: model=baseline_v1, threshold=thresholds_v1."
+          "transcript_summary": "Round 1: red-team surfaced 1 model_vulnerability cards; bank-defense proposed 2 candidate(s); judge rejected the selected candidate fix_round1_low_velocity_high_graph_risk_policy_fix. Carry-forward: model=baseline_v1, threshold=thresholds_v1."
         }
       ],
       "step_id": 3,
@@ -197,18 +197,18 @@
     {
       "cards": [
         {
-          "accepted_fix_id": "",
+          "accepted_fix_id": "fix_round2_recent_change_feature_delay_feature_fix",
           "category": "round_summary",
-          "judge_report_id": "judge_run_4548ebb8_2_fix_round2_activity_channel_shift_feature_fix",
-          "model_miss_rate_after": 0.7143,
-          "model_miss_rate_before": 0.7143,
-          "model_version_after": "baseline_v1",
+          "judge_report_id": "judge_run_4548ebb8_2_fix_round2_recent_change_feature_delay_feature_fix",
+          "model_miss_rate_after": 0.6667,
+          "model_miss_rate_before": 0.8333,
+          "model_version_after": "fix_round2_recent_change_feature_delay_feature_fix",
           "model_version_before": "baseline_v1",
           "round_id": 2,
           "safety_scan_passed": true,
           "threshold_version_after": "thresholds_v1",
           "threshold_version_before": "thresholds_v1",
-          "transcript_summary": "Round 2: red-team surfaced 3 model_vulnerability cards; bank-defense proposed 3 candidate(s); judge rejected the selected candidate fix_round2_activity_channel_shift_feature_fix. Carry-forward: model=baseline_v1, threshold=thresholds_v1."
+          "transcript_summary": "Round 2: red-team surfaced 3 model_vulnerability cards; bank-defense proposed 3 candidate(s); judge accepted the selected candidate fix_round2_recent_change_feature_delay_feature_fix. Carry-forward: model=fix_round2_recent_change_feature_delay_feature_fix, threshold=thresholds_v1."
         }
       ],
       "step_id": 4,
@@ -220,28 +220,28 @@
           "accepted_fix_id": "",
           "category": "round_summary",
           "judge_report_id": "judge_run_4548ebb8_3_fix_round3_label_noise_mislearned_model_calibration_fix",
-          "model_miss_rate_after": 0.7143,
-          "model_miss_rate_before": 0.7143,
-          "model_version_after": "baseline_v1",
-          "model_version_before": "baseline_v1",
+          "model_miss_rate_after": 0.6667,
+          "model_miss_rate_before": 0.6667,
+          "model_version_after": "fix_round2_recent_change_feature_delay_feature_fix",
+          "model_version_before": "fix_round2_recent_change_feature_delay_feature_fix",
           "round_id": 3,
           "safety_scan_passed": true,
           "threshold_version_after": "thresholds_v1",
           "threshold_version_before": "thresholds_v1",
-          "transcript_summary": "Round 3: red-team surfaced 2 model_vulnerability cards; bank-defense proposed 3 candidate(s); judge rejected the selected candidate fix_round3_label_noise_mislearned_model_calibration_fix. Carry-forward: model=baseline_v1, threshold=thresholds_v1."
+          "transcript_summary": "Round 3: red-team surfaced 2 model_vulnerability cards; bank-defense proposed 3 candidate(s); judge rejected the selected candidate fix_round3_label_noise_mislearned_model_calibration_fix. Carry-forward: model=fix_round2_recent_change_feature_delay_feature_fix, threshold=thresholds_v1."
         },
         {
-          "accepted_count": 0,
+          "accepted_count": 1,
           "category": "final_report",
-          "final_model_version": "baseline_v1",
+          "final_model_version": "fix_round2_recent_change_feature_delay_feature_fix",
           "final_threshold_version": "thresholds_v1",
           "miss_rate_trend": [
-            0.7143,
-            0.7143,
-            0.7143
+            0.8333,
+            0.6667,
+            0.6667
           ],
           "safety_scan_passed": true,
-          "summary": "Run run_4548ebb8: 3 rounds completed; 0 accepted defensive fix(es); model_miss_rate trend: 0.7143 → 0.7143 → 0.7143; final model=baseline_v1, threshold=thresholds_v1."
+          "summary": "Run run_4548ebb8: 3 rounds completed; 1 accepted defensive fix(es); model_miss_rate trend: 0.8333 → 0.6667 → 0.6667; final model=fix_round2_recent_change_feature_delay_feature_fix, threshold=thresholds_v1."
         }
       ],
       "step_id": 5,
@@ -253,47 +253,47 @@
     "current_round": 3,
     "demo_mode": "public",
     "latest_metrics": {
-      "alert_rate": 0.2069,
+      "alert_rate": 0.0488,
       "challenge_rate": 0.0,
-      "decline_rate": 0.0172,
-      "false_positive_rate_at_fixed_action_rate": 0.2157,
+      "decline_rate": 0.0,
+      "false_positive_rate_at_fixed_action_rate": 0.0,
       "kind": "fixed",
-      "model_miss_rate": 0.7143,
-      "recall_at_fixed_action_rate": 0.2857,
+      "model_miss_rate": 0.6667,
+      "recall_at_fixed_action_rate": 0.3333,
       "round_id": 3,
       "round_label": "Round 3",
-      "synthetic_loss_allowed": 508000.0
+      "synthetic_loss_allowed": 638000.0
     },
     "rounds": [
       {
-        "model_miss_rate_after": 0.7143,
-        "model_miss_rate_before": 0.7143,
+        "model_miss_rate_after": 0.8333,
+        "model_miss_rate_before": 0.8333,
         "model_version_after": "baseline_v1",
         "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.2857,
-        "recall_at_fixed_action_rate_before": 0.2857,
+        "recall_at_fixed_action_rate_after": 0.1667,
+        "recall_at_fixed_action_rate_before": 0.1667,
         "round_id": 1,
         "run_id": "run_4548ebb8",
         "status": "completed"
       },
       {
-        "model_miss_rate_after": 0.7143,
-        "model_miss_rate_before": 0.7143,
-        "model_version_after": "baseline_v1",
+        "model_miss_rate_after": 0.6667,
+        "model_miss_rate_before": 0.8333,
+        "model_version_after": "fix_round2_recent_change_feature_delay_feature_fix",
         "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.2857,
-        "recall_at_fixed_action_rate_before": 0.2857,
+        "recall_at_fixed_action_rate_after": 0.3333,
+        "recall_at_fixed_action_rate_before": 0.1667,
         "round_id": 2,
         "run_id": "run_4548ebb8",
         "status": "completed"
       },
       {
-        "model_miss_rate_after": 0.7143,
-        "model_miss_rate_before": 0.7143,
-        "model_version_after": "baseline_v1",
-        "model_version_before": "baseline_v1",
-        "recall_at_fixed_action_rate_after": 0.2857,
-        "recall_at_fixed_action_rate_before": 0.2857,
+        "model_miss_rate_after": 0.6667,
+        "model_miss_rate_before": 0.6667,
+        "model_version_after": "fix_round2_recent_change_feature_delay_feature_fix",
+        "model_version_before": "fix_round2_recent_change_feature_delay_feature_fix",
+        "recall_at_fixed_action_rate_after": 0.3333,
+        "recall_at_fixed_action_rate_before": 0.3333,
         "round_id": 3,
         "run_id": "run_4548ebb8",
         "status": "completed"

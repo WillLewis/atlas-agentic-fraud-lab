@@ -31,8 +31,11 @@ Closed-enum transform specs (no free-form code path):
                                           relationship-graph risk.
   * ``boost_recent_security_signals``  — multiplies
                                           ``password_recovery_count_72h``
-                                          by 2.0 so recent recovery
-                                          events steer the score upward.
+                                          by 2.0 and adds a bounded
+                                          low-device-tenure graph-risk
+                                          interaction so recent access
+                                          changes can steer the score
+                                          upward.
   * ``boost_geo_consistency``          — remaps ``geo_consistency_flag``
                                           from ``{0, 1}`` to ``{-1, 1}``
                                           giving the model a directional
@@ -71,6 +74,8 @@ ALLOWED_FEATURE_TRANSFORMS: Final[frozenset[str]] = frozenset(
     }
 )
 
+_RECENT_DEVICE_TENURE_DAYS_MAX: Final[float] = 14.0
+
 # Per-family closed-enum spec list. Mirrors the strategy_agent's
 # previous ``_FEATURE_TRANSFORMS_BY_FAMILY`` (now imported back into
 # strategy_agent from here so this file is the single source of truth).
@@ -102,8 +107,14 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
         idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
         out[:, idx] = out[:, idx] * 2.0
     elif spec == "boost_recent_security_signals":
-        idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
-        out[:, idx] = out[:, idx] * 2.0
+        recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+        graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+        tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+        out[:, recovery_idx] = out[:, recovery_idx] * 2.0
+        low_tenure = (
+            out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX
+        ).astype(float)
+        out[:, graph_idx] = out[:, graph_idx] + (low_tenure * out[:, graph_idx])
     elif spec == "boost_geo_consistency":
         idx = FEATURE_COLUMNS.index("geo_consistency_flag")
         # {0, 1} → {-1, 1}
