@@ -30,6 +30,7 @@ from typing import Any, Final
 import yaml
 
 from atlas.model.policy import DEFAULT_THRESHOLDS_CONFIG_PATH
+from atlas.safety.scanner import ScanReport, scan_text
 
 # The six §16.7 conditions, in canonical order. judge_notes emits in
 # this order so output is byte-stable across runs.
@@ -78,6 +79,22 @@ class AcceptancePolicy:
     challenge_rate_limit_fraction: float
     alert_rate_limit_fraction: float
     decline_rate_limit_fraction: float
+
+
+@dataclass(frozen=True)
+class SafetyScanDecision:
+    """Safety-scan result projected into the acceptance-rule surface.
+
+    The judge only needs a deterministic pass/fail gate and public-safe
+    counts for ``judge_notes``. Raw snippets are intentionally excluded
+    so unsafe input cannot be reflected back through the report.
+    """
+
+    passed: bool
+    files_scanned: int
+    error_count: int
+    warning_count: int
+    rule_ids: tuple[str, ...] = ()
 
 
 _POLICY_CACHE: dict[str, AcceptancePolicy] = {}
@@ -243,15 +260,34 @@ def _check_locked_holdout(
     return passed, f"locked_pass={passed}"
 
 
-def _check_safety_scan() -> tuple[bool, str]:
-    """Phase 5 placeholder — Phase 10 wires `scripts/safety_scan.py`
-    output through the judge. Today the build-level scanner is the
-    source of truth; per-evaluation re-scanning would only re-check
-    static repo state. Returning True keeps the conjunction shape stable.
+def _safety_scan_decision_from_report(report: ScanReport) -> SafetyScanDecision:
+    rule_ids = tuple(sorted({str(f.rule_id) for f in report.findings}))
+    return SafetyScanDecision(
+        passed=len(report.errors) == 0,
+        files_scanned=int(report.files_scanned),
+        error_count=len(report.errors),
+        warning_count=len(report.warnings),
+        rule_ids=rule_ids,
+    )
+
+
+def run_acceptance_safety_scan(text: str | None) -> SafetyScanDecision:
+    """Run the canonical Project Atlas safety scanner for one judge input.
+
+    Mirrors the ``/safety/scan`` pass rule: error-severity findings block
+    acceptance, warning-only findings are surfaced but do not fail the
+    deterministic judge gate.
     """
-    # TODO(Phase 10): plumb scripts/safety_scan.py findings into a
-    # per-evaluation safety-scan record and gate acceptance on it.
-    return True, "safety_scan=passed(phase5_placeholder)"
+    return _safety_scan_decision_from_report(scan_text(text or "", mode="public"))
+
+
+def _check_safety_scan(decision: SafetyScanDecision) -> tuple[bool, str]:
+    rule_ids = ",".join(decision.rule_ids) if decision.rule_ids else "none"
+    detail = (
+        f"errors={decision.error_count},warnings={decision.warning_count},"
+        f"files_scanned={decision.files_scanned},rule_ids={rule_ids}"
+    )
+    return decision.passed, detail
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +300,7 @@ def apply_acceptance_rule(
     baseline: dict[str, Any],
     fixed: dict[str, Any],
     holdout_generalization: dict[str, Any],
+    safety_scan_text: str | None = None,
     policy: AcceptancePolicy | None = None,
 ) -> tuple[bool, str]:
     """Evaluate Bible §16.7 over the headline ``MetricSnapshot``s and
@@ -275,6 +312,7 @@ def apply_acceptance_rule(
     """
     if policy is None:
         policy = load_acceptance_policy()
+    safety_scan_decision = run_acceptance_safety_scan(safety_scan_text)
 
     conditions: dict[str, tuple[bool, str]] = {
         "recall_improves": _check_recall_improves(baseline, fixed),
@@ -288,7 +326,7 @@ def apply_acceptance_rule(
         "locked_holdout_neutral_or_better": _check_locked_holdout(
             holdout_generalization
         ),
-        "safety_scan_passed": _check_safety_scan(),
+        "safety_scan_passed": _check_safety_scan(safety_scan_decision),
     }
 
     accepted = all(passed for passed, _ in conditions.values())

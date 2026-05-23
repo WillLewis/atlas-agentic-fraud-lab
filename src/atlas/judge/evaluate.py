@@ -33,6 +33,7 @@ Caching:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Final, Sequence, TypedDict
 
@@ -258,6 +259,48 @@ def _judge_report_id(run_id: str, round_id: int, defensive_fix_id: str) -> str:
     return f"judge_{run_id}_{round_id}_{defensive_fix_id}"
 
 
+def _build_acceptance_safety_scan_text(
+    *,
+    run_id: str,
+    round_id: int,
+    defensive_fix_id: str,
+    baseline_model_version: str,
+    candidate_model_version: str,
+    baseline_threshold_version: str | None,
+    candidate_threshold_version: str | None,
+    found_adaptive_set_event_ids: Sequence[str] | None,
+    baseline: MetricSnapshot,
+    fixed: MetricSnapshot,
+    holdout_generalization: HoldoutGeneralization,
+) -> str:
+    """Serialize judge-visible context for the acceptance safety gate.
+
+    The payload intentionally includes request identifiers and emitted
+    metrics, but never raw holdout records or labels. Sorted compact JSON
+    keeps the scan input byte-stable while giving the canonical safety
+    scanner a deterministic surface to inspect.
+    """
+    payload = {
+        "run_id": run_id,
+        "round_id": int(round_id),
+        "defensive_fix_id": defensive_fix_id,
+        "baseline_model_version": baseline_model_version,
+        "candidate_model_version": candidate_model_version,
+        "baseline_threshold_version": baseline_threshold_version,
+        "candidate_threshold_version": candidate_threshold_version,
+        "found_adaptive_set_event_ids": list(found_adaptive_set_event_ids or []),
+        "baseline": dict(baseline),
+        "fixed": dict(fixed),
+        "holdout_generalization": dict(holdout_generalization),
+    }
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -341,6 +384,19 @@ def evaluate_fix(
 
     baseline_snapshot = _build_metric_snapshot(baseline_clean)
     fixed_snapshot = _build_metric_snapshot(fixed_clean, prevented=prevented)
+    safety_scan_text = _build_acceptance_safety_scan_text(
+        run_id=run_id,
+        round_id=round_id,
+        defensive_fix_id=defensive_fix_id,
+        baseline_model_version=baseline_model_version,
+        candidate_model_version=candidate_model_version,
+        baseline_threshold_version=baseline_threshold_version,
+        candidate_threshold_version=candidate_threshold_version,
+        found_adaptive_set_event_ids=found_adaptive_set_event_ids,
+        baseline=baseline_snapshot,
+        fixed=fixed_snapshot,
+        holdout_generalization=generalization,
+    )
 
     # Component 5 owns the final acceptance + notes. It receives the
     # already-rounded headline snapshots + the per-holdout flags.
@@ -348,6 +404,7 @@ def evaluate_fix(
         baseline=baseline_snapshot,
         fixed=fixed_snapshot,
         holdout_generalization=generalization,
+        safety_scan_text=safety_scan_text,
     )
 
     return JudgeReport(

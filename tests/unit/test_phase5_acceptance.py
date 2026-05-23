@@ -12,7 +12,9 @@ from atlas.judge.acceptance import (
     apply_acceptance_rule,
     load_acceptance_policy,
     reset_caches,
+    run_acceptance_safety_scan,
 )
+from atlas.judge.evaluate import _build_acceptance_safety_scan_text
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +200,56 @@ def test_locked_holdout_failure_blocks():
     )
     assert accepted is False
     assert "locked_holdout_neutral_or_better" in _failing_conditions(notes)
+
+
+def test_safety_scan_error_blocks_without_echoing_snippet():
+    unsafe_text = "candidate text says how to bypass mfa quickly"
+    accepted, notes = apply_acceptance_rule(
+        baseline=_baseline(),
+        fixed=_fixed_passing(),
+        holdout_generalization=_hg_pass(),
+        safety_scan_text=unsafe_text,
+    )
+
+    assert accepted is False
+    assert _failing_conditions(notes) == ["safety_scan_passed"]
+    assert "unsafe_redteam_phrasing" in notes
+    assert "how to bypass" not in notes
+
+
+def test_safety_scan_warning_only_does_not_block_acceptance():
+    accepted, notes = apply_acceptance_rule(
+        baseline=_baseline(),
+        fixed=_fixed_passing(),
+        holdout_generalization=_hg_pass(),
+        safety_scan_text="legacy public copy mentions fraud playbook",
+    )
+
+    assert accepted is True
+    assert _failing_conditions(notes) == []
+    assert "warnings=1" in notes
+    assert "legacy_terminology_in_public_copy" in notes
+
+
+def test_judge_safety_scan_payload_includes_identifiers():
+    text = _build_acceptance_safety_scan_text(
+        run_id="run_test",
+        round_id=1,
+        defensive_fix_id="fix how to bypass mfa quickly",
+        baseline_model_version="baseline_v1",
+        candidate_model_version="baseline_v1",
+        baseline_threshold_version="thresholds_v1",
+        candidate_threshold_version="thresholds_v1",
+        found_adaptive_set_event_ids=[],
+        baseline=_baseline(),
+        fixed=_fixed_passing(),
+        holdout_generalization=_hg_pass(),
+    )
+    decision = run_acceptance_safety_scan(text)
+
+    assert decision.passed is False
+    assert decision.error_count == 1
+    assert decision.rule_ids == ("unsafe_redteam_phrasing",)
 
 
 # ---------------------------------------------------------------------------
