@@ -110,9 +110,10 @@ notes.
   `make demo-web` path.
 - **Model-tier comparison is read-only.** `GET /model-quality-matrix` and the
   `RunComparisonMatrix` UI project tier metadata from
-  `config/model_quality_matrix.yaml`. Per-cell `average_*` metrics are
-  placeholders; live multi-tier comparison runs are not included in this
-  local demo.
+  `config/model_quality_matrix.yaml`. Cells with `source_run_id` derive
+  `average_*` metrics from curated replay artifacts; cells without a curated
+  source return unavailable metrics explicitly. This is not a live benchmark
+  runner.
 - **Locked holdouts are gated.** `src/atlas/judge/holdouts.py` blocks runtime
   access from simulation agents; `.claude/settings.json` denies Claude Code
   reads of locked holdout files.

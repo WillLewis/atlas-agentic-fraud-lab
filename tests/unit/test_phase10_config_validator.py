@@ -216,3 +216,45 @@ def test_model_quality_matrix_missing_tier_label_fails():
     }
     issues = validate_model_quality_matrix(cfg)
     assert any("public_safe_label" in i for i in issues)
+
+
+def test_model_quality_matrix_metrics_source_requires_source_run_id():
+    cfg = {
+        "model_quality_matrix_version": "v1",
+        "tiers": {
+            "frontier": {"public_safe_label": "Frontier"},
+            "compact": {"public_safe_label": "Compact"},
+        },
+        "expose_concrete_model_names": False,
+        "runs": [
+            {
+                "red_team_tier": "frontier",
+                "bank_defense_tier": "frontier",
+                "source_run_id": None,
+                "metrics_source": "judge_derived_replay",
+            },
+        ],
+    }
+    issues = validate_model_quality_matrix(cfg)
+    assert any("source_run_id is required" in i for i in issues)
+
+
+def test_model_quality_matrix_unavailable_requires_null_source():
+    cfg = {
+        "model_quality_matrix_version": "v1",
+        "tiers": {
+            "frontier": {"public_safe_label": "Frontier"},
+            "compact": {"public_safe_label": "Compact"},
+        },
+        "expose_concrete_model_names": False,
+        "runs": [
+            {
+                "red_team_tier": "compact",
+                "bank_defense_tier": "compact",
+                "source_run_id": "run_4548ebb8",
+                "metrics_source": "unavailable",
+            },
+        ],
+    }
+    issues = validate_model_quality_matrix(cfg)
+    assert any("must be null" in i for i in issues)

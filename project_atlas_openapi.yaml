@@ -442,7 +442,7 @@ paths:
                 $ref: '#/components/schemas/SafetyScanResponse'
   /model-quality-matrix:
     get:
-      summary: Return precomputed frontier-vs-compact agent comparison
+      summary: Return curated frontier-vs-compact agent comparison
       operationId: getModelQualityMatrix
       responses:
         "200":
@@ -1185,12 +1185,30 @@ components:
               blue_team_model_tier:
                 type: string
                 enum: [frontier, compact]
+              source_run_id:
+                type: [string, "null"]
+              metrics_source:
+                type: string
+                enum: [judge_derived_replay, unavailable]
+              metrics_status:
+                type: string
+                enum: [loaded, no_source_run, source_unavailable, incomplete_source]
               average_model_miss_rate:
-                type: number
+                type: [number, "null"]
               average_recall_recovery_points:
-                type: number
+                type: [number, "null"]
               fixed_action_rate_pass:
-                type: boolean
+                type: [boolean, "null"]
+            required:
+              - cell_id
+              - red_team_model_tier
+              - blue_team_model_tier
+              - source_run_id
+              - metrics_source
+              - metrics_status
+              - average_model_miss_rate
+              - average_recall_recovery_points
+              - fixed_action_rate_pass
         caveat:
           type: string
       required: [matrix_version, cells, caveat]

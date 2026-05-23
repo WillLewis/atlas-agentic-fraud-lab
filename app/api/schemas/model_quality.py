@@ -1,4 +1,4 @@
-"""Pydantic schemas for ``GET /model-quality-matrix`` (Phase 10).
+"""Pydantic schemas for ``GET /model-quality-matrix``.
 
 Mirrors the OpenAPI ``ModelQualityMatrix`` shape:
 
@@ -6,9 +6,8 @@ Mirrors the OpenAPI ``ModelQualityMatrix`` shape:
   * ``cells``           — synthesized one per ``(red_team_tier,
                           blue_team_tier)`` pair from the YAML
                           ``runs`` list.
-  * ``caveat``          — closed-enum string disclaiming that this is
-                          public-safe configuration (Phase 13 will
-                          carry measured values).
+  * ``caveat``          — public-safe provenance note for measured vs.
+                          unavailable cell metrics.
 
 This schema is the OpenAPI projection. The web-side
 ``app/web/lib/modelQualityMatrix.ts`` loads the YAML directly and uses
@@ -27,9 +26,11 @@ class MatrixCell(BaseModel):
     """One projected matrix cell. Mirrors OpenAPI
     ``ModelQualityMatrix.cells.items``.
 
-    Phase 10 emits ``average_*`` metrics zeroed and
-    ``fixed_action_rate_pass=true`` since the YAML carries no measured
-    values; Phase 13 will populate these from real comparison runs.
+    ``average_*`` and ``fixed_action_rate_pass`` are nullable by design:
+    cells with ``metrics_source="judge_derived_replay"`` carry values
+    computed from curated replay artifacts, while cells with unavailable
+    sources carry explicit ``None`` values instead of zero-valued
+    stand-ins.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -37,9 +38,17 @@ class MatrixCell(BaseModel):
     cell_id: str
     red_team_model_tier: Literal["frontier", "compact"]
     blue_team_model_tier: Literal["frontier", "compact"]
-    average_model_miss_rate: float = 0.0
-    average_recall_recovery_points: float = 0.0
-    fixed_action_rate_pass: bool = True
+    source_run_id: str | None = None
+    metrics_source: Literal["judge_derived_replay", "unavailable"] = "unavailable"
+    metrics_status: Literal[
+        "loaded",
+        "no_source_run",
+        "source_unavailable",
+        "incomplete_source",
+    ] = "no_source_run"
+    average_model_miss_rate: float | None = None
+    average_recall_recovery_points: float | None = None
+    fixed_action_rate_pass: bool | None = None
 
 
 class ModelQualityMatrix(BaseModel):

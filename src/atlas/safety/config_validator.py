@@ -242,6 +242,10 @@ def validate_safety_config(cfg: dict[str, Any]) -> list[str]:
 
 
 _ALLOWED_TIERS: Final[frozenset[str]] = frozenset({"frontier", "compact"})
+_ALLOWED_MATRIX_METRIC_SOURCES: Final[frozenset[str]] = frozenset(
+    {"judge_derived_replay", "unavailable"}
+)
+_RUN_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"^run_[a-z0-9]{8}$")
 
 
 def validate_model_quality_matrix(cfg: dict[str, Any]) -> list[str]:
@@ -254,7 +258,10 @@ def validate_model_quality_matrix(cfg: dict[str, Any]) -> list[str]:
         ``public_safe_label`` strings,
       * ``expose_concrete_model_names`` is a bool,
       * each ``runs[].red_team_tier`` / ``bank_defense_tier`` is in
-        ``{frontier, compact}``.
+        ``{frontier, compact}``,
+      * each optional ``runs[].source_run_id`` is a safe synthetic run id,
+      * each ``runs[].metrics_source`` is explicit and consistent with
+        ``source_run_id``.
     """
     issues: list[str] = []
 
@@ -295,6 +302,32 @@ def validate_model_quality_matrix(cfg: dict[str, Any]) -> list[str]:
                         f"runs[{i}].{tier_field} {tier_value!r} must be "
                         f"one of {sorted(_ALLOWED_TIERS)}."
                     )
+            source_run_id = run.get("source_run_id")
+            if source_run_id is not None:
+                if (
+                    not isinstance(source_run_id, str)
+                    or not _RUN_ID_PATTERN.fullmatch(source_run_id)
+                ):
+                    issues.append(
+                        f"runs[{i}].source_run_id must match run_<8 lowercase "
+                        "letters-or-digits> or be null."
+                    )
+            metrics_source = run.get("metrics_source")
+            if metrics_source not in _ALLOWED_MATRIX_METRIC_SOURCES:
+                issues.append(
+                    f"runs[{i}].metrics_source {metrics_source!r} must be "
+                    f"one of {sorted(_ALLOWED_MATRIX_METRIC_SOURCES)}."
+                )
+            if metrics_source == "judge_derived_replay" and source_run_id is None:
+                issues.append(
+                    f"runs[{i}].source_run_id is required when metrics_source "
+                    "is 'judge_derived_replay'."
+                )
+            if metrics_source == "unavailable" and source_run_id is not None:
+                issues.append(
+                    f"runs[{i}].source_run_id must be null when metrics_source "
+                    "is 'unavailable'."
+                )
 
     return issues
 

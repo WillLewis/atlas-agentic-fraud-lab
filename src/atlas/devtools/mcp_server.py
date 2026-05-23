@@ -272,8 +272,9 @@ def run_safety_scan(
 
 def get_model_quality_matrix() -> dict[str, Any]:
     """Fetch the public-safe model-tier comparison matrix projected
-    from ``config/model_quality_matrix.yaml``. Per-cell metric values
-    are placeholders (Phase 13 fills measured values).
+    from ``config/model_quality_matrix.yaml``. Cells with
+    ``source_run_id`` carry judge-derived replay metrics; cells without
+    a curated source expose unavailable metrics explicitly.
     """
     with _client() as client:
         r = client.get("/model-quality-matrix")
@@ -374,8 +375,9 @@ TOOLS: dict[str, dict[str, str]] = {
     "get_model_quality_matrix": {
         "description": (
             "Fetch the public-safe model-tier comparison matrix. "
-            "Per-cell metric values are placeholders; Phase 13 fills "
-            "measured values from live comparison runs."
+            "Cells with source_run_id carry judge-derived replay "
+            "metrics; cells without a curated source expose "
+            "unavailable metrics explicitly."
         ),
         "method": "GET /model-quality-matrix",
     },

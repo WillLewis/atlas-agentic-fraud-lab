@@ -30,29 +30,38 @@ tier_models:
 expose_concrete_model_names: false
 public_safe_default: true
 
-# Four precomputed run cells. Public app shows tier labels and outcomes.
+# Four run cells. Public app shows tier labels plus judge-derived metrics when
+# a reviewed replay artifact is attached. Cells without a source replay report
+# unavailable metrics explicitly; they never use zero-valued stand-ins.
 runs:
   - run_label: A
     red_team_tier: frontier
     bank_defense_tier: frontier
     purpose: Best-case agentic loop.
+    source_run_id: run_4548ebb8
+    metrics_source: judge_derived_replay
   - run_label: B
     red_team_tier: compact
     bank_defense_tier: frontier
     purpose: Strong defense, weaker red-team testing.
+    source_run_id: null
+    metrics_source: unavailable
   - run_label: C
     red_team_tier: frontier
     bank_defense_tier: compact
     purpose: Stress case — strong red-team testing, weaker defense.
+    source_run_id: null
+    metrics_source: unavailable
   - run_label: D
     red_team_tier: compact
     bank_defense_tier: compact
     purpose: Low-cost baseline.
+    source_run_id: null
+    metrics_source: unavailable
 
-# Illustrative summary findings to display in the model-tier comparison card.
-# These are templates, not measured values. The judge fills in actual numbers
-# from the four precomputed runs.
+# Summary findings to display in the model-tier comparison card. These lines
+# describe what is present in the curated public demo artifacts.
 summary_templates:
-  - Stronger red-team agents identify more model vulnerabilities.
-  - Stronger bank-defense agents reduce model miss rate faster and overfit less.
-  - Compact bank-defense agents may produce plausible explanations that fail locked holdout.
+  - Curated replay A shows lower model miss rate after the accepted defensive fix.
+  - Cells without a curated replay artifact report unavailable metrics, not zero values.
+  - Displayed outcomes come from deterministic judge-derived replay metrics.
