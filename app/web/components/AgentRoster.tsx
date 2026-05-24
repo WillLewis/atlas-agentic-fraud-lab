@@ -20,6 +20,7 @@ import type { JSX } from "react";
 
 import { getDemoConfig } from "../lib/demoConfig";
 import type { ModelTier } from "../lib/types";
+import { TermNote } from "./DualLabel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +37,7 @@ interface AgentRosterEntry {
   id: string;
   group: AgentGroup;
   display_name: string;
+  term: string;
   purpose: string;
   allowed: readonly string[];
   tier: AgentTier;
@@ -43,6 +45,7 @@ interface AgentRosterEntry {
 
 interface GroupMeta {
   title: string;
+  term: string;
   description: string;
   badge_classes: string;
   glyph_classes: string;
@@ -56,8 +59,9 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "fraud_scenario_agent",
     group: "red_team",
-    display_name: "Fraud Scenario Agent",
-    purpose: "Proposes abstract synthetic model-vulnerability hypotheses.",
+    display_name: "Scenario agent",
+    term: "Fraud Scenario Agent",
+    purpose: "Suggests where the model might have a weak spot.",
     allowed: [
       "Choose a configured vulnerability family",
       "Propose scoring-query allocation across search methods",
@@ -68,9 +72,10 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "evolutionary_search_agent",
     group: "red_team",
-    display_name: "Evolutionary Search Agent",
+    display_name: "Search agent",
+    term: "Evolutionary Search Agent",
     purpose:
-      "Optimizes synthetic event histories to surface under-ranked high-risk examples.",
+      "Tweaks synthetic activity to find risky cases the model scores too low.",
     allowed: [
       "Mutate event timing, counts, and synthetic graph links",
       "Call the local mock scorer",
@@ -81,8 +86,10 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "graph_probe_agent",
     group: "red_team",
-    display_name: "Graph Probe Agent",
-    purpose: "Explores safe synthetic relationship-risk vulnerabilities.",
+    display_name: "Connections agent",
+    term: "Graph Probe Agent",
+    purpose:
+      "Looks at how synthetic accounts, devices, and recipients connect to spot risky clusters.",
     allowed: [
       "Analyze the synthetic recipient/device/account graph",
       "Propose graph features",
@@ -93,8 +100,10 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "model_vulnerability_analyst_agent",
     group: "red_team",
-    display_name: "Model Vulnerability Analyst Agent",
-    purpose: "Packages discovered misses into model vulnerability cards.",
+    display_name: "Findings agent",
+    term: "Model Vulnerability Analyst Agent",
+    purpose:
+      "Writes up each confirmed weak spot into a card the defense side can act on.",
     allowed: [
       "Summarize accepted high-risk synthetic candidates",
       "Generate safe cohort definitions",
@@ -108,9 +117,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "bank_strategy_agent",
     group: "bank_defense",
-    display_name: "Bank Strategy Agent",
+    display_name: "Strategy agent",
+    term: "Bank Strategy Agent",
     purpose:
-      "Triages model vulnerability cards and selects a defensive fix approach.",
+      "Reads the weak-spot cards and picks which fix approach to try.",
     allowed: [
       "Read incoming model vulnerability cards",
       "Select a fix type within the configured allow-list",
@@ -121,9 +131,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "feature_fix_agent",
     group: "bank_defense",
-    display_name: "Feature Fix Agent",
+    display_name: "New-signal agent",
+    term: "Feature Fix Agent",
     purpose:
-      "Proposes defensive features derived from synthetic event histories or graph relationships.",
+      "Proposes a new signal derived from synthetic activity or how accounts connect.",
     allowed: [
       "Derive features from synthetic event histories",
       "Derive features from synthetic graph relationships",
@@ -134,9 +145,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "decision_threshold_fix_agent",
     group: "bank_defense",
-    display_name: "Decision-Threshold Fix Agent",
+    display_name: "Threshold agent",
+    term: "Decision-Threshold Fix Agent",
     purpose:
-      "Proposes synthetic decision-threshold changes while preserving action-rate limits.",
+      "Proposes moving the verify / review / block lines while staying within customer-friction limits.",
     allowed: [
       "Propose decision-threshold adjustments",
       "Respect challenge / alert / decline action-rate limits",
@@ -147,9 +159,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "model_calibration_fix_agent",
     group: "bank_defense",
-    display_name: "Model Calibration Fix Agent",
+    display_name: "Retrain agent",
+    term: "Model Calibration Fix Agent",
     purpose:
-      "Retrains or recalibrates the mock scorer using allowed synthetic training data.",
+      "Retrains or recalibrates the practice model using approved synthetic data.",
     allowed: [
       "Retrain the mock scorer on allowed synthetic data",
       "Recalibrate the score distribution",
@@ -160,9 +173,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
   {
     id: "governance_agent",
     group: "bank_defense",
-    display_name: "Governance Agent",
+    display_name: "Guardrail agent",
+    term: "Governance Agent",
     purpose:
-      "Blocks unsafe, overfit, action-rate-limit-violating, or non-generalizing defensive fixes.",
+      "Stops fixes that are unsafe, too aggressive on customers, or that only memorized known cases.",
     allowed: [
       "Reject fixes that exceed customer-friction tolerances",
       "Reject fixes that fail the locked adaptive holdout",
@@ -175,9 +189,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
 const DETERMINISTIC_JUDGE: AgentRosterEntry = {
   id: "evaluation_judge",
   group: "judge",
-  display_name: "Evaluation Judge",
+  display_name: "Evaluation referee",
+  term: "Evaluation Judge",
   purpose:
-    "Deterministic code that owns metrics, holdout evaluation, and defensive fix acceptance.",
+    "Code that measures everything and decides which fixes pass.",
   allowed: [
     "Compute model miss rate, recall, and friction metrics",
     "Evaluate clean, found, locked, and drifted holdouts",
@@ -192,23 +207,26 @@ const DETERMINISTIC_JUDGE: AgentRosterEntry = {
 
 const GROUP_META: Record<AgentGroup, GroupMeta> = {
   red_team: {
-    title: "Red-Team Simulation Agents",
+    title: "Stress-test agents — find the model's weak spots",
+    term: "red-team simulation agents",
     description:
-      "Run constrained synthetic searches against the local mock scorer. Cannot access locked holdouts or generate operational fraud guidance.",
+      "Run limited, synthetic probes against the practice model. They can't see the locked answer keys or produce any real-world fraud how-to.",
     badge_classes: "border-atlas-danger/40 bg-atlas-danger/10 text-atlas-danger",
     glyph_classes: "text-atlas-danger"
   },
   bank_defense: {
-    title: "Bank-Defense Simulation Agents",
+    title: "Defense agents — propose fixes",
+    term: "bank-defense simulation agents",
     description:
-      "Propose feature, decision-threshold, or calibration defensive fixes. Cannot accept their own fixes — every proposal goes to the deterministic judge.",
+      "Suggest a new signal, a threshold change, or a retrain. They can't approve their own work — the referee does.",
     badge_classes: "border-atlas-accent/40 bg-atlas-accent/10 text-atlas-accent",
     glyph_classes: "text-atlas-accent"
   },
   judge: {
-    title: "Deterministic Control",
+    title: "The referee — code, not AI",
+    term: "deterministic control",
     description:
-      "Code, not an LLM. Owns measurement, holdout enforcement, and the only authority to accept or reject a defensive fix.",
+      "Plain code does all the measuring and is the only thing that can accept or reject a fix.",
     badge_classes: "border-atlas-ok/40 bg-atlas-ok/10 text-atlas-ok",
     glyph_classes: "text-atlas-ok"
   }
@@ -221,7 +239,7 @@ const GROUP_META: Record<AgentGroup, GroupMeta> = {
 const STEP_HEADING = "Agents Assigned";
 const STEP_SUBHEADING = "Step 1";
 const STEP_MAIN_MESSAGE =
-  "The agents receive objectives, tools, scoring-query limits, action-rate limits, and safety constraints. No agent can access real customer data or production systems.";
+  "Each agent gets a goal, tools, and strict limits — how many times it may query the model (scoring-query limit) and how often it may interrupt customers (action-rate limit). No agent can touch real customer data or production systems.";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -290,9 +308,12 @@ function AgentGroupSection({ group, agents, tierLabels }: AgentGroupSectionProps
   return (
     <div>
       <div className="mb-4 flex items-baseline gap-3">
-        <h3 className="text-base font-semibold uppercase tracking-wide text-atlas-text">
-          {meta.title}
-        </h3>
+        <div>
+          <h3 className="text-base font-semibold uppercase tracking-wide text-atlas-text">
+            {meta.title}
+          </h3>
+          <TermNote>{meta.term}</TermNote>
+        </div>
         <span className="font-mono text-[11px] text-atlas-muted">
           {agents.length} {agents.length === 1 ? "agent" : "agents"}
         </span>
@@ -340,6 +361,7 @@ function AgentCard({ agent, tierLabels }: AgentCardProps) {
       <h4 className="text-sm font-semibold leading-snug text-atlas-text">
         {agent.display_name}
       </h4>
+      <TermNote>{agent.term}</TermNote>
       <p className="mt-1.5 text-xs leading-relaxed text-atlas-muted">{agent.purpose}</p>
       <div className="mt-3 border-t border-atlas-border/60 pt-3">
         <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">

@@ -15,7 +15,9 @@
 // (snapshots.length - 1). Empty input → empty list, no throw.
 
 import { formatRate, formatSyntheticCurrency } from "../lib/formatters";
+import { GLOSSARY } from "../lib/glossary";
 import type { MetricSnapshot } from "../lib/types";
+import { TermNote } from "./DualLabel";
 
 interface TimelineRound {
   round_id: number;
@@ -53,7 +55,7 @@ export function RoundTimeline({ metrics, candidate_metrics }: RoundTimelineProps
   return (
     <ol
       role="list"
-      aria-label="Three-round timeline of model miss rate and recall at fixed action-rate limit"
+      aria-label="Three-round timeline of missed risky activity and risky activity caught"
       className="grid grid-cols-1 gap-3 md:grid-cols-3"
     >
       {rounds.map((r, i) => (
@@ -117,7 +119,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       </header>
 
       <BeforeAfter
-        label="Model miss rate · carry-forward"
+        label={`${GLOSSARY.model_miss_rate.plain} · carry-forward`}
+        term={GLOSSARY.model_miss_rate.term}
+        definition={GLOSSARY.model_miss_rate.definition}
         before_value={round.before.model_miss_rate}
         after_value={round.after.model_miss_rate}
         format="rate"
@@ -125,7 +129,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label="Model miss rate · selected candidate"
+          label={`${GLOSSARY.model_miss_rate.plain} · selected candidate`}
+          term={GLOSSARY.model_miss_rate.term}
+          definition={GLOSSARY.model_miss_rate.definition}
           before_value={round.before.model_miss_rate}
           after_value={round.candidate_after.model_miss_rate}
           format="rate"
@@ -133,7 +139,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         />
       ) : null}
       <BeforeAfter
-        label="Recall at fixed action-rate · carry-forward"
+        label={`${GLOSSARY.recall.plain} · carry-forward`}
+        term={GLOSSARY.recall.term}
+        definition={GLOSSARY.recall.definition}
         before_value={round.before.recall_at_fixed_action_rate}
         after_value={round.after.recall_at_fixed_action_rate}
         format="rate"
@@ -141,7 +149,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label="Recall at fixed action-rate · selected candidate"
+          label={`${GLOSSARY.recall.plain} · selected candidate`}
+          term={GLOSSARY.recall.term}
+          definition={GLOSSARY.recall.definition}
           before_value={round.before.recall_at_fixed_action_rate}
           after_value={round.candidate_after.recall_at_fixed_action_rate}
           format="rate"
@@ -149,7 +159,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         />
       ) : null}
       <BeforeAfter
-        label="False-positive rate · carry-forward"
+        label={`${GLOSSARY.false_positive_rate.plain} · carry-forward`}
+        term={GLOSSARY.false_positive_rate.term}
+        definition={GLOSSARY.false_positive_rate.definition}
         before_value={round.before.false_positive_rate_at_fixed_action_rate}
         after_value={round.after.false_positive_rate_at_fixed_action_rate}
         format="rate"
@@ -157,7 +169,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label="False-positive rate · selected candidate"
+          label={`${GLOSSARY.false_positive_rate.plain} · selected candidate`}
+          term={GLOSSARY.false_positive_rate.term}
+          definition={GLOSSARY.false_positive_rate.definition}
           before_value={round.before.false_positive_rate_at_fixed_action_rate}
           after_value={round.candidate_after.false_positive_rate_at_fixed_action_rate}
           format="rate"
@@ -165,7 +179,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         />
       ) : null}
       <BeforeAfter
-        label="Synthetic loss allowed · carry-forward"
+        label={`${GLOSSARY.synthetic_loss_allowed.plain} · carry-forward`}
+        term={GLOSSARY.synthetic_loss_allowed.term}
+        definition={GLOSSARY.synthetic_loss_allowed.definition}
         before_value={round.before.synthetic_loss_allowed}
         after_value={round.after.synthetic_loss_allowed}
         format="synthetic_currency"
@@ -173,7 +189,9 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label="Synthetic loss allowed · selected candidate"
+          label={`${GLOSSARY.synthetic_loss_allowed.plain} · selected candidate`}
+          term={GLOSSARY.synthetic_loss_allowed.term}
+          definition={GLOSSARY.synthetic_loss_allowed.definition}
           before_value={round.before.synthetic_loss_allowed}
           after_value={round.candidate_after.synthetic_loss_allowed}
           format="synthetic_currency"
@@ -190,6 +208,8 @@ function RoundPanel({ round }: { round: TimelineRound }) {
 
 interface BeforeAfterProps {
   label: string;
+  term: string;
+  definition: string;
   before_value: number;
   after_value: number;
   format: "rate" | "synthetic_currency";
@@ -198,6 +218,8 @@ interface BeforeAfterProps {
 
 function BeforeAfter({
   label,
+  term,
+  definition,
   before_value,
   after_value,
   format,
@@ -218,8 +240,9 @@ function BeforeAfter({
 
   return (
     <div className="mt-2 flex flex-col gap-0.5">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+      <p className="text-xs font-medium text-atlas-muted" title={definition}>
         {label}
+        <TermNote>{term}</TermNote>
       </p>
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
         <span className="font-mono tabular-nums text-atlas-muted">

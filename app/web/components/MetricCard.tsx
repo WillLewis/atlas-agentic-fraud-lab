@@ -7,7 +7,7 @@
 //
 // Values flow exclusively through the typed formatters in lib/formatters.ts;
 // callers must pass numbers, not pre-formatted strings. This keeps the
-// safety scanner's bare-"$" contract enforceable in one place
+// safety scanner's bare-dollar-sign contract enforceable in one place
 // (formatSyntheticCurrency).
 
 import {
@@ -39,10 +39,12 @@ export interface MetricCardProps {
   format: MetricFormat;
   comparison?: MetricComparison;
   hint?: string;
+  term?: string;
+  definition?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Format dispatch
+// Format selection
 // ---------------------------------------------------------------------------
 
 function formatValue(value: number, format: MetricFormat): string {
@@ -94,15 +96,29 @@ function formatRelative(value: number, baseline: number): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MetricCard({ label, value, format, comparison, hint }: MetricCardProps) {
+export function MetricCard({
+  label,
+  value,
+  format,
+  comparison,
+  hint,
+  term,
+  definition
+}: MetricCardProps) {
   const valueStr = formatValue(value, format);
   const trendInfo = comparison ? deriveTrend(value, comparison) : null;
 
   return (
-    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
-      <p className="break-words font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-        {label}
-      </p>
+    <article
+      className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-atlas-border bg-atlas-panel/60 p-4"
+      title={definition}
+    >
+      <p className="break-words text-xs font-medium text-atlas-text">{label}</p>
+      {term ? (
+        <p className="break-words font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+          {term}
+        </p>
+      ) : null}
       <p className="mt-2 break-words font-mono text-xl font-semibold tabular-nums text-atlas-text sm:text-2xl">
         {valueStr}
       </p>

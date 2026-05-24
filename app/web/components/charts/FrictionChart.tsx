@@ -3,7 +3,7 @@
 //
 // Phase 9: pure function of `metrics`.
 //
-// All three series are plotted on the same percentage y-axis. Decline rate
+// All three series are plotted on the same percentage y-axis. Block rate
 // renders very small relative to challenge / alert — that visual flatness
 // is the point: the safety story is that defensive fixes do not push
 // friction beyond configured action-rate limits (Bible §6.1, §16.5).
@@ -11,6 +11,7 @@
 // screen-reader users.
 
 import { formatRate } from "../../lib/formatters";
+import { GLOSSARY } from "../../lib/glossary";
 import type { MetricSnapshot } from "../../lib/types";
 import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
@@ -20,7 +21,7 @@ interface FrictionChartProps {
 
 export function FrictionChart({ metrics }: FrictionChartProps) {
   const challenge: LinePlotSeries = {
-    name: "Challenge rate",
+    name: `${GLOSSARY.challenge_rate.plain} · ${GLOSSARY.challenge_rate.term}`,
     color_token: "accent",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -30,7 +31,7 @@ export function FrictionChart({ metrics }: FrictionChartProps) {
   };
 
   const alert: LinePlotSeries = {
-    name: "Alert rate",
+    name: `${GLOSSARY.alert_rate.plain} · ${GLOSSARY.alert_rate.term}`,
     color_token: "warn",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -40,7 +41,7 @@ export function FrictionChart({ metrics }: FrictionChartProps) {
   };
 
   const decline: LinePlotSeries = {
-    name: "Decline rate",
+    name: `${GLOSSARY.decline_rate.plain} · ${GLOSSARY.decline_rate.term}`,
     color_token: "danger",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -52,11 +53,11 @@ export function FrictionChart({ metrics }: FrictionChartProps) {
   return (
     <LinePlot
       series={[challenge, alert, decline]}
-      y_axis_label="Customer-friction rates"
+      y_axis_label={GLOSSARY.friction_rates.plain}
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
       show_legend
-      aria_label="Customer-friction rates across baseline and synthetic rounds: challenge, alert, and decline. All series stay below the configured action-rate limits."
+      aria_label="How often we interrupt customers, customer-friction rates, across baseline and synthetic rounds. All series stay below the configured action-rate limits."
     />
   );
 }

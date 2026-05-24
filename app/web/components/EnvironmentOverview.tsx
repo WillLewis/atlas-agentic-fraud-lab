@@ -19,6 +19,8 @@
 import { getDemoConfig } from "../lib/demoConfig";
 import { getEntityCounts, getRoundMetrics } from "../lib/fixtures";
 import { formatBps, formatRate, formatSyntheticCurrency } from "../lib/formatters";
+import { GLOSSARY } from "../lib/glossary";
+import { TermNote } from "./DualLabel";
 
 // ---------------------------------------------------------------------------
 // Step 2 narrative
@@ -58,11 +60,28 @@ const SYNTHETIC_EVENT_TYPES: readonly string[] = [
 
 const BASELINE_DECISION_THRESHOLDS: ReadonlyArray<{
   display_name: string;
+  term: string;
+  definition: string;
   threshold: number;
 }> = [
-  { display_name: "Decline score threshold", threshold: 0.92 },
-  { display_name: "Alert score threshold", threshold: 0.86 },
-  { display_name: "Challenge score threshold", threshold: 0.74 }
+  {
+    display_name: "Block above",
+    term: "decline score threshold",
+    definition: GLOSSARY.decline_threshold.definition,
+    threshold: 0.92
+  },
+  {
+    display_name: "Review above",
+    term: "alert score threshold",
+    definition: GLOSSARY.alert_threshold.definition,
+    threshold: 0.86
+  },
+  {
+    display_name: "Verify above",
+    term: "challenge score threshold",
+    definition: GLOSSARY.challenge_threshold.definition,
+    threshold: 0.74
+  }
 ];
 
 // Action-rate limits in fractional form so formatRate / formatBps can render
@@ -70,13 +89,39 @@ const BASELINE_DECISION_THRESHOLDS: ReadonlyArray<{
 // route.
 const BASELINE_ACTION_RATE_LIMITS: ReadonlyArray<{
   display_name: string;
+  term: string;
+  definition: string;
   limit_value: number;
   formatter: "rate" | "bps";
 }> = [
-  { display_name: "Challenge rate", limit_value: 0.08, formatter: "rate" },
-  { display_name: "Alert rate", limit_value: 0.15, formatter: "rate" },
-  { display_name: "Decline rate", limit_value: 0.0025, formatter: "bps" },
-  { display_name: "Review rate", limit_value: 0.03, formatter: "rate" }
+  {
+    display_name: "Step-up checks",
+    term: "challenge rate",
+    definition: GLOSSARY.challenge_rate.definition,
+    limit_value: 0.08,
+    formatter: "rate"
+  },
+  {
+    display_name: "Sent to review",
+    term: "alert rate",
+    definition: GLOSSARY.alert_rate.definition,
+    limit_value: 0.15,
+    formatter: "rate"
+  },
+  {
+    display_name: "Blocked outright",
+    term: "decline rate",
+    definition: GLOSSARY.decline_rate.definition,
+    limit_value: 0.0025,
+    formatter: "bps"
+  },
+  {
+    display_name: "Manual review",
+    term: "review rate",
+    definition: GLOSSARY.review_rate.definition,
+    limit_value: 0.03,
+    formatter: "rate"
+  }
 ];
 
 // ---------------------------------------------------------------------------
@@ -87,6 +132,7 @@ const BASELINE_ACTION_RATE_LIMITS: ReadonlyArray<{
 interface HoldoutDescription {
   id: string;
   display_name: string;
+  term: string;
   locked: boolean;
   purpose: string;
 }
@@ -94,31 +140,31 @@ interface HoldoutDescription {
 const HOLDOUTS: readonly HoldoutDescription[] = [
   {
     id: "clean_holdout",
-    display_name: "Clean Holdout",
+    display_name: "Fresh customers (never tested)",
+    term: "clean holdout",
     locked: false,
-    purpose:
-      "Customer-level holdout drawn before any red-team activity. Measures whether a fix improves recall on unseen customers."
+    purpose: GLOSSARY.clean_holdout.definition
   },
   {
     id: "found_adaptive_set",
-    display_name: "Found Adaptive Set",
+    display_name: "Cases we already found",
+    term: "found adaptive set",
     locked: false,
-    purpose:
-      "Synthetic candidates the red-team agents surfaced during the round. Used only to show what the fix improves on examples we already found."
+    purpose: GLOSSARY.found_adaptive_set.definition
   },
   {
     id: "locked_adaptive_holdout",
-    display_name: "Locked Adaptive Holdout",
+    display_name: "Hidden stress test",
+    term: "locked adaptive holdout",
     locked: true,
-    purpose:
-      "Adaptive variants the simulation agents do not see. Catches defensive fixes that overfit to found examples."
+    purpose: GLOSSARY.locked_adaptive_holdout.definition
   },
   {
     id: "drifted_holdout",
-    display_name: "Drifted Holdout",
+    display_name: "Future-drift test",
+    term: "drifted holdout",
     locked: true,
-    purpose:
-      "Synthetic distribution-shifted holdout. Measures how a fix generalizes under modest synthetic drift."
+    purpose: GLOSSARY.drifted_holdout.definition
   }
 ];
 
@@ -202,19 +248,26 @@ export function EnvironmentOverview() {
             <DefinitionRow
               key={t.display_name}
               label={t.display_name}
+              term={t.term}
+              title={t.definition}
               value={t.threshold.toFixed(2)}
               mono
             />
           ))}
           <div className="mt-3 border-t border-atlas-border/60 pt-3">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-              Action-rate limits
-            </p>
+            <div title={GLOSSARY.action_rate_limits.definition}>
+              <p className="text-xs font-medium text-atlas-text">
+                {GLOSSARY.action_rate_limits.plain}
+              </p>
+              <TermNote>{GLOSSARY.action_rate_limits.term}</TermNote>
+            </div>
             <div className="mt-2 space-y-1">
               {BASELINE_ACTION_RATE_LIMITS.map((l) => (
                 <DefinitionRow
                   key={l.display_name}
                   label={l.display_name}
+                  term={l.term}
+                  title={l.definition}
                   value={
                     l.formatter === "rate"
                       ? `≤ ${formatRate(l.limit_value, { digits: 2 })}`
@@ -228,24 +281,32 @@ export function EnvironmentOverview() {
           <Footnote>Synthetic demo constants. Not real institution-specific controls.</Footnote>
         </Card>
 
-        <Card eyebrow="Baseline metrics" title="Pre-round 1 model state">
+        <Card eyebrow={GLOSSARY.baseline_state.term} title={GLOSSARY.baseline_state.plain}>
           <DefinitionRow
-            label="Model miss rate"
+            label={GLOSSARY.model_miss_rate.plain}
+            term={GLOSSARY.model_miss_rate.term}
+            title={GLOSSARY.model_miss_rate.definition}
             value={formatRate(baseline.model_miss_rate)}
             mono
           />
           <DefinitionRow
-            label="Recall at fixed action-rate"
+            label={GLOSSARY.recall.plain}
+            term={GLOSSARY.recall.term}
+            title={GLOSSARY.recall.definition}
             value={formatRate(baseline.recall_at_fixed_action_rate)}
             mono
           />
           <DefinitionRow
-            label="False-positive rate"
+            label={GLOSSARY.false_positive_rate.plain}
+            term={GLOSSARY.false_positive_rate.term}
+            title={GLOSSARY.false_positive_rate.definition}
             value={formatRate(baseline.false_positive_rate_at_fixed_action_rate)}
             mono
           />
           <DefinitionRow
-            label="Synthetic loss allowed"
+            label={GLOSSARY.synthetic_loss_allowed.plain}
+            term={GLOSSARY.synthetic_loss_allowed.term}
+            title={GLOSSARY.synthetic_loss_allowed.definition}
             value={formatSyntheticCurrency(baseline.synthetic_loss_allowed)}
             mono
           />
@@ -257,7 +318,10 @@ export function EnvironmentOverview() {
             {HOLDOUTS.map((h) => (
               <li key={h.id} className="border-l-2 border-atlas-border pl-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-atlas-text">{h.display_name}</span>
+                  <span className="text-sm font-semibold text-atlas-text">
+                    {h.display_name}
+                    <TermNote>{h.term}</TermNote>
+                  </span>
                   {h.locked ? (
                     <span
                       className="font-mono text-[9px] uppercase tracking-wider text-atlas-warn"
@@ -303,12 +367,17 @@ interface DefinitionRowProps {
   label: string;
   value: string;
   mono?: boolean;
+  term?: string;
+  title?: string;
 }
 
-function DefinitionRow({ label, value, mono }: DefinitionRowProps) {
+function DefinitionRow({ label, value, mono, term, title }: DefinitionRowProps) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-0.5 text-xs">
-      <span className="text-atlas-muted">{label}</span>
+    <div className="flex items-baseline justify-between gap-3 py-0.5 text-xs" title={title}>
+      <span className="text-atlas-muted">
+        {label}
+        {term ? <TermNote>{term}</TermNote> : null}
+      </span>
       <span
         className={
           mono

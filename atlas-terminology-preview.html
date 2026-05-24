@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project Atlas — Proposed Plain-Language Terminology (Review Mockup)</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#141b27; --surface:#0f1620; --border:#243042;
+    --text:#e6edf3; --muted:#8b98a9; --accent:#6ea8fe; --danger:#ff7a7a;
+    --ok:#4ade80; --warn:#f5c451;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    line-height:1.5;padding:0 0 80px;}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px;}
+  header.top{padding:48px 0 28px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+  h1{font-size:30px;margin:10px 0 6px;letter-spacing:-.01em;}
+  .lede{color:var(--muted);max-width:780px;font-size:15px;}
+  .note{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13.5px;color:var(--muted);}
+  .note strong{color:var(--text);}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:22px 0 8px;}
+  .legend .item{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted);
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex:1;min-width:240px;}
+  .legend .swatch{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+    padding:2px 7px;border-radius:5px;white-space:nowrap;margin-top:1px;}
+
+  h2.section{font-size:20px;margin:46px 0 4px;padding-top:10px;}
+  .section-sub{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:820px;}
+  .anchor{font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;}
+
+  .row{display:grid;grid-template-columns:1fr 32px 1.25fr;gap:0;align-items:stretch;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;margin:12px 0;overflow:hidden;}
+  .row .before,.row .after{padding:14px 16px;}
+  .row .before{background:var(--surface);border-right:1px solid var(--border);}
+  .row .arrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;background:var(--surface);}
+  .tag{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;
+    padding:2px 7px;border-radius:5px;display:inline-block;margin-bottom:8px;}
+  .tag-before{background:rgba(139,152,169,.14);color:var(--muted);border:1px solid var(--border);}
+  .tag-after{background:rgba(110,168,254,.14);color:var(--accent);border:1px solid rgba(110,168,254,.35);}
+  .before .content{font-family:var(--mono);font-size:13px;color:var(--muted);word-break:break-word;}
+  .before .content.raw{color:var(--danger);}
+  .after .plain{font-size:15.5px;font-weight:600;color:var(--text);}
+  .after .tech{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .after .tech::before{content:"⌗ ";opacity:.6;}
+  .after .def{font-size:12.5px;color:var(--muted);font-style:italic;margin-top:7px;line-height:1.45;}
+  .where{font-family:var(--mono);font-size:10.5px;color:var(--muted);opacity:.7;margin-top:9px;}
+
+  .pill{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);
+    color:var(--muted);display:inline-block;margin:2px 4px 2px 0;}
+  .pill.win{color:var(--ok);border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.08);}
+
+  table.fam{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:13px;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  table.fam th,table.fam td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  table.fam th{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);background:var(--surface);}
+  table.fam td.k{font-family:var(--mono);color:var(--danger);font-size:12px;white-space:nowrap;}
+  table.fam td.v{font-weight:600;}
+  table.fam td.d{color:var(--muted);font-size:12.5px;}
+  table.fam tr:last-child td{border-bottom:none;}
+
+  .guard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:14px 0;}
+  .guard h3{margin:0 0 10px;font-size:15px;}
+  .guard ul{margin:0;padding-left:18px;color:var(--muted);font-size:13.5px;}
+  .guard li{margin:6px 0;}
+  .guard code{font-family:var(--mono);font-size:12px;background:var(--panel);padding:1px 5px;border-radius:4px;color:var(--text);}
+  .banned{color:var(--danger);font-family:var(--mono);font-size:12px;}
+  .oos{border-left:3px solid var(--warn);}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px;}
+  .toc a{font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid var(--border);
+    border-radius:7px;padding:6px 11px;background:var(--surface);}
+  .toc a:hover{border-color:var(--accent);}
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px;}
+  @media(max-width:760px){.row{grid-template-columns:1fr;}.row .arrow{height:26px;}.row .before{border-right:none;border-bottom:1px solid var(--border);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Project Atlas · Review Mockup · not wired into the app</div>
+  <h1>Proposed plain-language terminology</h1>
+  <p class="lede">Every user-facing label a PM or non-fraud exec would read during the 5-step demo, shown
+  <em>as it is now</em> (left) and <em>as proposed</em> (right). Approach locked in with you:
+  <strong>dual-label</strong> (plain headline + the existing technical term kept underneath),
+  <strong>UI display layer only</strong> (no API/schema/ledger or generated-text changes), and
+  <strong>relabel only</strong> (no new intro, glossary, or walkthrough sections).</p>
+</header>
+
+<div class="note">
+  <strong>How to read the "Proposed" column.</strong> The big line is what an exec sees first. The smaller
+  <span style="font-family:var(--mono)">⌗ mono</span> line is the canonical term we keep visible (as a subtitle, or on hover) so fraud/ML
+  practitioners still get the rigorous vocabulary — this is the "dual-label" you chose. The italic line is the
+  one-line definition that would appear as a tooltip.
+</div>
+
+<div class="legend">
+  <div class="item"><span class="swatch tag-before">Now</span><div>Exact string currently rendered in the UI.</div></div>
+  <div class="item"><span class="swatch tag-after">Proposed</span><div>Plain headline + kept technical term + tooltip definition.</div></div>
+  <div class="item"><span class="swatch" style="background:rgba(255,122,122,.14);color:var(--danger);border:1px solid rgba(255,122,122,.35)">Raw key</span><div>A spot where a raw <code style="font-family:var(--mono)">snake_case</code> field name leaks onto the screen today.</div></div>
+</div>
+
+<div class="toc">
+  <a href="#wins">① Biggest wins: raw keys</a>
+  <a href="#metrics">② Core metrics</a>
+  <a href="#friction">③ Customer-friction & thresholds</a>
+  <a href="#holdouts">④ Holdouts</a>
+  <a href="#cards">⑤ Card titles & judge</a>
+  <a href="#families">⑥ Weak-spot patterns</a>
+  <a href="#agents">⑦ Agent roster</a>
+  <a href="#steps">⑧ Step headings</a>
+  <a href="#matrix">⑨ Comparison matrix</a>
+  <a href="#guard">⑩ Guardrails & out-of-scope</a>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="wins">① Biggest wins — raw field keys currently shown on screen</h2>
+<p class="section-sub">These are the most jarring for a non-technical audience: the slim cards print raw
+<code style="font-family:var(--mono)">snake_case</code> keys verbatim. Highest-impact, lowest-risk fixes.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now · Raw key</span><div class="content raw">family · score_boundary_cluster</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Pattern: Clustered just below the line</div>
+    <div class="tech">family · score_boundary_cluster</div>
+    <div class="def">Risky synthetic events whose scores sit just under the challenge threshold.</div>
+    <div class="where">app/web/app/page.tsx:498 (SlimVulnerabilityCard)</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now · Raw key</span><div class="content raw">model_miss_rate · 50.0%</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Missed risky activity · 50.0%</div>
+    <div class="tech">model miss rate</div>
+    <div class="def">Share of genuinely risky synthetic events the model let through.</div>
+    <div class="where">app/web/app/page.tsx:505</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now · Raw key</span><div class="content raw">fix_type · policy_fix</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Fix type: Adjust the decision thresholds</div>
+    <div class="tech">decision-threshold fix · policy_fix</div>
+    <div class="def">Tune where the "challenge / alert / decline" lines sit, without retraining.</div>
+    <div class="where">app/web/app/page.tsx:576 (SlimFixCard) — reuses FIX_TYPE_LABELS</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now · Raw key</span><div class="content raw">targets · mv_round1_score_boundary_cluster</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Fixes weak spot: Clustered just below the line</div>
+    <div class="tech">targets · mv_round1_score_boundary_cluster</div>
+    <div class="def">Which model weak spot this fix is meant to close.</div>
+    <div class="where">app/web/app/page.tsx:580</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now · Raw key</span><div class="content raw">feature_fix &nbsp; policy_fix &nbsp; model_calibration_fix &nbsp;<span style="color:var(--muted)">(recommended-fix badges)</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Add a new signal &nbsp;·&nbsp; Adjust thresholds &nbsp;·&nbsp; Retrain the model</div>
+    <div class="tech">feature_fix · policy_fix · model_calibration_fix</div>
+    <div class="def">The fix approaches the defense agents are allowed to try for this weak spot.</div>
+    <div class="where">app/web/app/page.tsx:511–517</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="metrics">② Core metrics</h2>
+<p class="section-sub">Highest-frequency labels — they appear on metric cards, charts, the judge card, and the
+environment overview (15+ places). Field names underneath are unchanged.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Model miss rate</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Missed risky activity</div>
+    <div class="tech">model miss rate · lower is better</div>
+    <div class="def">Of all the genuinely risky synthetic events, the share the model wrongly accepted.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Recall at fixed action-rate (limit)</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Risky activity caught</div>
+    <div class="tech">recall at fixed action-rate · higher is better</div>
+    <div class="def">Share of risky events the model correctly flags, holding customer-friction limits fixed.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">False-positive rate</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Good customers wrongly flagged</div>
+    <div class="tech">false-positive rate · lower is better</div>
+    <div class="def">Share of normal synthetic activity that got challenged, alerted, or declined.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Synthetic loss allowed</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Demo losses let through</div>
+    <div class="tech">synthetic loss allowed</div>
+    <div class="def">Play-money value of risky events the model accepted. Shown as <strong>SYN $</strong> — not real currency.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Synthetic loss prevented</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Demo losses prevented by the fix</div>
+    <div class="tech">synthetic loss prevented</div>
+    <div class="def">Play-money the fix would have stopped vs. the baseline. <strong>SYN $</strong>, illustrative only.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Lift vs random search</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Better than random guessing</div>
+    <div class="tech">miss-rate lift vs random</div>
+    <div class="def">How much more effective the agents' targeted search was than picking events at random.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="friction">③ Customer-friction rates & decision thresholds</h2>
+<p class="section-sub">Section 2 (Agents Deployed) baseline cards, plus the friction chart in the final report.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Customer-friction rates &nbsp;<span style="color:var(--muted)">(chart title)</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">How often we interrupt customers</div>
+    <div class="tech">customer-friction rates</div>
+    <div class="def">All three series stay under their configured limits.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Challenge rate</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Step-up checks</div>
+    <div class="tech">challenge rate</div>
+    <div class="def">How often a customer is asked for an extra verification step.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Alert rate</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Sent to review</div>
+    <div class="tech">alert rate</div>
+    <div class="def">How often an event is routed to a human review queue.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Decline rate</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Blocked outright</div>
+    <div class="tech">decline rate</div>
+    <div class="def">How often a transaction is declined. Measured in basis points.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Action-rate limits &nbsp;<span style="color:var(--muted)">(card subsection)</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Customer-friction limits</div>
+    <div class="tech">action-rate limits</div>
+    <div class="def">Caps on how often the bank may interrupt customers — a fix can't exceed them.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Decline / Alert / Challenge score threshold</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Block above · Review above · Verify above</div>
+    <div class="tech">decline / alert / challenge score threshold</div>
+    <div class="def">The risk-score lines that decide what happens to an event.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Pre-round 1 model state &nbsp;<span style="color:var(--muted)">(card title)</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Starting model — before any testing</div>
+    <div class="tech">baseline metrics · pre-round 1</div>
+    <div class="def">Where the model stands before the agents go to work.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="holdouts">④ Holdouts — the "answer keys"</h2>
+<p class="section-sub">The most opaque vocabulary in the app. These four definitions live in Section 2 and reappear as
+pills on every judge card.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Holdout generalization</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Does the fix actually hold up?</div>
+    <div class="tech">holdout generalization</div>
+    <div class="def">Whether the fix works on data the agents never saw — not just the cases they found.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Clean Holdout</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Fresh customers (never tested)</div>
+    <div class="tech">clean holdout</div>
+    <div class="def">Customers set aside before any testing. Does the fix help on unseen people?</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Found Adaptive Set</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Cases we already found</div>
+    <div class="tech">found adaptive set</div>
+    <div class="def">The risky cases the agents surfaced this round. Shows what the fix improves on known examples.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Locked Adaptive Holdout &nbsp;<span class="pill">Locked</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Hidden stress test <span class="pill">Locked</span></div>
+    <div class="tech">locked adaptive holdout</div>
+    <div class="def">Look-alike cases the agents never see — catches a fix that just memorized the found examples.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Drifted Holdout &nbsp;<span class="pill">Locked</span></div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Future-drift test <span class="pill">Locked</span></div>
+    <div class="tech">drifted holdout</div>
+    <div class="def">A shifted version of the data. Does the fix still hold as conditions change?</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="cards">⑤ Card titles & the judge card</h2>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Model Vulnerabilities · Round 1</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Model weak spots found · Round 1</div>
+    <div class="tech">model vulnerabilities</div>
+    <div class="def">Where the stress-test agents got risky activity past the model.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Defensive Fix Candidates · Round 1</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Proposed fixes · Round 1</div>
+    <div class="tech">defensive fix candidates</div>
+    <div class="def">What the defense agents propose to close the weak spot.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Judge Decision · Deterministic</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">The referee's call — decided by code, not AI</div>
+    <div class="tech">judge decision · deterministic</div>
+    <div class="def">Agents only propose. Plain code measures the result and accepts or rejects the fix.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Judge-derived metrics</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Scores measured by the referee</div>
+    <div class="tech">judge-derived metrics</div>
+    <div class="def">Numbers computed by code — agents can't edit or overwrite them.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Judge notes (narrative summary)</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Why the referee decided this</div>
+    <div class="tech">judge notes</div>
+    <div class="def">Header relabel only. The note <em>text</em> itself is generated server-side — see out-of-scope below.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">safe cohort definition</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Who this affects (safe summary)</div>
+    <div class="tech">safe cohort definition</div>
+    <div class="def">An abstract, feature-level description of the affected group — no individuals.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="families">⑥ Weak-spot patterns (the 7 vulnerability families)</h2>
+<p class="section-sub">Today the <code style="font-family:var(--mono)">family_id</code> prints raw. Proposed plain names (technical id kept on hover).
+These are display names only — the underlying family ids are unchanged.</p>
+
+<table class="fam">
+  <tr><th>Raw id (now)</th><th>Plain name (proposed)</th><th>One-line meaning</th></tr>
+  <tr><td class="k">low_velocity_high_graph_risk</td><td class="v">Quiet account, risky connections</td><td class="d">Low individual activity but high relationship-graph risk.</td></tr>
+  <tr><td class="k">recent_change_feature_delay</td><td class="v">Recent security change under-weighted</td><td class="d">A recovery/access change shortly before a transfer isn't weighted enough.</td></tr>
+  <tr><td class="k">score_boundary_cluster</td><td class="v">Clustered just below the line</td><td class="d">Risky events whose scores sit just under the challenge threshold.</td></tr>
+  <tr><td class="k">activity_channel_shift</td><td class="v">Unusual channel-mix shift</td><td class="d">A shift in which channels are used produces missed risky cases.</td></tr>
+  <tr><td class="k">current_device_mismatch</td><td class="v">Device doesn't match recent use</td><td class="d">A transfer from a device unlike the customer's recent one is under-ranked.</td></tr>
+  <tr><td class="k">label_noise_mislearned</td><td class="v">Noisy-label confusion</td><td class="d">Risky events near the label-noise boundary aren't consistently flagged.</td></tr>
+  <tr><td class="k">overfit_fix_failure</td><td class="v">Fix that memorizes known cases</td><td class="d">Graph-risk events accepted; fixes risk overfitting to found examples.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="section" id="agents">⑦ Agent roster (Section 1)</h2>
+<p class="section-sub">Group titles, descriptions, and each agent's purpose. All stored as TS constants — free to edit.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Red-Team Simulation Agents — "Run constrained synthetic searches against the local mock scorer. Cannot access locked holdouts or generate operational fraud guidance."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Stress-test agents — find the model's weak spots</div>
+    <div class="tech">red-team simulation agents</div>
+    <div class="def">Run limited, synthetic probes against the practice model. They can't see the locked answer keys or produce any real-world fraud how-to.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Bank-Defense Simulation Agents — "Propose feature, decision-threshold, or calibration defensive fixes. Cannot accept their own fixes."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Defense agents — propose fixes</div>
+    <div class="tech">bank-defense simulation agents</div>
+    <div class="def">Suggest a new signal, a threshold change, or a retrain. They can't approve their own work — the referee does.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Deterministic Control — "Code, not an LLM. Owns measurement, holdout enforcement, and the only authority to accept or reject a defensive fix."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">The referee — code, not AI</div>
+    <div class="tech">deterministic control</div>
+    <div class="def">Plain code does all the measuring and is the only thing that can accept or reject a fix.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Fraud Scenario Agent — "Proposes abstract synthetic model-vulnerability hypotheses."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Scenario agent</div>
+    <div class="tech">fraud scenario agent</div>
+    <div class="def">Suggests where the model might have a weak spot.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Evolutionary Search Agent — "Optimizes synthetic event histories to surface under-ranked high-risk examples."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Search agent</div>
+    <div class="tech">evolutionary search agent</div>
+    <div class="def">Tweaks synthetic activity to find risky cases the model scores too low.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Graph Probe Agent — "Explores safe synthetic relationship-risk vulnerabilities."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Connections agent</div>
+    <div class="tech">graph probe agent</div>
+    <div class="def">Looks at how synthetic accounts, devices, and recipients connect to spot risky clusters.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Model Vulnerability Analyst Agent — "Packages discovered misses into model vulnerability cards."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Findings agent</div>
+    <div class="tech">model vulnerability analyst agent</div>
+    <div class="def">Writes up each confirmed weak spot into a card the defense side can act on.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Bank Strategy Agent — "Triages model vulnerability cards and selects a defensive fix approach."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Strategy agent</div>
+    <div class="tech">bank strategy agent</div>
+    <div class="def">Reads the weak-spot cards and picks which fix approach to try.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Feature Fix Agent · Decision-Threshold Fix Agent · Model Calibration Fix Agent</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">New-signal agent · Threshold agent · Retrain agent</div>
+    <div class="tech">feature fix · decision-threshold fix · model calibration fix agents</div>
+    <div class="def">The three fix approaches: add a signal, move a threshold, or retrain the model.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Governance Agent — "Blocks unsafe, overfit, action-rate-limit-violating, or non-generalizing defensive fixes."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Guardrail agent</div>
+    <div class="tech">governance agent</div>
+    <div class="def">Stops fixes that are unsafe, too aggressive on customers, or that only memorized known cases.</div>
+  </div>
+</div>
+
+<div class="note">The "allowed actions" bullet lists under each agent (e.g. "Return candidate batches under the
+scoring-query limit") get the same light touch — kept accurate, but with the limit terms briefly defined in
+parentheses on first use. Same pattern as above; omitted here for length.</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="steps">⑧ Step headings & subtitles</h2>
+<p class="section-sub">The 5-step spine. Headings already read well; the subtitles carry the jargon.</p>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Round 1 — Test and Response: "Red-team agents identify the first synthetic model vulnerability; bank-defense agents propose a fix; the deterministic judge checks whether measured improvement is real."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Round 1 — Find it, fix it, check it</div>
+    <div class="tech">round 1 — test and response</div>
+    <div class="def">The stress-test agents find the model's first weak spot; the defense agents propose a fix; the code referee checks the improvement is real, not memorized.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Round 2 — Adaptive Pressure: "...the judge holds the locked adaptive holdout as the gate."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Round 2 — Turn up the pressure</div>
+    <div class="tech">round 2 — adaptive pressure</div>
+    <div class="def">The agents adapt; the defense responds; the hidden stress test is now the pass/fail gate.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Round 3 — Final Report: "Final round metrics, ledger, and the public-safe model-tier comparison matrix."</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Round 3 — Final scorecard</div>
+    <div class="tech">round 3 — final report</div>
+    <div class="def">Final numbers, the run record, and a side-by-side comparison across AI model tiers.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="matrix">⑨ Model-tier comparison matrix (Section 5)</h2>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Red-team tier &nbsp;|&nbsp; Bank-defense tier</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Stress-test model &nbsp;|&nbsp; Defense model</div>
+    <div class="tech">red-team tier · bank-defense tier</div>
+    <div class="def">Which AI model tier played each side.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="before"><span class="tag tag-before">Now</span><div class="content">Avg miss &nbsp;|&nbsp; Recall recovery &nbsp;|&nbsp; Action-rate limit</div></div>
+  <div class="arrow">→</div>
+  <div class="after"><span class="tag tag-after">Proposed</span>
+    <div class="plain">Avg missed risk &nbsp;|&nbsp; Risk-catch recovery &nbsp;|&nbsp; Friction limit</div>
+    <div class="tech">avg model miss rate · recall recovery · action-rate limit</div>
+    <div class="def">Column headers in the tier comparison table.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="section" id="guard">⑩ Guardrails &amp; what's out of scope</h2>
+
+<div class="guard">
+  <h3>Hard guardrails the relabel respects</h3>
+  <ul>
+    <li><strong>No banned legacy terms reintroduced.</strong> The safety scanner flags these; none appear in any proposed copy above:
+      <span class="banned">blind spot</span>, <span class="banned">evasion rate</span>, <span class="banned">fraud playbook</span>,
+      <span class="banned">patch</span>, <span class="banned">budget</span>, <span class="banned">attack</span>, <span class="banned">exploit</span>.
+      (e.g. we say "weak spot" not "blind spot", "stress test" not "attack", "fix" not "patch".)</li>
+    <li><strong>Canonical terms stay visible.</strong> Every plain headline keeps its technical term underneath, satisfying the project terminology standard <em>and</em> the dual-audience invariant.</li>
+    <li><strong>Synthetic-currency safety preserved.</strong> Every money figure keeps the <code>SYN $</code> prefix.</li>
+    <li><strong>Immutable labels untouched:</strong> <code>RetailBank-X</code>, <code>Mock Account-Takeover Risk Scorer</code>, <code>instant_transfer</code>, etc.</li>
+    <li><strong>Where copy lives:</strong> a small central label map (extending the existing <code>FIX_TYPE_LABELS</code> / <code>DECISION_ACTION_LABELS</code> pattern in <code>app/web/lib/formatters.ts</code>) plus the per-component TS constants. Keeps it inspectable by <code>make safety-scan</code>.</li>
+  </ul>
+</div>
+
+<div class="guard oos">
+  <h3>Out of scope (per your "UI display layer only" + "relabel only" choices)</h3>
+  <ul>
+    <li><strong>API field names, Pydantic schemas, ledger keys</strong> — unchanged. They're load-bearing contracts.</li>
+    <li><strong>The raw <code>judge_notes</code> condition string</strong> (e.g. <code>accepted=False; recall_improves=False(recall_lift=0.0); …</code>) is generated server-side in <code>src/atlas/judge/acceptance.py</code>. We relabel its <em>header</em> only; rewriting the string itself would mean touching generated text (the option you set aside). Flagging it as the one remaining eyesore if you ever want a follow-up.</li>
+    <li><strong>Generated transcript &amp; final-report prose</strong> in <code>src/atlas/ledger/report_builder.py</code> — left as-is.</li>
+    <li><strong>No new intro / glossary / walkthrough sections</strong> — relabel only.</li>
+  </ul>
+</div>
+
+<footer>
+  Review mockup only — <code style="font-family:var(--mono)">atlas-terminology-preview.html</code> at repo root, not imported by the app and not committed to the demo.
+  Tell me which labels to keep, change, or drop and I'll fold your edits in before any real code changes.
+</footer>
+
+</div>
+</body>
+</html>

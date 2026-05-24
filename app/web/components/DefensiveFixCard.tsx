@@ -9,6 +9,7 @@
 // "evaluation pending" or "evaluation complete" cue is not safe to demo.
 
 import type { DefensiveFixCandidate, FixType } from "../lib/types";
+import { TermNote } from "./DualLabel";
 
 const FIX_TYPE_LABELS: Record<FixType, string> = {
   feature_fix: "Feature fix",
@@ -29,9 +30,10 @@ export function DefensiveFixCard({ candidate }: DefensiveFixCardProps) {
       {/* Header */}
       <header className="flex items-start justify-between gap-3 border-b border-atlas-border/60 pb-3">
         <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-accent">
-            Defensive Fix Candidate
+          <p className="text-xs font-medium text-atlas-text">
+            Proposed fix
           </p>
+          <TermNote>defensive fix candidate</TermNote>
           <p className="mt-1 truncate font-mono text-xs text-atlas-text">
             {candidate.defensive_fix_id}
           </p>

@@ -22,6 +22,7 @@
 // the live records — no invented data, no parallel data contract.
 
 import { AgentRoster } from "../components/AgentRoster";
+import { TermNote } from "../components/DualLabel";
 import { EnvironmentOverview } from "../components/EnvironmentOverview";
 import { JudgeDecisionCard } from "../components/JudgeDecisionCard";
 import { LeftSidebar } from "../components/LeftSidebar";
@@ -33,6 +34,7 @@ import { MissRateChart } from "../components/charts/MissRateChart";
 import { RecallRecoveryChart } from "../components/charts/RecallRecoveryChart";
 import { SyntheticLossChart } from "../components/charts/SyntheticLossChart";
 import { getRunRoundDetail } from "../lib/api";
+import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
 import { getModelQualityMatrix } from "../lib/modelQualityMatrix";
 import { loadActiveReplay } from "../lib/replay";
 import type { ReplayPayload, RoundDetail, RoundSummary } from "../lib/replay";
@@ -44,6 +46,7 @@ import type { JudgeReport, MetricSnapshot } from "../lib/types";
 
 interface SectionNarrative {
   eyebrow: string;
+  term: string;
   title: string;
   subtitle: string;
 }
@@ -51,21 +54,24 @@ interface SectionNarrative {
 const ROUND_NARRATIVE: Record<1 | 2 | 3, SectionNarrative> = {
   1: {
     eyebrow: "Step 3",
-    title: "Round 1 — Test and Response",
+    term: "Round 1 — Test and Response",
+    title: "Round 1 — Find it, fix it, check it",
     subtitle:
-      "Red-team agents identify the first synthetic model vulnerability; bank-defense agents propose a fix; the deterministic judge checks whether measured improvement is real."
+      "The stress-test agents find the model's first weak spot; the defense agents propose a fix; the code referee checks the improvement is real, not memorized."
   },
   2: {
     eyebrow: "Step 4",
-    title: "Round 2 — Adaptive Pressure",
+    term: "Round 2 — Adaptive Pressure",
+    title: "Round 2 — Turn up the pressure",
     subtitle:
-      "Red-team agents adapt; bank-defense agents respond; the judge holds the locked adaptive holdout as the gate."
+      "The agents adapt; the defense responds; the hidden stress test is now the pass/fail gate."
   },
   3: {
     eyebrow: "Step 5",
-    title: "Round 3 — Final Report",
+    term: "Round 3 — Final Report",
+    title: "Round 3 — Final scorecard",
     subtitle:
-      "Final round metrics, ledger, and the public-safe model-tier comparison matrix."
+      "Final numbers, the run record, and a side-by-side comparison across AI model tiers."
   }
 };
 
@@ -226,6 +232,7 @@ function RoundSection({
         >
           {narrative.title}
         </h2>
+        <p className="mt-1 font-mono text-[11px] text-atlas-muted">{narrative.term}</p>
         <p className="mt-3 text-sm leading-relaxed text-atlas-muted">
           {narrative.subtitle}
         </p>
@@ -268,8 +275,8 @@ function RoundSection({
           {/* Chart strip — focused subset for round-level reading */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
-              title="Model miss rate"
-              hint="Lower is better. Carry-forward state plus selected candidate result."
+              title="Missed risky activity"
+              hint="model miss rate · Lower is better. Carry-forward state plus selected candidate result."
             >
               <MissRateChart
                 metrics={metrics}
@@ -277,8 +284,8 @@ function RoundSection({
               />
             </ChartCard>
             <ChartCard
-              title="Recall at fixed action-rate limit"
-              hint="Higher is better. Carry-forward state plus selected candidate result."
+              title="Risky activity caught"
+              hint="recall at fixed action-rate · Higher is better. Carry-forward state plus selected candidate result."
             >
               <RecallRecoveryChart
                 metrics={metrics}
@@ -333,6 +340,7 @@ function FinalReportSection({
         >
           {narrative.title}
         </h2>
+        <p className="mt-1 font-mono text-[11px] text-atlas-muted">{narrative.term}</p>
         <p className="mt-3 text-sm leading-relaxed text-atlas-muted">
           {narrative.subtitle}
         </p>
@@ -379,8 +387,8 @@ function FinalReportSection({
       {/* All four charts in a 2x2 grid */}
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Model miss rate"
-          hint="Carry-forward state plus selected candidate result before judge rejection."
+          title="Missed risky activity"
+          hint="model miss rate · Carry-forward state plus selected candidate result before judge rejection."
         >
           <MissRateChart
             metrics={metrics}
@@ -388,8 +396,8 @@ function FinalReportSection({
           />
         </ChartCard>
         <ChartCard
-          title="Recall at fixed action-rate limit"
-          hint="Higher is better. Carry-forward state plus selected candidate result."
+          title="Risky activity caught"
+          hint="recall at fixed action-rate · Higher is better. Carry-forward state plus selected candidate result."
         >
           <RecallRecoveryChart
             metrics={metrics}
@@ -397,8 +405,8 @@ function FinalReportSection({
           />
         </ChartCard>
         <ChartCard
-          title="Synthetic loss allowed"
-          hint="Lower is better. Carry-forward state plus selected candidate result."
+          title="Demo losses let through"
+          hint="synthetic loss allowed · Lower is better. SYN $; play-money only."
         >
           <SyntheticLossChart
             metrics={metrics}
@@ -406,8 +414,8 @@ function FinalReportSection({
           />
         </ChartCard>
         <ChartCard
-          title="Customer-friction rates"
-          hint="Challenge, alert, and decline rates. All series remain below configured action-rate limits."
+          title="How often we interrupt customers"
+          hint="customer-friction rates · Step-up checks, reviews, and blocks all stay below configured action-rate limits."
         >
           <FrictionChart metrics={metrics} />
         </ChartCard>
@@ -459,10 +467,11 @@ function SlimVulnerabilityCard({
   if (filtered.length === 0) {
     return (
       <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
-        <header>
+        <header title={GLOSSARY.model_vulnerabilities.definition}>
           <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-            Model vulnerabilities
+            {GLOSSARY.model_vulnerabilities.plain}
           </p>
+          <TermNote>{GLOSSARY.model_vulnerabilities.term}</TermNote>
         </header>
         <p className="mt-3 italic">No vulnerabilities recorded for this round.</p>
       </article>
@@ -471,10 +480,11 @@ function SlimVulnerabilityCard({
 
   return (
     <article className="flex h-full flex-col rounded-lg border border-atlas-danger/40 bg-atlas-panel/60 p-5">
-      <header className="border-b border-atlas-border/60 pb-3">
+      <header className="border-b border-atlas-border/60 pb-3" title={GLOSSARY.model_vulnerabilities.definition}>
         <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-danger">
-          Model Vulnerabilities · Round {round_id}
+          {GLOSSARY.model_vulnerabilities.plain} · Round {round_id}
         </p>
+        <TermNote>{GLOSSARY.model_vulnerabilities.term}</TermNote>
         <p className="mt-1 font-mono text-[11px] text-atlas-muted">
           {filtered.length} record{filtered.length === 1 ? "" : "s"} persisted
         </p>
@@ -494,26 +504,31 @@ function SlimVulnerabilityCard({
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
             >
               <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
-              <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
-                family · {family}
+              <p className="mt-0.5 text-xs text-atlas-text/90">
+                Pattern: {VULN_FAMILY_LABELS[family] ?? family}
               </p>
+              <p className="font-mono text-[10px] text-atlas-muted">family · {family}</p>
               {summary ? (
                 <p className="mt-2 text-xs leading-relaxed text-atlas-text/90">{summary}</p>
               ) : null}
               {missRate !== null ? (
-                <p className="mt-2 font-mono text-[11px] text-atlas-muted">
-                  model_miss_rate ·{" "}
-                  <span className="text-atlas-text">{(missRate * 100).toFixed(1)}%</span>
-                </p>
+                <div className="mt-2" title={GLOSSARY.model_miss_rate.definition}>
+                  <p className="font-mono text-[11px] text-atlas-muted">
+                    Missed risky activity ·{" "}
+                    <span className="text-atlas-text">{(missRate * 100).toFixed(1)}%</span>
+                  </p>
+                  <TermNote>{GLOSSARY.model_miss_rate.term}</TermNote>
+                </div>
               ) : null}
               {recommended.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {recommended.map((t) => (
                     <span
                       key={t}
-                      className="rounded-full border border-atlas-accent/40 bg-atlas-accent/10 px-2 py-0.5 font-mono text-[10px] text-atlas-accent"
+                      title={t}
+                      className="rounded-full border border-atlas-accent/40 bg-atlas-accent/10 px-2 py-0.5 text-[10px] text-atlas-accent"
                     >
-                      {t}
+                      {FIX_TYPE_PLAIN[t] ?? t}
                     </span>
                   ))}
                 </div>
@@ -537,10 +552,11 @@ function SlimFixCard({
   if (filtered.length === 0) {
     return (
       <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
-        <header>
+        <header title={GLOSSARY.defensive_fix_candidates.definition}>
           <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-            Defensive fix candidates
+            {GLOSSARY.defensive_fix_candidates.plain}
           </p>
+          <TermNote>{GLOSSARY.defensive_fix_candidates.term}</TermNote>
         </header>
         <p className="mt-3 italic">No defensive fixes proposed for this round.</p>
       </article>
@@ -549,10 +565,11 @@ function SlimFixCard({
 
   return (
     <article className="flex h-full flex-col rounded-lg border border-atlas-accent/40 bg-atlas-panel/60 p-5">
-      <header className="border-b border-atlas-border/60 pb-3">
+      <header className="border-b border-atlas-border/60 pb-3" title={GLOSSARY.defensive_fix_candidates.definition}>
         <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-accent">
-          Defensive Fix Candidates · Round {round_id}
+          {GLOSSARY.defensive_fix_candidates.plain} · Round {round_id}
         </p>
+        <TermNote>{GLOSSARY.defensive_fix_candidates.term}</TermNote>
         <p className="mt-1 font-mono text-[11px] text-atlas-muted">
           {filtered.length} candidate{filtered.length === 1 ? "" : "s"} persisted
         </p>
@@ -572,13 +589,19 @@ function SlimFixCard({
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
             >
               <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
-              <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
-                fix_type · {fixType}
+              <p className="mt-0.5 text-[11px] text-atlas-text/90">
+                Fix type: {FIX_TYPE_PLAIN[fixType] ?? fixType}
               </p>
+              <p className="font-mono text-[10px] text-atlas-muted">fix_type · {fixType}</p>
               {vulnerabilityId ? (
-                <p className="mt-0.5 font-mono text-[11px] text-atlas-muted">
-                  targets · {vulnerabilityId}
-                </p>
+                <>
+                  <p className="mt-0.5 text-[11px] text-atlas-text/90">
+                    Fixes weak spot
+                  </p>
+                  <p className="font-mono text-[10px] text-atlas-muted">
+                    targets · {vulnerabilityId}
+                  </p>
+                </>
               ) : null}
               {Object.keys(overrides).length > 0 ? (
                 <div className="mt-2 font-mono text-[11px] text-atlas-muted">
@@ -606,10 +629,11 @@ function RoundJudgeCard({ reports }: { reports: JudgeReport[] }) {
   if (!report) {
     return (
       <article className="flex h-full flex-col rounded-lg border border-atlas-border bg-atlas-panel/60 p-5 text-xs text-atlas-muted">
-        <header>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-            Judge decision
+        <header title={GLOSSARY.judge_decision.definition}>
+          <p className="text-xs font-medium text-atlas-text">
+            {GLOSSARY.judge_decision.plain}
           </p>
+          <TermNote>{GLOSSARY.judge_decision.term}</TermNote>
         </header>
         <p className="mt-3 italic">No judge report recorded for this round.</p>
       </article>

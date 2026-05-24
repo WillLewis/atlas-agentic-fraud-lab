@@ -7,10 +7,10 @@
 // `getRoundMetrics()`. Anchor dots are non-interpolated snapshots;
 // hollow dots mark `kind === "interpolated"` (fixture-only).
 //
-// Axis labels stay synthetic-only: the y-axis reads "Model miss rate"
-// (Bible §16.1) and tick values are percentages.
+// Axis labels stay synthetic-only and tick values are percentages.
 
 import { formatRate } from "../../lib/formatters";
+import { GLOSSARY } from "../../lib/glossary";
 import type { MetricSnapshot } from "../../lib/types";
 import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
@@ -48,11 +48,11 @@ export function MissRateChart({ metrics, candidate_metrics }: MissRateChartProps
   return (
     <LinePlot
       series={series}
-      y_axis_label="Model miss rate"
+      y_axis_label={GLOSSARY.model_miss_rate.plain}
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
       show_legend={series.length > 1}
-      aria_label="Model miss rate across baseline and synthetic rounds; lower is better."
+      aria_label="Missed risky activity, model miss rate, across baseline and synthetic rounds; lower is better."
     />
   );
 }

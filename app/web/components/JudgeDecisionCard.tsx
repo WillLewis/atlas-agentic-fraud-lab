@@ -15,6 +15,8 @@
 // consistent with the rest of the app.
 
 import type { JudgeReport } from "../lib/types";
+import { GLOSSARY } from "../lib/glossary";
+import { TermNote } from "./DualLabel";
 import { MetricCard } from "./MetricCard";
 
 export interface JudgeDecisionCardProps {
@@ -30,11 +32,15 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
       className={`flex h-full flex-col rounded-lg border bg-atlas-panel/60 p-5 ${borderClass}`}
     >
       {/* Header */}
-      <header className="flex items-start justify-between gap-3 border-b border-atlas-border/60 pb-3">
+      <header
+        className="flex items-start justify-between gap-3 border-b border-atlas-border/60 pb-3"
+        title={GLOSSARY.judge_decision.definition}
+      >
         <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-            Judge Decision · Deterministic
+          <p className="text-xs font-medium text-atlas-text">
+            {GLOSSARY.judge_decision.plain}
           </p>
+          <TermNote>{GLOSSARY.judge_decision.term}</TermNote>
           <p className="mt-1 truncate font-mono text-xs text-atlas-text">
             {report.judge_report_id}
           </p>
@@ -63,12 +69,17 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
 
       {/* PROMINENT: judge-derived metrics */}
       <section className="mt-4" aria-label="Judge-derived metrics">
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-          Judge-derived metrics
-        </p>
+        <div className="mb-3" title={GLOSSARY.judge_metrics.definition}>
+          <p className="text-xs font-medium text-atlas-text">
+            {GLOSSARY.judge_metrics.plain}
+          </p>
+          <TermNote>{GLOSSARY.judge_metrics.term}</TermNote>
+        </div>
         <div className="grid grid-cols-1 gap-3 min-[1180px]:grid-cols-2">
           <MetricCard
-            label="Recall at fixed action-rate"
+            label={GLOSSARY.recall.plain}
+            term={GLOSSARY.recall.term}
+            definition={GLOSSARY.recall.definition}
             value={report.fixed.recall_at_fixed_action_rate}
             format="rate"
             comparison={{
@@ -77,7 +88,9 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             }}
           />
           <MetricCard
-            label="Model miss rate"
+            label={GLOSSARY.model_miss_rate.plain}
+            term={GLOSSARY.model_miss_rate.term}
+            definition={GLOSSARY.model_miss_rate.definition}
             value={report.fixed.model_miss_rate}
             format="rate"
             comparison={{
@@ -86,7 +99,9 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             }}
           />
           <MetricCard
-            label="False-positive rate"
+            label={GLOSSARY.false_positive_rate.plain}
+            term={GLOSSARY.false_positive_rate.term}
+            definition={GLOSSARY.false_positive_rate.definition}
             value={report.fixed.false_positive_rate_at_fixed_action_rate}
             format="rate"
             comparison={{
@@ -95,7 +110,9 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             }}
           />
           <MetricCard
-            label="Synthetic loss allowed"
+            label={GLOSSARY.synthetic_loss_allowed.plain}
+            term={GLOSSARY.synthetic_loss_allowed.term}
+            definition={GLOSSARY.synthetic_loss_allowed.definition}
             value={report.fixed.synthetic_loss_allowed}
             format="synthetic_currency"
             comparison={{
@@ -111,20 +128,26 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
         className="mt-4 border-t border-atlas-border/60 pt-3"
         aria-label="Holdout generalization"
       >
-        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-          Holdout generalization
-        </p>
+        <div title={GLOSSARY.holdout_generalization.definition}>
+          <p className="text-xs font-medium text-atlas-text">
+            {GLOSSARY.holdout_generalization.plain}
+          </p>
+          <TermNote>{GLOSSARY.holdout_generalization.term}</TermNote>
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
           <HoldoutPill
-            label="Clean holdout"
+            label="Fresh customers"
+            term={GLOSSARY.clean_holdout.term}
             passed={report.holdout_generalization.clean_holdout_pass}
           />
           <HoldoutPill
-            label="Locked adaptive"
+            label="Hidden stress test"
+            term={GLOSSARY.locked_adaptive_holdout.term}
             passed={report.holdout_generalization.locked_adaptive_holdout_pass}
           />
           <HoldoutPill
-            label="Drifted holdout"
+            label="Future-drift test"
+            term={GLOSSARY.drifted_holdout.term}
             passed={report.holdout_generalization.drifted_holdout_pass}
           />
         </div>
@@ -132,12 +155,13 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
 
       {/* SUBDUED: agent-narrated judge notes */}
       <section className="mt-4 border-t border-atlas-border/60 pt-3" aria-label="Judge notes">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-          Judge notes
+        <p className="text-xs font-medium text-atlas-text" title={GLOSSARY.judge_notes.definition}>
+          {GLOSSARY.judge_notes.plain}
           <span className="ml-1.5 normal-case tracking-normal text-atlas-muted/70">
-            (narrative summary)
+            (condition record, generated by code)
           </span>
         </p>
+        <TermNote>{GLOSSARY.judge_notes.term}</TermNote>
         <blockquote className="mt-2 break-words border-l-2 border-atlas-border/60 pl-3 text-xs italic leading-relaxed text-atlas-muted">
           {report.judge_notes}
         </blockquote>
@@ -150,7 +174,15 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
 // Holdout pass/fail pill
 // ---------------------------------------------------------------------------
 
-function HoldoutPill({ label, passed }: { label: string; passed: boolean }) {
+function HoldoutPill({
+  label,
+  passed,
+  term
+}: {
+  label: string;
+  passed: boolean;
+  term?: string;
+}) {
   return (
     <span
       className={[
@@ -160,6 +192,7 @@ function HoldoutPill({ label, passed }: { label: string; passed: boolean }) {
           : "border-atlas-danger/40 bg-atlas-danger/10 text-atlas-danger"
       ].join(" ")}
       aria-label={passed ? `${label} passed` : `${label} failed`}
+      title={term}
     >
       <span aria-hidden="true">{passed ? "✓" : "✗"}</span>
       {label}

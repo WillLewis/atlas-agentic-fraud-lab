@@ -1,5 +1,5 @@
 // app/web/components/charts/RecallRecoveryChart.tsx
-// Recall at fixed action-rate limit, across rounds.
+// Risk-catch recovery across rounds.
 //
 // Phase 9: pure function of `metrics`. Up is good for this metric.
 //
@@ -10,6 +10,7 @@
 // recall metric.
 
 import { formatRate } from "../../lib/formatters";
+import { GLOSSARY } from "../../lib/glossary";
 import type { MetricSnapshot } from "../../lib/types";
 import { LinePlot, type LinePlotSeries } from "./LinePlot";
 
@@ -50,12 +51,12 @@ export function RecallRecoveryChart({
   return (
     <LinePlot
       series={series}
-      y_axis_label="Recall at fixed action-rate"
+      y_axis_label={GLOSSARY.recall.plain}
       y_format={(v) => formatRate(v, { digits: 1 })}
       y_min={0}
       y_max={1}
       show_legend={series.length > 1}
-      aria_label="Recall at the fixed action-rate limit across baseline and synthetic rounds; higher is better."
+      aria_label="Risky activity caught, recall at fixed action-rate, across baseline and synthetic rounds; higher is better."
     />
   );
 }

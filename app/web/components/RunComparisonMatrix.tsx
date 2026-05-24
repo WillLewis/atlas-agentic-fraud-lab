@@ -63,11 +63,21 @@ export function RunComparisonMatrix({
           <thead className="text-atlas-muted">
             <tr className="border-b border-atlas-border/60">
               <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Run</th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Red-team tier</th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Bank-defense tier</th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Avg miss</th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Recall recovery</th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Action-rate limit</th>
+              <th className="px-2 py-1.5 uppercase tracking-widest" title="red-team tier">
+                Stress-test model
+              </th>
+              <th className="px-2 py-1.5 uppercase tracking-widest" title="bank-defense tier">
+                Defense model
+              </th>
+              <th className="px-2 py-1.5 uppercase tracking-widest" title="avg model miss rate">
+                Avg missed risk
+              </th>
+              <th className="px-2 py-1.5 uppercase tracking-widest" title="recall recovery">
+                Risk-catch recovery
+              </th>
+              <th className="px-2 py-1.5 uppercase tracking-widest" title="action-rate limit">
+                Friction limit
+              </th>
               <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Source</th>
               <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Purpose</th>
             </tr>

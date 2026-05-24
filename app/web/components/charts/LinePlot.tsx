@@ -37,7 +37,7 @@ export interface LinePlotSeries {
 
 export interface LinePlotProps {
   series: ReadonlyArray<LinePlotSeries>;
-  /** Short axis label (e.g., "Model miss rate"). */
+  /** Short axis label. */
   y_axis_label: string;
   /** Formatter applied to y-axis tick labels and point tooltips. */
   y_format: (value: number) => string;
