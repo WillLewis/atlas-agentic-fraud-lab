@@ -8,10 +8,28 @@
 // (a)(4). The `safety_scan_passed` boolean comes verbatim from the
 // persisted RoundState.
 
+import { familyLabelFromId, fixTypeLabelFromId } from "../lib/ids";
+
 interface SafeTranscriptPanelProps {
   summary: string;
   safety_scan_passed: boolean;
   round_label?: string;
+}
+
+function humanizeTranscript(text: string): string {
+  return text
+    .replace(/\bmodel_vulnerability\b/g, "weak-spot")
+    .replace(/\bmv_round\d+_[a-z0-9_]+/g, (id) => {
+      const f = familyLabelFromId(id);
+      return f ? `the "${f}" weak spot` : "the weak spot";
+    })
+    .replace(/\bfix_round\d+_[a-z0-9_]+/g, (id) => {
+      const t = fixTypeLabelFromId(id);
+      const f = familyLabelFromId(id);
+      return t ? `the ${t.toLowerCase()} fix${f ? ` for "${f}"` : ""}` : "the selected fix";
+    })
+    .replace(/\s*Carry-forward:.*$/s, "")
+    .trim();
 }
 
 export function SafeTranscriptPanel({
@@ -51,16 +69,16 @@ export function SafeTranscriptPanel({
           ].join(" ")}
           aria-label={
             safety_scan_passed
-              ? "Safety scan passed"
-              : "Safety scan flagged this transcript for review"
+              ? "Safety check passed"
+              : "Safety check flagged this transcript for review"
           }
         >
           <span aria-hidden="true">{safety_scan_passed ? "✓ " : "⚠ "}</span>
-          safety_scan: {safety_scan_passed ? "pass" : "review"}
+          safety check: {safety_scan_passed ? "pass" : "review"}
         </span>
       </header>
       <p className="font-mono text-[11px] leading-relaxed text-atlas-text/90">
-        {summary}
+        {humanizeTranscript(summary)}
       </p>
     </section>
   );

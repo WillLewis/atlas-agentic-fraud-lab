@@ -35,6 +35,7 @@ import { RecallRecoveryChart } from "../components/charts/RecallRecoveryChart";
 import { SyntheticLossChart } from "../components/charts/SyntheticLossChart";
 import { getRunRoundDetail } from "../lib/api";
 import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
+import { familyLabelFromId } from "../lib/ids";
 import { getModelQualityMatrix } from "../lib/modelQualityMatrix";
 import { loadActiveReplay } from "../lib/replay";
 import type { ReplayPayload, RoundDetail, RoundSummary } from "../lib/replay";
@@ -502,10 +503,10 @@ function SlimVulnerabilityCard({
             <li
               key={id}
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
+              title={id}
             >
-              <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
-              <p className="mt-0.5 text-xs text-atlas-text/90">
-                Pattern: {VULN_FAMILY_LABELS[family] ?? family}
+              <p className="text-sm font-semibold text-atlas-text">
+                {VULN_FAMILY_LABELS[family] ?? family}
               </p>
               <p className="font-mono text-[10px] text-atlas-muted">family · {family}</p>
               {summary ? (
@@ -579,6 +580,7 @@ function SlimFixCard({
           const id = String(r.defensive_fix_id ?? "");
           const fixType = String(r.fix_type ?? "");
           const vulnerabilityId = String(r.vulnerability_id ?? "");
+          const targetFamilyLabel = familyLabelFromId(vulnerabilityId);
           const overrides = (r.proposed_threshold_overrides ?? {}) as Record<
             string,
             number
@@ -587,19 +589,19 @@ function SlimFixCard({
             <li
               key={id}
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
+              title={id}
             >
-              <p className="truncate font-mono text-xs text-atlas-text">{id}</p>
-              <p className="mt-0.5 text-[11px] text-atlas-text/90">
-                Fix type: {FIX_TYPE_PLAIN[fixType] ?? fixType}
+              <p className="text-sm font-semibold text-atlas-text">
+                {FIX_TYPE_PLAIN[fixType] ?? fixType}
               </p>
               <p className="font-mono text-[10px] text-atlas-muted">fix_type · {fixType}</p>
               {vulnerabilityId ? (
                 <>
-                  <p className="mt-0.5 text-[11px] text-atlas-text/90">
-                    Fixes weak spot
+                  <p className="mt-1 text-[11px] text-atlas-text/90">
+                    Fixes weak spot{targetFamilyLabel ? `: ${targetFamilyLabel}` : ""}
                   </p>
-                  <p className="font-mono text-[10px] text-atlas-muted">
-                    targets · {vulnerabilityId}
+                  <p className="font-mono text-[10px] text-atlas-muted" title={vulnerabilityId}>
+                    targets · model vulnerability
                   </p>
                 </>
               ) : null}
@@ -639,7 +641,7 @@ function RoundJudgeCard({ reports }: { reports: JudgeReport[] }) {
       </article>
     );
   }
-  // Phase 8 evaluates one fix per round — render the first report.
+  // One fix is evaluated per round — render the first report.
   return <JudgeDecisionCard report={report} />;
 }
 
@@ -676,7 +678,7 @@ function FinalReportSummaryCard({
             Final report
           </p>
           <h3 className="mt-1 text-base font-semibold text-atlas-text">
-            Closed-enum summary
+            Summary
           </h3>
         </div>
         <span
@@ -688,7 +690,7 @@ function FinalReportSummaryCard({
           ].join(" ")}
           aria-label={safetyOk ? "Safety scan passed" : "Safety scan flagged for review"}
         >
-          <span aria-hidden="true">{safetyOk ? "✓" : "⚠"}</span> safety_scan
+          <span aria-hidden="true">{safetyOk ? "✓" : "⚠"}</span> safety check
         </span>
       </header>
       <p className="mt-3 font-mono text-[11px] leading-relaxed text-atlas-text/90">
@@ -718,16 +720,16 @@ function RunFacts({ payload }: { payload: ReplayPayload }) {
           Run summary
         </p>
         <h3 className="mt-1 text-base font-semibold text-atlas-text">
-          Reproducibility record
+          Run details
         </h3>
       </header>
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs md:grid-cols-2">
-        <Fact label="Run ID" value={r.run_id} mono />
+        <Fact label="Run" value="Completed demo run" title={r.run_id} />
         <Fact label="Seed" value={String(r.seed)} mono />
         <Fact label="Demo mode" value={r.demo_mode} mono />
         <Fact label="Status" value={r.status} mono />
         <Fact label="Current round" value={String(r.current_round ?? 0)} mono />
-        <Fact label="Created at (dataset reference)" value={r.created_at_utc ?? "-"} mono />
+        <Fact label="Created" value={r.created_at_utc ?? "-"} mono />
       </dl>
     </article>
   );
@@ -736,14 +738,16 @@ function RunFacts({ payload }: { payload: ReplayPayload }) {
 function Fact({
   label,
   value,
-  mono = false
+  mono = false,
+  title
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  title?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex items-baseline justify-between gap-3" title={title}>
       <dt className="text-atlas-muted">{label}</dt>
       <dd
         className={[
@@ -763,18 +767,18 @@ function Fact({
 
 function EmptyOrErrorState({
   kind,
-  reason,
-  remediation
+  reason
 }: {
   kind: "empty" | "error";
   reason: string;
   remediation: string | null;
 }) {
   const tone = kind === "empty" ? "muted" : "danger";
+  const displayReason = standaloneLoadReason(kind, reason);
   return (
     <section
       id="empty-state"
-      aria-label={kind === "empty" ? "No replay available" : "Replay load error"}
+      aria-label={kind === "empty" ? "No demo data available" : "Demo load error"}
       className="scroll-mt-16 border-t border-atlas-border/40 px-8 py-24"
     >
       <div className="mx-auto max-w-2xl rounded-lg border border-atlas-border bg-atlas-panel/60 p-8 text-center">
@@ -784,41 +788,44 @@ function EmptyOrErrorState({
             tone === "danger" ? "text-atlas-danger" : "text-atlas-muted"
           ].join(" ")}
         >
-          {kind === "empty" ? "No replay yet" : "Replay load error"}
+          {kind === "empty" ? "Nothing to show yet" : "Couldn't load the demo"}
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-atlas-text">
           {kind === "empty"
-            ? "There is no completed run to replay."
-            : "Could not load replay data."}
+            ? "This demo hasn't loaded its data yet."
+            : "Couldn't load the demo data."}
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{reason}</p>
-        {remediation ? (
-          <div className="mt-6 inline-flex flex-col items-stretch gap-1 rounded-md border border-atlas-border/60 bg-atlas-surface/60 px-4 py-3 text-left">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-              Run locally
-            </span>
-            <code className="font-mono text-xs text-atlas-text">{remediation}</code>
-          </div>
-        ) : null}
+        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{displayReason}</p>
         <p className="mt-6 text-[11px] text-atlas-muted/80">
-          Local-only by design — there is no remote fallback. Data is loaded
-          from <span className="font-mono">http://127.0.0.1:8000</span>.
+          This is a self-contained demo.
         </p>
       </div>
     </section>
   );
 }
 
+function standaloneLoadReason(kind: "empty" | "error", reason: string): string {
+  if (/No completed run found/i.test(reason)) {
+    return "No completed demo run is available yet.";
+  }
+  if (/No replay artifacts found/i.test(reason)) {
+    return "The selected demo run does not have display data yet.";
+  }
+  if (kind === "error" && /(Failed to list runs|fetch failed|Atlas API)/i.test(reason)) {
+    return "The demo data service is not responding yet.";
+  }
+  return reason
+    .replace(/\brun_[a-z0-9_]+/gi, "the selected run")
+    .replace(/\breplay artifacts\b/gi, "demo data");
+}
+
 function RoundNotRunYet() {
   return (
     <div className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-6 text-sm text-atlas-muted">
       <p className="font-mono text-[10px] uppercase tracking-widest">
-        Round not yet executed
+        This round hasn&apos;t run yet
       </p>
-      <p className="mt-2">
-        Run <code className="font-mono">make run-rounds</code> to populate this
-        round&apos;s artifacts.
-      </p>
+      <p className="mt-2">Run the demo to populate this round.</p>
     </div>
   );
 }

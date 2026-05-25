@@ -37,12 +37,16 @@ export function RunComparisonMatrix({
     if (value === null) return "Unavailable";
     return value ? "Within limits" : "Exceeded";
   };
-  const sourceLabel = (r: MatrixRun): string => {
-    if (r.metrics_source !== "judge_derived_replay" || r.source_run_id === null) {
-      return "No curated replay";
-    }
-    return r.source_run_id;
-  };
+  const sourceLabel = (r: MatrixRun): string =>
+    r.metrics_source !== "judge_derived_replay" || r.source_run_id === null
+      ? "No run yet"
+      : "Completed run";
+  const standaloneSummaryLine = (line: string): string =>
+    line
+      .replace(/\bCurated replay\b/g, "Completed run")
+      .replace(/\bcurated replay artifact\b/g, "completed run")
+      .replace(/\bcurated replay\b/g, "completed run")
+      .replace(/\bartifacts\b/g, "data");
 
   return (
     <article className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-5">
@@ -54,8 +58,8 @@ export function RunComparisonMatrix({
           Public-safe tier matrix
         </h3>
         <p className="mt-1 text-[11px] text-atlas-muted">
-          Tiers from <span className="font-mono">model_quality_matrix.yaml</span>.
-          {expose_concrete_model_names ? " (Concrete model names enabled.)" : ""}
+          Model tiers compared in this demo.
+          {expose_concrete_model_names ? " Concrete model names shown." : ""}
         </p>
       </header>
       <div className="overflow-x-auto">
@@ -78,7 +82,7 @@ export function RunComparisonMatrix({
               <th className="px-2 py-1.5 uppercase tracking-widest" title="action-rate limit">
                 Friction limit
               </th>
-              <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Source</th>
+              <th className="px-2 py-1.5 uppercase tracking-widest">Run data</th>
               <th className="px-2 py-1.5 font-mono uppercase tracking-widest">Purpose</th>
             </tr>
           </thead>
@@ -95,7 +99,7 @@ export function RunComparisonMatrix({
                   {pointsLabel(r.average_recall_recovery_points)}
                 </td>
                 <td className="px-2 py-1.5">{passLabel(r.fixed_action_rate_pass)}</td>
-                <td className="px-2 py-1.5 font-mono text-[11px] text-atlas-muted">
+                <td className="px-2 py-1.5 text-[11px] text-atlas-muted">
                   {sourceLabel(r)}
                 </td>
                 <td className="px-2 py-1.5 text-atlas-muted">{r.purpose}</td>
@@ -106,14 +110,14 @@ export function RunComparisonMatrix({
       </div>
       {summary_templates.length > 0 ? (
         <ul className="mt-3 list-disc space-y-1 pl-4 text-[11px] text-atlas-muted">
-          {summary_templates.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
+          {summary_templates.map((line) => {
+            const displayLine = standaloneSummaryLine(line);
+            return <li key={displayLine}>{displayLine}</li>;
+          })}
         </ul>
       ) : null}
       <p className="mt-3 border-t border-atlas-border/40 pt-2 text-[10px] text-atlas-muted/80">
-        Read-only public-safe configuration. Metric values are derived from
-        curated replay artifacts when a source run is attached.
+        Comparison across model tiers. Values shown where a completed run is available.
       </p>
     </article>
   );

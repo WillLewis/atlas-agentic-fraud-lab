@@ -104,7 +104,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
         {isPlaceholder ? (
           <span
             className="rounded-full border border-atlas-warn/40 bg-atlas-warn/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-atlas-warn"
-            aria-label="Placeholder values — not judge-derived in Phase 1"
+            aria-label="Placeholder values — not judge-derived yet"
           >
             Placeholder
           </span>

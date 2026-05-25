@@ -212,12 +212,12 @@ export function EnvironmentOverview() {
           <DefinitionRow label="Recipients" value={String(counts.recipients)} />
           <DefinitionRow label="External accounts" value={String(counts.external_accounts)} />
           <DefinitionRow label="Graph edges" value={String(counts.graph_edges)} />
-          <Footnote>Fixture sample. Phase 2 generates the full synthetic population.</Footnote>
+          <Footnote>A representative sample of the synthetic population.</Footnote>
         </Card>
 
         <Card eyebrow="Event stream" title="Synthetic event types">
           <DefinitionRow
-            label="Total events in fixture"
+            label="Total events in this sample"
             value={String(totalEventCount)}
           />
           <ul className="mt-3 grid grid-cols-1 gap-1 font-mono text-[11px] text-atlas-text/80">
@@ -228,19 +228,19 @@ export function EnvironmentOverview() {
               </li>
             ))}
           </ul>
-          <Footnote>Allowed event types from synthetic_schema.</Footnote>
+          <Footnote>The activity types the agents can work with.</Footnote>
         </Card>
 
         <Card eyebrow="Scoring" title="Local mock scoring API">
           <DefinitionRow label="Institution" value={config.institution_label} />
           <DefinitionRow label="Model" value={config.model_label} />
           <DefinitionRow
-            label="Endpoint"
-            value={config.api.base_url}
+            label="Scoring surface"
+            value="Local mock API"
             mono
           />
           <DefinitionRow label="Posture" value="Local-only" />
-          <Footnote>Phase 4 brings the FastAPI service up; Phase 1 renders the configured surface only.</Footnote>
+          <Footnote>Scored locally by the mock risk model — no real systems involved.</Footnote>
         </Card>
 
         <Card eyebrow="Decision overlay" title="Baseline thresholds">
@@ -310,10 +310,10 @@ export function EnvironmentOverview() {
             value={formatSyntheticCurrency(baseline.synthetic_loss_allowed)}
             mono
           />
-          <Footnote>From judge baseline in the fixture replay record.</Footnote>
+          <Footnote>Measured before the agents start.</Footnote>
         </Card>
 
-        <Card eyebrow="Splits" title="Holdouts">
+        <Card eyebrow="Test sets" title="Holdouts">
           <ul className="space-y-3">
             {HOLDOUTS.map((h) => (
               <li key={h.id} className="border-l-2 border-atlas-border pl-3">
