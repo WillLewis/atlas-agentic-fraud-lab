@@ -86,6 +86,13 @@ _THRESHOLDS_TEMPLATE_PATH: Path = (
 # in-repo template's precision and keeps the YAML byte-stable.
 _THRESHOLD_FLOAT_PRECISION: int = 4
 
+# Fitted thresholds target a conservative fraction of the configured
+# caps. The config caps are judge limits, not training goals; leaving
+# headroom keeps clean / locked holdout action rates under those limits
+# when validation and holdout score distributions differ.
+_THRESHOLD_FIT_CAP_MARGIN: float = 0.5
+_DECLINE_THRESHOLD_FIT_CAP_MARGIN: float = 0.0
+
 
 # ---------------------------------------------------------------------------
 # Trainer
@@ -186,6 +193,9 @@ def _calibrated_validation_scores(
 def _fit_baseline_thresholds(
     calibrated_scores: np.ndarray,
     action_rate_limits: dict,
+    *,
+    cap_margin: float = _THRESHOLD_FIT_CAP_MARGIN,
+    decline_cap_margin: float = _DECLINE_THRESHOLD_FIT_CAP_MARGIN,
 ) -> tuple[float, float, float]:
     """Fit ``(challenge, alert, decline)`` thresholds at the upper-tail
     quantiles corresponding to the configured action-rate caps.
@@ -211,15 +221,31 @@ def _fit_baseline_thresholds(
     # Pull caps out of the action_rate_limits block. ``decline`` is
     # in basis points (1 bp = 0.01%); ``alert`` and ``challenge`` are
     # percentages.
-    decline_cap = float(action_rate_limits.get("decline_rate_limit_bps", 25)) / 10000.0
-    alert_cap = float(action_rate_limits.get("alert_rate_limit_pct", 15.0)) / 100.0
-    challenge_cap = float(action_rate_limits.get("challenge_rate_limit_pct", 8.0)) / 100.0
+    decline_cap = (
+        float(action_rate_limits.get("decline_rate_limit_bps", 25))
+        / 10000.0
+        * float(decline_cap_margin)
+    )
+    alert_cap = (
+        float(action_rate_limits.get("alert_rate_limit_pct", 15.0))
+        / 100.0
+        * float(cap_margin)
+    )
+    challenge_cap = (
+        float(action_rate_limits.get("challenge_rate_limit_pct", 8.0))
+        / 100.0
+        * float(cap_margin)
+    )
 
     # Each cap r maps to the (1 - r) quantile.  numpy.quantile uses the
     # 'linear' method by default — deterministic across runs.
     challenge_q = float(np.quantile(calibrated_scores, 1.0 - challenge_cap))
     alert_q = float(np.quantile(calibrated_scores, 1.0 - alert_cap))
-    decline_q = float(np.quantile(calibrated_scores, 1.0 - decline_cap))
+    decline_q = (
+        1.0
+        if decline_cap <= 0.0
+        else float(np.quantile(calibrated_scores, 1.0 - decline_cap))
+    )
 
     # Enforce challenge ≤ alert ≤ decline (could violate ordering on
     # tied / very small distributions).
@@ -291,6 +317,9 @@ def train_baseline_model(
     c_override: float | None = None,
     pre_model_step=None,
     fit_thresholds: bool = True,
+    threshold_version: str | None = None,
+    threshold_fit_cap_margin: float = _THRESHOLD_FIT_CAP_MARGIN,
+    decline_threshold_fit_cap_margin: float = _DECLINE_THRESHOLD_FIT_CAP_MARGIN,
     fitted_thresholds_dir: Path = _FITTED_THRESHOLDS_DIR,
     thresholds_template_path: Path = _THRESHOLDS_TEMPLATE_PATH,
 ) -> BaselineSummary:
@@ -345,7 +374,7 @@ def train_baseline_model(
 
       * ``fit_thresholds`` (default ``True``) — score the validation
         set with the calibrated pipeline and write
-        ``<fitted_thresholds_dir>/<THRESHOLD_VERSION>.yaml`` with
+        ``<fitted_thresholds_dir>/<threshold_version>.yaml`` with
         thresholds at the upper-tail quantiles corresponding to the
         action-rate caps in
         ``config/decision_thresholds.yaml.action_rate_limits``. The
@@ -357,6 +386,10 @@ def train_baseline_model(
         do not overwrite ``thresholds_v1.yaml``.
       * ``fitted_thresholds_dir`` / ``thresholds_template_path``
         kwargs are exposed so tests can point at hermetic paths.
+      * ``threshold_version`` lets model-changing defensive-fix
+        candidates materialize their own decision-threshold overlay
+        under the candidate version while preserving the same
+        action-rate-limit template.
     """
     train_data = load_train_labeled_features(data_dir)
     val_data = load_validation_labeled_features(data_dir)
@@ -408,7 +441,12 @@ def train_baseline_model(
         with thresholds_template_path.open("r", encoding="utf-8") as fh:
             template_doc = yaml.safe_load(fh) or {}
         action_rate_limits = template_doc.get("action_rate_limits") or {}
-        threshold_version = str(
+        effective_threshold_version = str(
+            threshold_version
+            if threshold_version is not None
+            else template_doc.get("decision_threshold_version", THRESHOLD_VERSION)
+        )
+        threshold_version_for_summary = str(
             template_doc.get("decision_threshold_version", THRESHOLD_VERSION)
         )
 
@@ -416,14 +454,19 @@ def train_baseline_model(
             base, val_data, columns, calibration
         )
         challenge, alert, decline = _fit_baseline_thresholds(
-            calibrated_scores, action_rate_limits
+            calibrated_scores,
+            action_rate_limits,
+            cap_margin=threshold_fit_cap_margin,
+            decline_cap_margin=decline_threshold_fit_cap_margin,
         )
         _persist_fitted_thresholds(
             challenge, alert, decline,
-            threshold_version=threshold_version,
+            threshold_version=effective_threshold_version,
             template_path=thresholds_template_path,
             output_dir=fitted_thresholds_dir,
         )
+    else:
+        threshold_version_for_summary = THRESHOLD_VERSION
 
     # --- Persist artifacts ---
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -444,7 +487,7 @@ def train_baseline_model(
 
     summary: BaselineSummary = {
         "model_version": effective_model_version,
-        "threshold_version": THRESHOLD_VERSION,
+        "threshold_version": threshold_version_for_summary,
         "train_seed": seed,
         "reference_now_utc": _read_reference_now_utc(data_dir),
         "fit_partition_counts": {"train": len(train_data)},

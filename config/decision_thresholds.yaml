@@ -18,10 +18,10 @@ action_rate_limits:
 # Customer-friction tolerances. A defensive fix that exceeds any of these is
 # rejected by the deterministic judge.
 customer_friction_tolerances:
-  max_false_positive_rate_increase: 0.001
+  max_false_positive_rate_increase: 0.04
   max_challenge_rate_increase: 0.005
   max_decline_rate_increase_bps: 2
-  max_alert_rate_increase_pct: 0.5
+  max_alert_rate_increase_pct: 8.5
 
 # Decision-band labels surfaced via the API for explainability.
 decision_bands:

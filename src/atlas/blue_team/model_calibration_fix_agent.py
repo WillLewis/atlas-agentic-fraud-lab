@@ -30,6 +30,7 @@ from atlas.model.train import train_baseline_model
 # ---------------------------------------------------------------------------
 
 CANDIDATE_MODELS_SUBDIR: Final[str] = "baseline_models"
+_CANDIDATE_THRESHOLD_CAP_MARGIN: Final[float] = 1.1
 
 
 def candidate_models_dir(outputs_root: Path = DEFAULT_OUTPUTS_ROOT) -> Path:
@@ -100,8 +101,10 @@ def apply_calibration_fix(
         model_version=..., c_override=...)`` — the Phase 4 trainer.
       * Trainer reads only ``train`` and ``validation`` partitions
         (loader refuses holdouts at the entry point).
-      * Writes the four-file artifact set under
-        ``outputs/baseline_models/<defensive_fix_id>/``.
+      * Writes the four-file model artifact set under
+        ``outputs/baseline_models/<defensive_fix_id>/`` and a candidate
+        threshold overlay under
+        ``outputs/decision_thresholds/<defensive_fix_id>.yaml``.
       * The four files have the same shape as ``baseline_v1`` so Phase 5
         ``_bundle_for_version`` loads them by directory name.
 
@@ -135,10 +138,10 @@ def apply_calibration_fix(
         output_dir=output_dir,
         model_version=candidate_version,
         c_override=float(manifest.proposed_l2_strength),
-        # Candidate uses baseline's fitted thresholds (per the Phase 7
-        # ``thresholds_v1`` convention in ``fix_applier``); do NOT
-        # overwrite ``outputs/decision_thresholds/thresholds_v1.yaml``.
-        fit_thresholds=False,
+        fit_thresholds=True,
+        threshold_version=candidate_version,
+        threshold_fit_cap_margin=_CANDIDATE_THRESHOLD_CAP_MARGIN,
+        fitted_thresholds_dir=outputs_root / "decision_thresholds",
     )
 
     # Surface relative paths matching what the strategy agent's
@@ -149,6 +152,7 @@ def apply_calibration_fix(
         f"{rel_root}/calibration.json",
         f"{rel_root}/feature_columns.json",
         f"{rel_root}/baseline_summary.json",
+        f"outputs/decision_thresholds/{candidate_version}.yaml",
     ]
     return candidate_version, changed
 

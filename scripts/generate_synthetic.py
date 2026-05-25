@@ -95,7 +95,7 @@ from atlas.synthetic.splits import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "synthetic"
-DEFAULT_CUSTOMER_COUNT = 200
+DEFAULT_CUSTOMER_COUNT = 600
 DEMO_CONFIG_PATH = REPO_ROOT / "config" / "demo.yaml"
 
 # Partitions whose data flows into the global flat files.

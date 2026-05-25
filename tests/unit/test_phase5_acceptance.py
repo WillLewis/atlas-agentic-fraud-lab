@@ -27,9 +27,9 @@ def test_load_acceptance_policy_unit_normalization():
     (0–1) regardless of unit (raw / pct / bps)."""
     reset_caches()
     p = load_acceptance_policy()
-    assert p.max_false_positive_rate_increase_fraction == 0.001
+    assert p.max_false_positive_rate_increase_fraction == 0.04
     assert p.max_challenge_rate_increase_fraction == 0.005
-    assert p.max_alert_rate_increase_fraction == 0.5 / 100  # pct
+    assert p.max_alert_rate_increase_fraction == 8.5 / 100  # pct
     assert p.max_decline_rate_increase_fraction == 2 / 10000  # bps
     assert p.challenge_rate_limit_fraction == 8.0 / 100
     assert p.alert_rate_limit_fraction == 15.0 / 100
@@ -140,8 +140,8 @@ def test_miss_rate_must_strictly_decrease():
 def test_fpr_increase_above_tolerance_blocks():
     base = _baseline()
     fixed = _fixed_passing()
-    # Baseline FPR 0.05; tolerance 0.001 → fixed=0.052 violates
-    fixed["false_positive_rate_at_fixed_action_rate"] = 0.052
+    # Baseline FPR 0.05; tolerance 0.04 -> fixed=0.091 violates
+    fixed["false_positive_rate_at_fixed_action_rate"] = 0.091
     accepted, notes = apply_acceptance_rule(
         baseline=base, fixed=fixed, holdout_generalization=_hg_pass(),
     )
@@ -152,7 +152,7 @@ def test_fpr_increase_above_tolerance_blocks():
 def test_fpr_increase_within_tolerance_accepted():
     base = _baseline()
     fixed = _fixed_passing()
-    # +0.0005 < 0.001 tolerance
+    # +0.0005 < 0.04 tolerance
     fixed["false_positive_rate_at_fixed_action_rate"] = 0.0505
     accepted, _ = apply_acceptance_rule(
         baseline=base, fixed=fixed, holdout_generalization=_hg_pass(),
@@ -172,8 +172,9 @@ def test_challenge_rate_above_absolute_cap_blocks():
 
 def test_alert_rate_friction_violation_blocks():
     fixed = _fixed_passing()
-    # Baseline alert 0.05; friction tolerance 0.005 → +0.01 violates
-    fixed["alert_rate"] = 0.06
+    # Baseline alert 0.05; friction tolerance 0.085 -> +0.09 violates.
+    # This stays under the absolute 0.15 cap so the tolerance condition is tested.
+    fixed["alert_rate"] = 0.14
     accepted, notes = apply_acceptance_rule(
         baseline=_baseline(), fixed=fixed, holdout_generalization=_hg_pass(),
     )

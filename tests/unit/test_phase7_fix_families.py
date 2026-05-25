@@ -291,7 +291,7 @@ def test_apply_calibration_fix_produces_non_identical_judge_metrics(
         baseline_model_version="baseline_v1",
         candidate_model_version=candidate_id,
         baseline_threshold_version="thresholds_v1",
-        candidate_threshold_version="thresholds_v1",
+        candidate_threshold_version=candidate_id,
         data_dir=DATA_DIR,
     )
     baseline = dict(report["baseline"])
@@ -389,6 +389,7 @@ def test_apply_calibration_fix_rejects_missing_seed(outputs):
 def test_propose_feature_fix_per_family():
     assert propose_feature_fix(family_id="low_velocity_high_graph_risk") == ("boost_graph_risk",)
     assert propose_feature_fix(family_id="recent_change_feature_delay") == ("boost_recent_security_signals",)
+    assert propose_feature_fix(family_id="score_boundary_cluster") == ("boost_boundary_cash_signal",)
     assert propose_feature_fix(family_id="activity_channel_shift") == ("boost_geo_consistency",)
     assert propose_feature_fix(family_id="current_device_mismatch") == ("boost_current_device_tenure",)
 
@@ -413,8 +414,8 @@ def test_feature_fix_transformer_does_not_mutate_input():
 
     t = _FeatureFixTransformer(("boost_graph_risk",))
     y = t.transform(x)
-    # Output is doubled
-    assert y[0, idx] == 0.8
+    # Output is a bounded nonlinear relationship-risk interaction.
+    assert y[0, idx] == pytest.approx(0.856)
     # Input is unchanged
     assert x[0, idx] == 0.4
 
@@ -437,9 +438,40 @@ def test_recent_security_transform_adds_low_tenure_graph_interaction():
     y = t.transform(x)
 
     assert y[0, recovery_idx] == 2.0
-    assert y[1, recovery_idx] == 2.0
-    assert y[0, graph_idx] == pytest.approx(1.04)
+    assert y[1, recovery_idx] == 1.0
+    assert y[0, graph_idx] == pytest.approx(1.39)
     assert y[1, graph_idx] == pytest.approx(0.52)
+
+
+def test_boundary_cash_transform_adds_score_boundary_interaction():
+    import numpy as np
+    from atlas.model.loader import FEATURE_COLUMNS
+
+    n_features = len(FEATURE_COLUMNS)
+    x = np.zeros((2, n_features), dtype=float)
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    recipient_idx = FEATURE_COLUMNS.index("recipient_tenure_days")
+    geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+    x[0, cash_idx] = 0.60
+    x[0, graph_idx] = 0.90
+    x[0, tenure_idx] = 100
+    x[0, recipient_idx] = 60
+    x[0, geo_idx] = 1
+    x[1, cash_idx] = 0.30
+    x[1, graph_idx] = 0.90
+    x[1, tenure_idx] = 100
+    x[1, recipient_idx] = 60
+    x[1, geo_idx] = 1
+
+    t = _FeatureFixTransformer(("boost_boundary_cash_signal",))
+    y = t.transform(x)
+
+    assert y[0, graph_idx] == pytest.approx(1.6)
+    assert y[0, cash_idx] == pytest.approx(1.08)
+    assert y[1, graph_idx] == 0.0
+    assert y[1, cash_idx] == 0.30
 
 
 def _feature_manifest():
@@ -556,4 +588,5 @@ def test_allowed_feature_transforms_canonical():
         "boost_recent_security_signals",
         "boost_geo_consistency",
         "boost_current_device_tenure",
+        "boost_boundary_cash_signal",
     })

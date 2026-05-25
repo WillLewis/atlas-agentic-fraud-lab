@@ -198,8 +198,8 @@ def test_apply_fix_current_versions_flow_to_judge(outputs_with_baseline):
         assert kw["candidate_threshold_version"] == "fix_round2_test"
 
 
-def test_apply_fix_model_candidate_preserves_current_threshold(outputs_with_baseline):
-    """Model candidates compose with the current accepted threshold."""
+def test_apply_fix_model_candidate_uses_candidate_threshold(outputs_with_baseline):
+    """Model candidates materialize their own fitted threshold overlay."""
     import atlas.blue_team.fix_applier as applier_mod
     from atlas.blue_team.fix_applier import apply_fix
 
@@ -222,11 +222,11 @@ def test_apply_fix_model_candidate_preserves_current_threshold(outputs_with_base
         assert kw["baseline_model_version"] == "model_round1_accepted"
         assert kw["candidate_model_version"] == "fix_model_round2"
         assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
-        assert kw["candidate_threshold_version"] == "threshold_round1_accepted"
+        assert kw["candidate_threshold_version"] == "fix_model_round2"
 
 
-def test_apply_fix_feature_candidate_preserves_current_threshold(outputs_with_baseline):
-    """Feature candidates compose with the current accepted threshold."""
+def test_apply_fix_feature_candidate_uses_candidate_threshold(outputs_with_baseline):
+    """Feature candidates materialize their own fitted threshold overlay."""
     import atlas.blue_team.fix_applier as applier_mod
     from atlas.blue_team.fix_applier import apply_fix
 
@@ -249,7 +249,7 @@ def test_apply_fix_feature_candidate_preserves_current_threshold(outputs_with_ba
         assert kw["baseline_model_version"] == "model_round1_accepted"
         assert kw["candidate_model_version"] == "fix_feature_round2"
         assert kw["baseline_threshold_version"] == "threshold_round1_accepted"
-        assert kw["candidate_threshold_version"] == "threshold_round1_accepted"
+        assert kw["candidate_threshold_version"] == "fix_feature_round2"
 
 
 def test_apply_fix_found_adaptive_propagates(outputs_with_baseline):

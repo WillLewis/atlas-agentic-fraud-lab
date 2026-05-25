@@ -24,8 +24,8 @@ decision_bands:
   alert_band: alert_threshold_band
   challenge_band: challenge_threshold_band
   decline_band: decline_threshold_band
-decision_threshold_version: thresholds_v1
+decision_threshold_version: fix_round2_current_device_mismatch_feature_fix
 decision_thresholds:
-  alert_score_threshold: 0.2523
-  challenge_score_threshold: 0.2523
+  alert_score_threshold: 0.2086
+  challenge_score_threshold: 0.2086
   decline_score_threshold: 1.0

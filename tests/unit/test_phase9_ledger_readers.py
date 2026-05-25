@@ -85,7 +85,7 @@ def test_list_run_states_returns_persisted(tmp_path):
     persist_run_state(a, outputs_root=outputs)
     persist_run_state(b, outputs_root=outputs)
     runs = list_run_states(outputs)
-    assert [r.run_id for r in runs] == ["run_aaaaaa01", "run_bbbbbb02"]
+    assert [r.run_id for r in runs] == ["run_bbbbbb02", "run_aaaaaa01"]
 
 
 def test_list_run_states_skips_round_companions(tmp_path):

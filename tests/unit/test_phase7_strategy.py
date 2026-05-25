@@ -98,16 +98,15 @@ def test_round_config_excludes_calibration_in_round_1(outputs):
     assert cands == []
 
 
-def test_card_recommendation_excludes_unsupported_fix_for_family(outputs):
-    """score_boundary_cluster only recommends policy_fix. Even if request
-    asks for [feature_fix, policy_fix], only policy_fix is emitted."""
+def test_card_recommendation_controls_emitted_fix_types(outputs):
+    """The card's closed-enum recommendations control emitted fix types."""
     _persist({
         "model_vulnerability_id": "mv_round1_score_boundary_cluster",
         "run_id": "r", "round_id": 1,
         "family_id": "score_boundary_cluster",
         "found_adaptive_set_event_ids": [],
         "model_miss_rate": 1.0,
-        "recommended_defensive_fix_types": ["policy_fix"],
+        "recommended_defensive_fix_types": ["feature_fix", "policy_fix"],
         "summary": "...",
     }, outputs)
     cands = propose_fixes(
@@ -116,7 +115,7 @@ def test_card_recommendation_excludes_unsupported_fix_for_family(outputs):
         allowed_fix_types=["feature_fix", "policy_fix"],
         outputs_root=outputs,
     )
-    assert [c.fix_type for c in cands] == ["policy_fix"]
+    assert [c.fix_type for c in cands] == ["feature_fix", "policy_fix"]
 
 
 def test_empty_intersection_yields_empty_result_not_error(outputs):
@@ -149,7 +148,7 @@ def test_every_emitted_fix_type_in_canonical_enum(outputs):
     """All emitted candidates must have fix_type ∈ ALLOWED_FIX_TYPES."""
     for fam, fixes in [
         ("low_velocity_high_graph_risk", ["feature_fix", "policy_fix"]),
-        ("score_boundary_cluster", ["policy_fix"]),
+        ("score_boundary_cluster", ["feature_fix", "policy_fix"]),
         ("activity_channel_shift", ["feature_fix"]),
     ]:
         vuln_id = f"mv_round1_{fam}"

@@ -24,11 +24,9 @@ internal numpy matrix only — the request schema is untouched.
 
 Closed-enum transform specs (no free-form code path):
 
-  * ``boost_graph_risk``               — multiplies
-                                          ``entity_graph_risk_score`` by
-                                          2.0 so the model learns a
-                                          larger relative weight on
-                                          relationship-graph risk.
+  * ``boost_graph_risk``               — replaces ``entity_graph_risk_score``
+                                          with a bounded nonlinear
+                                          relationship-risk interaction.
   * ``boost_recent_security_signals``  — multiplies
                                           ``password_recovery_count_72h``
                                           by 2.0 and adds a bounded
@@ -36,14 +34,17 @@ Closed-enum transform specs (no free-form code path):
                                           interaction so recent access
                                           changes can steer the score
                                           upward.
-  * ``boost_geo_consistency``          — remaps ``geo_consistency_flag``
-                                          from ``{0, 1}`` to ``{-1, 1}``
-                                          giving the model a directional
-                                          signal on geo consistency.
+  * ``boost_geo_consistency``          — replaces ``geo_consistency_flag``
+                                          with a bounded channel-shift
+                                          interaction.
   * ``boost_current_device_tenure``    — applies ``log1p`` to
                                           ``current_device_tenure_days``
                                           so the model sees a compressed
                                           tenure scale.
+  * ``boost_boundary_cash_signal``     — emphasizes the bounded interaction
+                                          between cash-movement velocity,
+                                          graph risk, and a less-established
+                                          current device.
 """
 
 from __future__ import annotations
@@ -71,10 +72,12 @@ ALLOWED_FEATURE_TRANSFORMS: Final[frozenset[str]] = frozenset(
         "boost_recent_security_signals",
         "boost_geo_consistency",
         "boost_current_device_tenure",
+        "boost_boundary_cash_signal",
     }
 )
 
 _RECENT_DEVICE_TENURE_DAYS_MAX: Final[float] = 14.0
+_CANDIDATE_THRESHOLD_CAP_MARGIN: Final[float] = 1.1
 
 # Per-family closed-enum spec list. Mirrors the strategy_agent's
 # previous ``_FEATURE_TRANSFORMS_BY_FAMILY`` (now imported back into
@@ -82,6 +85,7 @@ _RECENT_DEVICE_TENURE_DAYS_MAX: Final[float] = 14.0
 _FEATURE_TRANSFORMS_BY_FAMILY: Final[dict[str, tuple[str, ...]]] = {
     "low_velocity_high_graph_risk": ("boost_graph_risk",),
     "recent_change_feature_delay": ("boost_recent_security_signals",),
+    "score_boundary_cluster": ("boost_boundary_cash_signal",),
     "activity_channel_shift":      ("boost_geo_consistency",),
     "current_device_mismatch":     ("boost_current_device_tenure",),
 }
@@ -105,23 +109,104 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
     out = x.copy()
     if spec == "boost_graph_risk":
         idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
-        out[:, idx] = out[:, idx] * 2.0
+        shared_recipient_idx = FEATURE_COLUMNS.index("shared_recipient_degree")
+        shared_device_idx = FEATURE_COLUMNS.index("shared_device_degree")
+        cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+        graph = out[:, idx]
+        relationship_signal = (
+            (2.0 * graph)
+            + (0.35 * graph * graph)
+            + (0.08 * np.log1p(out[:, shared_recipient_idx]))
+            + (0.05 * np.log1p(out[:, shared_device_idx]))
+        )
+        out[:, idx] = np.clip(relationship_signal, 0.0, 3.0)
+        out[:, cash_idx] = np.clip(out[:, cash_idx] + (0.15 * graph), 0.0, 2.0)
     elif spec == "boost_recent_security_signals":
         recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
         graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
         tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
-        out[:, recovery_idx] = out[:, recovery_idx] * 2.0
+        device_idx = FEATURE_COLUMNS.index("device_count_72h")
+        cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
         low_tenure = (
             out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX
         ).astype(float)
-        out[:, graph_idx] = out[:, graph_idx] + (low_tenure * out[:, graph_idx])
+        recent_signal = out[:, recovery_idx] + low_tenure + (
+            out[:, device_idx] >= 2.0
+        ).astype(float)
+        out[:, recovery_idx] = np.clip(recent_signal, 0.0, 4.0)
+        low_tenure = (
+            out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX
+        ).astype(float)
+        out[:, graph_idx] = np.clip(
+            out[:, graph_idx] + (low_tenure * (0.35 + out[:, graph_idx])),
+            0.0,
+            3.0,
+        )
+        out[:, cash_idx] = np.clip(
+            out[:, cash_idx] + (0.12 * recent_signal),
+            0.0,
+            2.0,
+        )
     elif spec == "boost_geo_consistency":
         idx = FEATURE_COLUMNS.index("geo_consistency_flag")
-        # {0, 1} → {-1, 1}
-        out[:, idx] = (2.0 * out[:, idx]) - 1.0
+        graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+        cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+        geo_shift = 1.0 - out[:, idx]
+        out[:, idx] = np.clip(
+            geo_shift * (1.0 + out[:, graph_idx] + out[:, cash_idx]),
+            0.0,
+            3.0,
+        )
+        out[:, graph_idx] = np.clip(
+            out[:, graph_idx] + (0.25 * geo_shift * (1.0 + out[:, cash_idx])),
+            0.0,
+            3.0,
+        )
     elif spec == "boost_current_device_tenure":
         idx = FEATURE_COLUMNS.index("current_device_tenure_days")
-        out[:, idx] = np.log1p(out[:, idx])
+        device_idx = FEATURE_COLUMNS.index("device_count_72h")
+        graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+        cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+        tenure_days = out[:, idx]
+        less_established = (
+            (tenure_days >= 60.0) & (tenure_days <= 150.0)
+        ).astype(float)
+        current_device_signal = less_established * (
+            0.5 + out[:, cash_idx] + (0.25 * out[:, graph_idx])
+        )
+        out[:, idx] = np.where(
+            less_established > 0.0, 0.0, np.log1p(tenure_days)
+        )
+        out[:, device_idx] = np.clip(
+            out[:, device_idx] + current_device_signal,
+            0.0,
+            6.0,
+        )
+        out[:, cash_idx] = np.clip(
+            out[:, cash_idx] + (0.3 * current_device_signal),
+            0.0,
+            2.0,
+        )
+    elif spec == "boost_boundary_cash_signal":
+        graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+        cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+        tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+        recipient_idx = FEATURE_COLUMNS.index("recipient_tenure_days")
+        geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+        cash = out[:, cash_idx]
+        graph = out[:, graph_idx]
+        boundary_cash = ((cash >= 0.48) & (graph >= 0.8)).astype(float)
+        device_context = (out[:, tenure_idx] <= 150.0).astype(float)
+        recipient_context = (out[:, recipient_idx] <= 120.0).astype(float)
+        channel_shift = (out[:, geo_idx] == 0.0).astype(float)
+        boundary_signal = (
+            boundary_cash
+            + (0.35 * device_context * boundary_cash)
+            + (0.25 * recipient_context * boundary_cash)
+            + (0.15 * channel_shift)
+        )
+        out[:, graph_idx] = np.clip(boundary_signal, 0.0, 2.0)
+        out[:, cash_idx] = np.clip(cash + (0.3 * boundary_signal), 0.0, 2.0)
     return out
 
 
@@ -208,7 +293,8 @@ def apply_feature_fix(
         manifest's spec list. ``train_baseline_model`` accepts this via
         the ``pre_model_step`` keyword.
       * Phase 4 trainer reads only ``train`` + ``validation`` (loader
-        refuses holdouts at the entry point).
+        refuses holdouts at the entry point) and fits a candidate
+        decision-threshold overlay at the same action-rate limits.
       * Persisted ``feature_columns.json`` keeps exactly 15 columns —
         the public ``/score`` request shape is **unchanged**.
       * Score-time predict_proba goes through the same transform, so
@@ -240,10 +326,10 @@ def apply_feature_fix(
         output_dir=output_dir,
         model_version=candidate_version,
         pre_model_step=transformer,
-        # Candidate uses baseline's fitted thresholds (per the Phase 7
-        # ``thresholds_v1`` convention in ``fix_applier``); do NOT
-        # overwrite ``outputs/decision_thresholds/thresholds_v1.yaml``.
-        fit_thresholds=False,
+        fit_thresholds=True,
+        threshold_version=candidate_version,
+        threshold_fit_cap_margin=_CANDIDATE_THRESHOLD_CAP_MARGIN,
+        fitted_thresholds_dir=outputs_root / "decision_thresholds",
     )
 
     rel_root = f"outputs/{CANDIDATE_MODELS_SUBDIR}/{candidate_version}"
@@ -252,6 +338,7 @@ def apply_feature_fix(
         f"{rel_root}/calibration.json",
         f"{rel_root}/feature_columns.json",
         f"{rel_root}/baseline_summary.json",
+        f"outputs/decision_thresholds/{candidate_version}.yaml",
     ]
     return candidate_version, changed
 

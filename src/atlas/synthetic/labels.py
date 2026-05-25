@@ -10,7 +10,7 @@ Each label record carries the same eight drivers as the fixture:
 
   * ``base_customer_risk``                — direct from ``customer.synthetic_base_risk``
   * ``account_access_change_marker``      — recent recovery / profile-update events
-  * ``device_novelty_marker``             — current device first-seen <= 7 days
+  * ``device_novelty_marker``             — current device is not long-tenured
   * ``security_recovery_marker``          — recent password / username recovery
   * ``cash_movement_velocity_marker``     — large transfer or top amount bucket
   * ``entity_reuse_marker``               — recipient reuse-degree >= 4
@@ -19,12 +19,16 @@ Each label record carries the same eight drivers as the fixture:
 
 Probability formula
 -------------------
-Verified against the fixture's two examples (tx_000001 → 0.04, tx_000002
-→ 0.83):
+The public demo labels emphasize observable synthetic feature interactions.
+That keeps the walkthrough about fixable model behavior, not hidden latent
+customer risk:
 
     sum_markers = sum(six binary markers)
     if sum_markers > 0:
-        prob = base_customer_risk + 0.10 * sum_markers + label_noise
+        prob = 0.45 * base_customer_risk
+             + 0.08 * sum_markers
+             + interaction_bonus
+             + label_noise
     else:
         prob = base_customer_risk / 6.0 + label_noise
     prob = clamp(round(prob, 4), 0.0, 1.0)
@@ -91,15 +95,20 @@ ALLOWED_LABEL_VALUES: Final[tuple[str, ...]] = (
     "high_risk_synthetic_activity",
 )
 
-# Marker thresholds and weights. Tuned to match the two fixture examples.
+# Marker thresholds and weights. Tuned for a demo population where risk
+# labels depend on observable synthetic signals instead of base-risk alone.
 _HIGH_RISK_THRESHOLD: Final[float] = 0.5
-_PER_MARKER_WEIGHT: Final[float] = 0.10
+_BASE_RISK_WEIGHT_WITH_MARKERS: Final[float] = 0.45
+_PER_MARKER_WEIGHT: Final[float] = 0.08
+_CASH_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.22
+_CASH_ENTITY_INTERACTION_WEIGHT: Final[float] = 0.14
+_RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.12
 # Dampener applied to base_customer_risk when no markers fire. 1/6 is the
 # value that reproduces the fixture's tx_000001 row exactly (0.18/6 + 0.01
 # = 0.04). See the module docstring for the formula.
 _BASE_DAMPENER_NO_MARKERS: Final[float] = 1.0 / 6.0
 
-_DEVICE_NOVELTY_DAYS: Final[int] = 7
+_DEVICE_NOVELTY_DAYS: Final[int] = 150
 _ENTITY_REUSE_DEGREE_THRESHOLD: Final[int] = 4
 _TOP_AMOUNT_BUCKETS: Final[frozenset[str]] = frozenset(
     {"amount_bucket_08", "amount_bucket_09", "amount_bucket_10"}
@@ -185,11 +194,34 @@ def _is_high_reuse_recipient(recipient: Recipient) -> bool:
 
 
 def _compute_risk_probability(
-    base_customer_risk: float, marker_sum: int, label_noise: float
+    base_customer_risk: float,
+    marker_sum: int,
+    label_noise: float,
+    *,
+    account_access_change_marker: int,
+    device_novelty_marker: int,
+    security_recovery_marker: int,
+    cash_movement_velocity_marker: int,
+    entity_reuse_marker: int,
 ) -> float:
-    """Latent → probability. Verified against fixture rows."""
+    """Latent drivers → synthetic risk probability."""
     if marker_sum > 0:
-        raw = base_customer_risk + _PER_MARKER_WEIGHT * marker_sum + label_noise
+        interaction_bonus = 0.0
+        if cash_movement_velocity_marker and device_novelty_marker:
+            interaction_bonus += _CASH_DEVICE_INTERACTION_WEIGHT
+        if cash_movement_velocity_marker and entity_reuse_marker:
+            interaction_bonus += _CASH_ENTITY_INTERACTION_WEIGHT
+        if (
+            device_novelty_marker
+            and (account_access_change_marker or security_recovery_marker)
+        ):
+            interaction_bonus += _RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT
+        raw = (
+            (_BASE_RISK_WEIGHT_WITH_MARKERS * base_customer_risk)
+            + (_PER_MARKER_WEIGHT * marker_sum)
+            + interaction_bonus
+            + label_noise
+        )
     else:
         raw = _BASE_DAMPENER_NO_MARKERS * base_customer_risk + label_noise
     clamped = max(0.0, min(1.0, raw))
@@ -342,6 +374,11 @@ def generate_label_generation_records(
             base_customer_risk=customer["synthetic_base_risk"],
             marker_sum=marker_sum,
             label_noise=label_noise,
+            account_access_change_marker=access_change,
+            device_novelty_marker=device_novelty,
+            security_recovery_marker=security_recovery,
+            cash_movement_velocity_marker=cash_velocity,
+            entity_reuse_marker=entity_reuse,
         )
         label = _label_from_probability(prob)
 

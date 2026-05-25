@@ -109,14 +109,12 @@ def _materialize_candidate(
                                   ``manifest.defensive_fix_id``;
                                   model version stays at the current
                                   accepted model version.
-      * ``model_calibration_fix`` → candidate model version =
-                                   ``manifest.defensive_fix_id``;
-                                   threshold version stays at the current
-                                   accepted threshold version.
-      * ``feature_fix``          → candidate model version =
-                                   ``manifest.defensive_fix_id``;
-                                   threshold version stays at the current
-                                   accepted threshold version.
+      * ``model_calibration_fix`` → candidate model version and threshold
+                                   version both equal
+                                   ``manifest.defensive_fix_id``.
+      * ``feature_fix``          → candidate model version and threshold
+                                   version both equal
+                                   ``manifest.defensive_fix_id``.
     """
     baseline_model_version = current_model_version or _BASELINE_MODEL_VERSION
     baseline_threshold_version = (
@@ -135,13 +133,13 @@ def _materialize_candidate(
         candidate_model_version, changed_files = apply_calibration_fix(
             manifest, outputs_root=outputs_root, data_dir=data_dir
         )
-        return candidate_model_version, baseline_threshold_version, changed_files
+        return candidate_model_version, candidate_model_version, changed_files
 
     if manifest.fix_type == "feature_fix":
         candidate_model_version, changed_files = apply_feature_fix(
             manifest, outputs_root=outputs_root, data_dir=data_dir
         )
-        return candidate_model_version, baseline_threshold_version, changed_files
+        return candidate_model_version, candidate_model_version, changed_files
 
     raise ValueError(
         f"unknown manifest.fix_type {manifest.fix_type!r}; "

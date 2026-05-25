@@ -103,6 +103,10 @@ DESCRIPTION_TEMPLATES: Final[dict[tuple[str, str], str]] = {
         "to capture high-risk synthetic events clustered just below the "
         "current threshold."
     ),
+    ("score_boundary_cluster", "feature_fix"): (
+        "Apply a synthetic feature transform that emphasizes the cash "
+        "movement and relationship-risk pattern near the score boundary."
+    ),
     ("activity_channel_shift", "feature_fix"): (
         "Apply a synthetic feature transform that emphasizes geo "
         "consistency at training time."

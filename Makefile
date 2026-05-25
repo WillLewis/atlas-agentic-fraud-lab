@@ -17,7 +17,7 @@ API_PORT ?= 8000
 SEED ?= $(shell $(PYTHON) -c "import secrets; print(secrets.randbelow(2147483647) + 1)")
 
 .PHONY: help setup setup-python setup-web seed train run-rounds build-replay \
-        bootstrap test safety-scan demo-api demo-web clean
+        search-demo-case bootstrap test safety-scan demo-api demo-web clean
 
 help:
 	@echo "Project Atlas commands:"
@@ -27,6 +27,7 @@ help:
 	@echo "  make train         train baseline mock scorer (Phase 4)"
 	@echo "  make run-rounds    run three red-team/defense rounds (Phase 8)"
 	@echo "  make build-replay  build web replay JSON (Phase 8)"
+	@echo "  make search-demo-case search for a curated synthetic demo case"
 	@echo "  make test          run pytest"
 	@echo "  make safety-scan   run public-mode safety scan"
 	@echo "  make demo-api      start local FastAPI (Phase 4)"
@@ -67,6 +68,9 @@ build-replay:
 	fi; \
 	RUN_ID=$$(basename "$$RUN_FILE" .json); \
 	PYTHONPATH=src $(PYTHON) scripts/build_replay.py --outputs-root outputs --run-id $$RUN_ID
+
+search-demo-case:
+	PYTHONPATH=src $(PYTHON) scripts/search_demo_case.py
 
 bootstrap:
 	PYTHONPATH=src $(PYTHON) scripts/bootstrap_demo.py

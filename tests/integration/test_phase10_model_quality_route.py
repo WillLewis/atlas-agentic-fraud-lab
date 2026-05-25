@@ -68,8 +68,8 @@ def test_model_quality_matrix_cell_a_uses_curated_replay_metrics(api_client):
     assert cell_a["source_run_id"] == "run_4548ebb8"
     assert cell_a["metrics_source"] == "judge_derived_replay"
     assert cell_a["metrics_status"] == "loaded"
-    assert cell_a["average_model_miss_rate"] == pytest.approx(0.7222)
-    assert cell_a["average_recall_recovery_points"] == pytest.approx(16.66)
+    assert cell_a["average_model_miss_rate"] == pytest.approx(0.625)
+    assert cell_a["average_recall_recovery_points"] == pytest.approx(37.5)
     assert cell_a["fixed_action_rate_pass"] is True
 
 

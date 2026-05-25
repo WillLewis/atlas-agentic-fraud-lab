@@ -302,7 +302,7 @@ def test_apply_calibration_fix_end_to_end(seeded_api_client):
     assert apply_r.status_code == 200, apply_r.text
     body = apply_r.json()
     assert body["candidate_model_version"] == cand["defensive_fix_id"]
-    assert body["candidate_threshold_version"] == "thresholds_v1"
+    assert body["candidate_threshold_version"] == cand["defensive_fix_id"]
 
 
 def test_apply_route_uses_previous_round_versions(seeded_api_client):

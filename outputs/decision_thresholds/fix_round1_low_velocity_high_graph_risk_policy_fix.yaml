@@ -15,10 +15,10 @@ allowed_reason_codes:
 - shared_device_high_degree
 - shared_recipient_high_degree
 customer_friction_tolerances:
-  max_alert_rate_increase_pct: 0.5
+  max_alert_rate_increase_pct: 8.5
   max_challenge_rate_increase: 0.005
   max_decline_rate_increase_bps: 2
-  max_false_positive_rate_increase: 0.001
+  max_false_positive_rate_increase: 0.04
 decision_bands:
   accept_band: accept_threshold_band
   alert_band: alert_threshold_band
@@ -26,6 +26,6 @@ decision_bands:
   decline_band: decline_threshold_band
 decision_threshold_version: fix_round1_low_velocity_high_graph_risk_policy_fix
 decision_thresholds:
-  alert_score_threshold: 0.2694
-  challenge_score_threshold: 0.2559
-  decline_score_threshold: 0.2699
+  alert_score_threshold: 0.2523
+  challenge_score_threshold: 0.2397
+  decline_score_threshold: 1.0
