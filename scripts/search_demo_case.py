@@ -31,6 +31,7 @@ from atlas.ledger.ledger import load_round_state, round_state_path  # noqa: E402
 from atlas.ledger.replay import build_replay_payload, persist_replay_payload  # noqa: E402
 from atlas.ledger.run_engine import execute_run  # noqa: E402
 from atlas.model.train import train_baseline_model  # noqa: E402
+from atlas.red_team.mutations import ALLOWED_FAMILY_IDS  # noqa: E402
 from atlas.synthetic.fixture_health import (  # noqa: E402
     FixtureHealthReport,
     evaluate_fixture_health,
@@ -44,9 +45,16 @@ DEFAULT_RUN_SEEDS = "42-62"
 
 TARGETS: dict[str, float] = {
     "miss_abs_drop": 0.3333,
-    "final_recall": 0.50,
-    "loss_rel_drop": 0.30,
+    "max_final_miss": 0.3333,
+    "final_recall": 0.66,
+    "loss_rel_drop": 0.50,
     "accepted_fixes": 1.0,
+    "accepted_family_count": 2.0,
+    "rejected_generalization_fixes": 1.0,
+    "max_final_false_positive_rate": 0.05,
+    "max_final_challenge_rate": 0.08,
+    "max_final_alert_rate": 0.15,
+    "max_final_decline_rate": 0.0025,
 }
 
 PROMOTED_OUTPUT_SUBDIRS: tuple[str, ...] = (
@@ -148,6 +156,29 @@ def _reports_for_run(*, outputs_root: Path, run_id: str) -> list[dict[str, Any]]
     return out
 
 
+def _family_from_fix_id(defensive_fix_id: str) -> str | None:
+    for family_id in ALLOWED_FAMILY_IDS:
+        if family_id in defensive_fix_id:
+            return family_id
+    return None
+
+
+def _is_rejected_generalization_case(report: dict[str, Any]) -> bool:
+    if report.get("accepted_by_judge") is True:
+        return False
+    holdouts = report.get("holdout_generalization")
+    if not isinstance(holdouts, dict):
+        return False
+    return (
+        holdouts.get("found_adaptive_set_pass") is True
+        and (
+            holdouts.get("clean_holdout_pass") is False
+            or holdouts.get("locked_adaptive_holdout_pass") is False
+            or holdouts.get("drifted_holdout_pass") is False
+        )
+    )
+
+
 def _score_candidate(
     *,
     dataset_seed: int,
@@ -161,6 +192,16 @@ def _score_candidate(
     final = metrics[-1]
     reports = _reports_for_run(outputs_root=outputs_root, run_id=payload["run"]["run_id"])
     accepted = [r for r in reports if r.get("accepted_by_judge") is True]
+    accepted_families = sorted(
+        {
+            family
+            for report in accepted
+            if (family := _family_from_fix_id(str(report.get("defensive_fix_id", ""))))
+        }
+    )
+    rejected_generalization = [
+        r for r in reports if _is_rejected_generalization_case(r)
+    ]
     baseline_loss = float(baseline.get("synthetic_loss_allowed") or 0.0)
     final_loss = float(final.get("synthetic_loss_allowed") or 0.0)
     loss_abs_drop = baseline_loss - final_loss
@@ -174,6 +215,12 @@ def _score_candidate(
         "run_id": payload["run"]["run_id"],
         "accepted_fixes": len(accepted),
         "accepted_rounds": [int(r["round_id"]) for r in accepted],
+        "accepted_fix_families": accepted_families,
+        "accepted_family_count": len(accepted_families),
+        "rejected_generalization_fixes": len(rejected_generalization),
+        "rejected_generalization_rounds": [
+            int(r["round_id"]) for r in rejected_generalization
+        ],
         "baseline_miss": round(baseline_miss, 4),
         "final_miss": round(final_miss, 4),
         "miss_abs_drop": round(baseline_miss - final_miss, 4),
@@ -208,12 +255,27 @@ def _score_candidate(
 
 
 def _qualifies(result: dict[str, Any]) -> bool:
+    story_gate_passes = (
+        result["accepted_family_count"] >= int(TARGETS["accepted_family_count"])
+        or (
+            result["accepted_fixes"] >= int(TARGETS["accepted_fixes"])
+            and result["rejected_generalization_fixes"]
+            >= int(TARGETS["rejected_generalization_fixes"])
+        )
+    )
     return (
         result["fixture_health"]["passed"]
         and result["accepted_fixes"] >= int(TARGETS["accepted_fixes"])
+        and story_gate_passes
         and result["miss_abs_drop"] >= TARGETS["miss_abs_drop"]
+        and result["final_miss"] <= TARGETS["max_final_miss"]
         and result["final_recall"] >= TARGETS["final_recall"]
         and result["loss_rel_drop"] >= TARGETS["loss_rel_drop"]
+        and result["final_false_positive_rate"]
+        <= TARGETS["max_final_false_positive_rate"]
+        and result["final_challenge_rate"] <= TARGETS["max_final_challenge_rate"]
+        and result["final_alert_rate"] <= TARGETS["max_final_alert_rate"]
+        and result["final_decline_rate"] <= TARGETS["max_final_decline_rate"]
         and all(result["locked_holdout_passes"])
         and all(result["drifted_holdout_passes"])
     )

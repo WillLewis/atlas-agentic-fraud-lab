@@ -1,6 +1,10 @@
 {
   "attempts": [
     {
+      "accepted_family_count": 1,
+      "accepted_fix_families": [
+        "current_device_mismatch"
+      ],
       "accepted_fixes": 1,
       "accepted_rounds": [
         2
@@ -53,7 +57,11 @@
       "loss_abs_drop": 1371500.0,
       "loss_rel_drop": 0.6172,
       "miss_abs_drop": 0.375,
-      "qualifies": true,
+      "qualifies": false,
+      "rejected_generalization_fixes": 1,
+      "rejected_generalization_rounds": [
+        3
+      ],
       "run_id": "run_4548ebb8",
       "run_seed": 42
     }
@@ -65,73 +73,18 @@
   "run_seeds": [
     42
   ],
-  "selected": {
-    "dataset_seed": 6001,
-    "metrics": {
-      "accepted_fixes": 1,
-      "accepted_rounds": [
-        2
-      ],
-      "baseline_loss": 2222000.0,
-      "baseline_miss": 0.875,
-      "baseline_recall": 0.125,
-      "customer_count": 600,
-      "dataset_seed": 6001,
-      "drifted_holdout_passes": [
-        true
-      ],
-      "final_alert_rate": 0.1081,
-      "final_challenge_rate": 0.0,
-      "final_decline_rate": 0.0,
-      "final_false_positive_rate": 0.0421,
-      "final_loss": 850500.0,
-      "final_miss": 0.5,
-      "final_recall": 0.5,
-      "fixture_health": {
-        "failed_holdouts": [],
-        "holdouts": {
-          "clean_holdout": {
-            "high_risk_events": 16,
-            "min_high_risk_events": 12,
-            "normal_events": 95,
-            "passed": true,
-            "total_events": 111
-          },
-          "drifted_holdout": {
-            "high_risk_events": 22,
-            "min_high_risk_events": 4,
-            "normal_events": 87,
-            "passed": true,
-            "total_events": 109
-          },
-          "locked_adaptive_holdout": {
-            "high_risk_events": 9,
-            "min_high_risk_events": 4,
-            "normal_events": 126,
-            "passed": true,
-            "total_events": 135
-          }
-        },
-        "passed": true
-      },
-      "locked_holdout_passes": [
-        true
-      ],
-      "loss_abs_drop": 1371500.0,
-      "loss_rel_drop": 0.6172,
-      "miss_abs_drop": 0.375,
-      "qualifies": true,
-      "run_id": "run_4548ebb8",
-      "run_seed": 42
-    },
-    "promoted_to_repo": true,
-    "run_id": "run_4548ebb8",
-    "run_seed": 42
-  },
+  "selected": null,
   "targets": {
+    "accepted_family_count": 2.0,
     "accepted_fixes": 1.0,
-    "final_recall": 0.5,
-    "loss_rel_drop": 0.3,
-    "miss_abs_drop": 0.3333
+    "final_recall": 0.66,
+    "loss_rel_drop": 0.5,
+    "max_final_alert_rate": 0.15,
+    "max_final_challenge_rate": 0.08,
+    "max_final_decline_rate": 0.0025,
+    "max_final_false_positive_rate": 0.05,
+    "max_final_miss": 0.3333,
+    "miss_abs_drop": 0.3333,
+    "rejected_generalization_fixes": 1.0
   }
 }
