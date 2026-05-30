@@ -57,7 +57,7 @@ export async function apiFetch<T>(
       detail = null;
     }
     throw new AtlasApiError(
-      `Atlas API ${path} failed (${res.status})`,
+      `ATLAS API ${path} failed (${res.status})`,
       res.status,
       detail,
     );

@@ -22,7 +22,7 @@ export function DisclaimerBanner() {
   const badgeLabel = MODE_BADGE_LABELS[config.demo_mode];
 
   return (
-    <div className="border-b border-atlas-border bg-atlas-surface/95 px-6 py-2 backdrop-blur">
+    <div className="atlas-demo-banner border-b px-6 py-2 backdrop-blur">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-atlas-muted">
         <span
           className="inline-flex items-center gap-1.5 rounded-sm bg-atlas-warn/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-atlas-warn"

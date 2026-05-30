@@ -21,7 +21,7 @@ interface MissRateChartProps {
 
 export function MissRateChart({ metrics, candidate_metrics }: MissRateChartProps) {
   const carryForwardSeries: LinePlotSeries = {
-    name: "Carry-forward state",
+    name: "Accepted state",
     color_token: "danger",
     points: metrics.map((s) => ({
       x_label: s.round_label,
@@ -31,7 +31,7 @@ export function MissRateChart({ metrics, candidate_metrics }: MissRateChartProps
   };
   const selectedCandidateSeries: LinePlotSeries | null = candidate_metrics
     ? {
-        name: "Fix option before referee decision",
+        name: "Proposed fix before judge decision",
         color_token: "accent",
         stroke_dasharray: "4 3",
         points: candidate_metrics.map((s) => ({

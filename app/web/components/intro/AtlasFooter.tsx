@@ -8,7 +8,7 @@ export function AtlasFooter() {
             ATLAS
           </span>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-intro-muted md:whitespace-nowrap">
+        <p className="w-full text-right font-mono text-[10px] uppercase tracking-widest text-intro-muted md:w-auto md:whitespace-nowrap">
           Will Lewis &nbsp;|&nbsp; AI/ML Product Manager &nbsp;|&nbsp;{" "}
           <a
             href="https://linkedin.com/in/willlinkedin"

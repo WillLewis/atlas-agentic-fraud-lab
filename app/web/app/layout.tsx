@@ -19,7 +19,7 @@ import { getDemoConfig } from "../lib/demoConfig";
 export function generateMetadata(): Metadata {
   const config = getDemoConfig();
   return {
-    title: "Project Atlas — Synthetic Fraud-Model Evaluation",
+    title: "Project ATLAS — Synthetic Fraud-Model Evaluation",
     description: [
       `Synthetic red/blue evaluation arena for ${config.model_label}`,
       `at ${config.institution_label}.`,
@@ -44,7 +44,7 @@ export default function RootLayout({
           flag is scoped to ``<body>`` so genuine hydration mismatches
           inside the page tree still surface. */}
       <body
-        className="min-h-screen bg-atlas-ink text-atlas-text antialiased"
+        className="min-h-screen bg-intro-background text-atlas-text antialiased"
         suppressHydrationWarning
       >
         {/* Persistent disclaimer banner slot.

@@ -172,7 +172,15 @@ const HOLDOUTS: readonly HoldoutDescription[] = [
 // Component
 // ---------------------------------------------------------------------------
 
-export function EnvironmentOverview() {
+interface EnvironmentOverviewProps {
+  sectionId?: string;
+  showHeader?: boolean;
+}
+
+export function EnvironmentOverview({
+  sectionId = "agents-deployed",
+  showHeader = true
+}: EnvironmentOverviewProps = {}) {
   const config = getDemoConfig();
   const counts = getEntityCounts();
   const baseline = getRoundMetrics()[0];
@@ -187,22 +195,29 @@ export function EnvironmentOverview() {
 
   return (
     <section
-      id="agents-deployed"
-      aria-labelledby="agents-deployed-heading"
-      className="scroll-mt-16 px-8 py-16"
+      id={sectionId}
+      {...(showHeader
+        ? { "aria-labelledby": "agents-deployed-heading" }
+        : { "aria-label": "Synthetic demo environment details" })}
+      className={[
+        "atlas-data-section px-8 py-16",
+        showHeader ? "scroll-mt-16" : "border-t border-atlas-border/40"
+      ].join(" ")}
     >
-      <header className="mb-10 max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          {STEP_SUBHEADING}
-        </p>
-        <h2
-          id="agents-deployed-heading"
-          className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
-        >
-          {STEP_HEADING}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{STEP_MAIN_MESSAGE}</p>
-      </header>
+      {showHeader ? (
+        <header className="mb-10 max-w-3xl">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
+            {STEP_SUBHEADING}
+          </p>
+          <h2
+            id="agents-deployed-heading"
+            className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
+          >
+            {STEP_HEADING}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{STEP_MAIN_MESSAGE}</p>
+        </header>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card eyebrow="Population" title="Synthetic customers">

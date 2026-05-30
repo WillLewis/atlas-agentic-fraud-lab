@@ -11,12 +11,13 @@ export function useTypewriter(
   const [output, setOutput] = useState("");
 
   useEffect(() => {
-    if (!start) {
-      return;
-    }
-
     let frame = 0;
     let timeout = 0;
+
+    if (!start) {
+      timeout = window.setTimeout(() => setOutput(""), 0);
+      return () => clearTimeout(timeout);
+    }
 
     if (
       typeof window !== "undefined" &&

@@ -26,9 +26,7 @@ import { TermNote } from "../components/DualLabel";
 import { EnvironmentOverview } from "../components/EnvironmentOverview";
 import { JudgeDecisionCard } from "../components/JudgeDecisionCard";
 import { LeftSidebar } from "../components/LeftSidebar";
-import { RoundTimeline } from "../components/RoundTimeline";
-import { RunComparisonMatrix } from "../components/RunComparisonMatrix";
-import { SafeTranscriptPanel } from "../components/SafeTranscriptPanel";
+import { NarrativeInterlude } from "../components/NarrativeInterlude";
 import { FrictionChart } from "../components/charts/FrictionChart";
 import { MissRateChart } from "../components/charts/MissRateChart";
 import { RecallRecoveryChart } from "../components/charts/RecallRecoveryChart";
@@ -38,45 +36,91 @@ import { AtlasIntro } from "../components/intro/AtlasIntro";
 import { getRunRoundDetail } from "../lib/api";
 import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
 import { familyLabelFromId } from "../lib/ids";
-import { getModelQualityMatrix } from "../lib/modelQualityMatrix";
 import { loadActiveReplay } from "../lib/replay";
 import type { ReplayPayload, RoundDetail, RoundSummary } from "../lib/replay";
 import type { JudgeReport, MetricSnapshot } from "../lib/types";
 
 // ---------------------------------------------------------------------------
-// Section narrative — Bible §8
+// Narrative pages — Bible §8
 // ---------------------------------------------------------------------------
 
-interface SectionNarrative {
-  eyebrow: string;
-  term: string;
-  title: string;
-  subtitle: string;
-}
-
-const ROUND_NARRATIVE: Record<1 | 2 | 3, SectionNarrative> = {
-  1: {
-    eyebrow: "Step 3",
-    term: "Round 1 — Test and Response",
-    title: "Round 1 — Find it, fix it, check it",
-    subtitle:
-      "The stress-test agents find the model's first weak spot; the defense agents propose a fix; the code referee checks the improvement is real, not memorized."
+const NARRATIVE_BREAKS = {
+  agentsAssigned: {
+    id: "agents-assigned",
+    eyebrow: "Agents assigned",
+    title: "The roles are set before the loop begins.",
+    lead:
+      "Before any synthetic search starts, each agent gets a narrow job: stress-test the mock scorer, propose defensive fixes, or judge the result.",
+    paragraphs: [
+      "The setup is intentionally constrained. Agents can work with generated cases, local mock scores, and public-safe summaries, but they cannot touch real customers, real controls, or production endpoints.",
+      "This is what makes the demo useful as an AI/ML product story: the system is agentic enough to explore, but bounded enough that deterministic code can decide what counts as real improvement."
+    ],
+    criteria: [
+      "synthetic search only",
+      "defensive fixes only",
+      "deterministic judge"
+    ],
+    footer: "Scoped agents · bounded tools · code-reviewed outcomes",
+    watermark: "Assign"
   },
-  2: {
-    eyebrow: "Step 4",
-    term: "Round 2 — Adaptive Pressure",
-    title: "Round 2 — Turn up the pressure",
-    subtitle:
-      "The agents adapt; the defense responds; the hidden stress test is now the pass/fail gate."
+  agentsDeployed: {
+    id: "agents-deployed",
+    eyebrow: "Agents deployed",
+    title: "The synthetic search begins.",
+    lead:
+      "This next step sends the agents into a closed demo environment. They will test generated cases against the Mock Account-Takeover Risk Scorer and record every proposed defensive fix.",
+    paragraphs: [
+      "The agents can score synthetic cases and recommend changes, but they cannot touch real customers, real controls, or production endpoints.",
+      "Every defensive fix has to pass three tests: reduce model miss rate, generalize beyond the cohort that exposed the issue, and stay inside action-rate limits so customer experience does not quietly degrade."
+    ],
+    criteria: [
+      "model miss-rate reduction",
+      "generalization beyond found cohort",
+      "within action-rate limits"
+    ],
+    footer: "Agents propose · deterministic code decides",
+    watermark: "Evaluate"
   },
-  3: {
-    eyebrow: "Step 5",
-    term: "Round 3 — Final Report",
-    title: "Round 3 — Final scorecard",
-    subtitle:
-      "Final numbers, the run record, and a side-by-side comparison across AI model tiers."
+  round1: {
+    id: "round-1",
+    eyebrow: "Round 1 response",
+    title: "The first answer is not always the right answer.",
+    lead:
+      "In the first round, red-team surfaces an under-ranked synthetic cohort. Bank-defense proposes a decision-threshold-style defensive fix, and the judge rejects it.",
+    paragraphs: [
+      "That rejection is the point of the loop. A defensive fix can look convincing on the cases that exposed the issue and still fail once it is tested against fresh holdouts, drifted examples, and customer-friction limits.",
+      "In a real model review, this is where the team should slow down: the system found a valid synthetic model vulnerability, but it has not yet found a defensible change to ship."
+    ],
+    footer: "Rejected fixes are useful signal",
+    watermark: "Round 1"
+  },
+  round2: {
+    id: "round-2",
+    eyebrow: "Round 2 response",
+    title: "Defense iterates with a stronger candidate.",
+    lead:
+      "Next, bank-defense changes the response. It proposes a synthetic feature or calibration change, and the judge retests the result against holdouts and action-rate limits.",
+    paragraphs: [
+      "This time, the change reduces missed risky activity while staying inside the demo's customer-friction guardrails.",
+      "For an AI/ML product team, this is the useful behavior: learn from the failed defensive fix, improve model behavior, and prove the improvement survives data the agents did not see."
+    ],
+    footer: "Generalization beats memorization",
+    watermark: "Round 2"
+  },
+  round3: {
+    id: "round-3",
+    eyebrow: "Round 3 · final report",
+    title: "The evidence becomes a decision record.",
+    lead:
+      "Finally, the judge consolidates miss-rate movement, generalization, and customer-friction trade-offs into a deterministic verdict.",
+    paragraphs: [
+      "The final report is not an agent summary. It is the record of what changed, why it passed, and where the evaluation still depends on synthetic assumptions.",
+      "This is the artifact a team would want before moving from research preview into a governance, model-risk, or executive review conversation."
+    ],
+    footer: "Final numbers · locked holdouts · friction trade-offs",
+    watermark: "Verdict"
   }
-};
+} as const;
 
 // ---------------------------------------------------------------------------
 // Page entry
@@ -89,19 +133,18 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const result = await loadActiveReplay(params);
-  const matrix = getModelQualityMatrix();
 
   return (
     <>
       <AtlasIntro />
-      <div className="flex">
+      <div className="atlas-demo-shell flex">
         <LeftSidebar />
-        <main className="min-w-0 flex-1">
-          <AgentRoster />
-          <EnvironmentOverview />
+        <main className="atlas-demo-main min-w-0 flex-1">
+          <NarrativeInterlude {...NARRATIVE_BREAKS.agentsAssigned} />
+          <AgentRoster sectionId="agents-assigned-details" showHeader={false} />
 
           {result.kind === "ready" ? (
-            <ReadyReplayBody payload={result.payload} matrix={matrix} />
+            <ReadyReplayBody payload={result.payload} />
           ) : (
             <EmptyOrErrorState
               kind={result.kind}
@@ -121,11 +164,9 @@ export default async function HomePage({
 // ---------------------------------------------------------------------------
 
 async function ReadyReplayBody({
-  payload,
-  matrix
+  payload
 }: {
   payload: ReplayPayload;
-  matrix: ReturnType<typeof getModelQualityMatrix>;
 }) {
   const run_id = payload.run.run_id;
   const rounds = payload.run.rounds ?? [];
@@ -149,37 +190,43 @@ async function ReadyReplayBody({
 
   return (
     <>
-      {/* Section 3 — Round 1 */}
+      <NarrativeInterlude {...NARRATIVE_BREAKS.agentsDeployed} />
+      <EnvironmentOverview sectionId="agents-deployed-details" showHeader={false} />
+
+      <NarrativeInterlude {...NARRATIVE_BREAKS.round1} />
+
+      {/* Round 1 evidence */}
       <RoundSection
-        id="round-1"
-        narrative={ROUND_NARRATIVE[1]}
+        id="round-1-details"
         round={rounds.find((r) => r.round_id === 1)}
         detail={detailByRound.get(1) ?? null}
         metrics={metrics}
         candidateMetrics={candidateMetrics}
       />
 
-      {/* Section 4 — Round 2 */}
+      <NarrativeInterlude {...NARRATIVE_BREAKS.round2} />
+
+      {/* Round 2 evidence */}
       <RoundSection
-        id="round-2"
-        narrative={ROUND_NARRATIVE[2]}
+        id="round-2-details"
         round={rounds.find((r) => r.round_id === 2)}
         detail={detailByRound.get(2) ?? null}
         metrics={metrics}
         candidateMetrics={candidateMetrics}
       />
 
-      {/* Section 5 — Round 3 + final report */}
+      <NarrativeInterlude {...NARRATIVE_BREAKS.round3} />
+
+      {/* Round 3 evidence + final report */}
       <FinalReportSection
-        id="round-3"
-        narrative={ROUND_NARRATIVE[3]}
+        id="round-3-details"
         round={rounds.find((r) => r.round_id === 3)}
         detail={detailByRound.get(3) ?? null}
         payload={payload}
         metrics={metrics}
         candidateMetrics={candidateMetrics}
-        matrix={matrix}
       />
+
     </>
   );
 }
@@ -210,14 +257,12 @@ function buildSelectedCandidateMetrics(
 
 function RoundSection({
   id,
-  narrative,
   round,
   detail,
   metrics,
   candidateMetrics
 }: {
   id: string;
-  narrative: SectionNarrative;
   round: RoundSummary | undefined;
   detail: RoundDetail | null;
   metrics: MetricSnapshot[];
@@ -226,25 +271,9 @@ function RoundSection({
   return (
     <section
       id={id}
-      aria-labelledby={`${id}-heading`}
-      className="scroll-mt-16 border-t border-atlas-border/40 px-8 py-16"
+      aria-label={round ? `Round ${round.round_id} evidence` : "Round evidence"}
+      className="atlas-data-section border-t border-atlas-border/40 px-8 py-16"
     >
-      <header className="mb-8 max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          {narrative.eyebrow}
-        </p>
-        <h2
-          id={`${id}-heading`}
-          className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
-        >
-          {narrative.title}
-        </h2>
-        <p className="mt-1 font-mono text-[11px] text-atlas-muted">{narrative.term}</p>
-        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">
-          {narrative.subtitle}
-        </p>
-      </header>
-
       {round === undefined ? (
         <RoundNotRunYet />
       ) : (
@@ -268,22 +297,11 @@ function RoundSection({
             </div>
           </div>
 
-          {/* Sanitized transcript */}
-          {detail?.transcript_summary ? (
-            <div className="mb-8">
-              <SafeTranscriptPanel
-                summary={detail.transcript_summary}
-                safety_scan_passed={detail.safety_scan_passed ?? true}
-                round_label={`Round ${round.round_id}`}
-              />
-            </div>
-          ) : null}
-
           {/* Chart strip — focused subset for round-level reading */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
               title="Missed risky activity"
-              hint="model miss rate · Lower is better. Carry-forward state plus fix option before referee decision."
+              hint="model miss rate · Lower is better. Solid = accepted state; dashed = proposed fix before judge decision."
             >
               <MissRateChart
                 metrics={metrics}
@@ -292,7 +310,7 @@ function RoundSection({
             </ChartCard>
             <ChartCard
               title="Risky activity caught"
-              hint="recall at fixed action-rate · Higher is better. Carry-forward state plus fix option before referee decision."
+              hint="recall at fixed action-rate · Higher is better. Solid = accepted state; dashed = proposed fix before judge decision."
             >
               <RecallRecoveryChart
                 metrics={metrics}
@@ -312,47 +330,27 @@ function RoundSection({
 
 function FinalReportSection({
   id,
-  narrative,
   round,
   detail,
   payload,
   metrics,
-  candidateMetrics,
-  matrix
+  candidateMetrics
 }: {
   id: string;
-  narrative: SectionNarrative;
   round: RoundSummary | undefined;
   detail: RoundDetail | null;
   payload: ReplayPayload;
   metrics: MetricSnapshot[];
   candidateMetrics: MetricSnapshot[];
-  matrix: ReturnType<typeof getModelQualityMatrix>;
 }) {
   const finalReportCard = findFinalReportCard(payload);
 
   return (
     <section
       id={id}
-      aria-labelledby={`${id}-heading`}
-      className="scroll-mt-16 border-t border-atlas-border/40 px-8 py-16"
+      aria-label="Round 3 final report evidence"
+      className="atlas-data-section border-t border-atlas-border/40 px-8 py-16"
     >
-      <header className="mb-10 max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          {narrative.eyebrow}
-        </p>
-        <h2
-          id={`${id}-heading`}
-          className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
-        >
-          {narrative.title}
-        </h2>
-        <p className="mt-1 font-mono text-[11px] text-atlas-muted">{narrative.term}</p>
-        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">
-          {narrative.subtitle}
-        </p>
-      </header>
-
       {round !== undefined ? (
         <>
           {/* Round 3 cards strip */}
@@ -374,16 +372,6 @@ function FinalReportSection({
             </div>
           </div>
 
-          {/* Sanitized round-3 transcript */}
-          {detail?.transcript_summary ? (
-            <div className="mb-8">
-              <SafeTranscriptPanel
-                summary={detail.transcript_summary}
-                safety_scan_passed={detail.safety_scan_passed ?? true}
-                round_label="Round 3"
-              />
-            </div>
-          ) : null}
         </>
       ) : (
         <div className="mb-8">
@@ -391,11 +379,13 @@ function FinalReportSection({
         </div>
       )}
 
+      <ChartReadingGuide />
+
       {/* All four charts in a 2x2 grid */}
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Missed risky activity"
-          hint="model miss rate · Carry-forward state plus fix option before referee decision."
+          hint="model miss rate · Lower is better. Solid = accepted state; dashed = proposed fix before judge decision."
         >
           <MissRateChart
             metrics={metrics}
@@ -404,7 +394,7 @@ function FinalReportSection({
         </ChartCard>
         <ChartCard
           title="Risky activity caught"
-          hint="recall at fixed action-rate · Higher is better. Carry-forward state plus fix option before referee decision."
+          hint="recall at fixed action-rate · Higher is better. Solid = accepted state; dashed = proposed fix before judge decision."
         >
           <RecallRecoveryChart
             metrics={metrics}
@@ -413,7 +403,7 @@ function FinalReportSection({
         </ChartCard>
         <ChartCard
           title={GLOSSARY.synthetic_loss_allowed.plain}
-          hint="synthetic loss allowed · Lower is better. SYN $ values are scaled 10:1; play-money only."
+          hint="synthetic loss allowed · Lower is better. Solid = accepted state; dashed = proposed fix. SYN $ is scaled play-money only."
         >
           <SyntheticLossChart
             metrics={metrics}
@@ -422,18 +412,10 @@ function FinalReportSection({
         </ChartCard>
         <ChartCard
           title="How often we interrupt customers"
-          hint="customer-friction rates · Step-up checks, reviews, and blocks all stay below configured action-rate limits."
+          hint="customer-friction rates · Lower interruption is better when risk capture holds. Lines track action-rate limits."
         >
           <FrictionChart metrics={metrics} />
         </ChartCard>
-      </div>
-
-      {/* Round timeline */}
-      <div className="mb-10">
-        <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          Round timeline
-        </h3>
-        <RoundTimeline metrics={metrics} candidate_metrics={candidateMetrics} />
       </div>
 
       {/* Final-report summary card */}
@@ -447,14 +429,6 @@ function FinalReportSection({
       <div className="mb-10">
         <RunFacts payload={payload} />
       </div>
-
-      {/* Model-tier comparison matrix */}
-      <RunComparisonMatrix
-        tiers={matrix.tiers}
-        runs={matrix.runs}
-        expose_concrete_model_names={matrix.expose_concrete_model_names}
-        summary_templates={matrix.summary_templates}
-      />
     </section>
   );
 }
@@ -604,7 +578,7 @@ function SlimFixCard({
               {vulnerabilityId ? (
                 <>
                   <p className="mt-1 text-[11px] text-atlas-text/90">
-                    Fixes weak spot{targetFamilyLabel ? `: ${targetFamilyLabel}` : ""}
+                    Addresses model vulnerability{targetFamilyLabel ? `: ${targetFamilyLabel}` : ""}
                   </p>
                   <p className="font-mono text-[10px] text-atlas-muted" title={vulnerabilityId}>
                     targets · model vulnerability
@@ -785,7 +759,7 @@ function EmptyOrErrorState({
     <section
       id="empty-state"
       aria-label={kind === "empty" ? "No demo data available" : "Demo load error"}
-      className="scroll-mt-16 border-t border-atlas-border/40 px-8 py-24"
+      className="atlas-data-section scroll-mt-16 border-t border-atlas-border/40 px-8 py-24"
     >
       <div className="mx-auto max-w-2xl rounded-lg border border-atlas-border bg-atlas-panel/60 p-8 text-center">
         <p
@@ -820,7 +794,7 @@ function standaloneLoadReason(kind: "empty" | "error", reason: string): string {
   if (/No replay artifacts found/i.test(reason)) {
     return "The selected demo run does not have display data yet.";
   }
-  if (kind === "error" && /(Failed to list runs|fetch failed|Atlas API)/i.test(reason)) {
+  if (kind === "error" && /(Failed to list runs|fetch failed|ATLAS API)/i.test(reason)) {
     return "The demo data service is not responding yet.";
   }
   return reason
@@ -842,6 +816,46 @@ function RoundNotRunYet() {
 // ---------------------------------------------------------------------------
 // Local helpers
 // ---------------------------------------------------------------------------
+
+function ChartReadingGuide() {
+  return (
+    <aside className="mb-4 rounded-lg border border-atlas-border bg-atlas-panel/60 p-4">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
+        Chart reading key
+      </p>
+      <div className="mt-3 grid grid-cols-1 gap-3 text-xs leading-relaxed text-atlas-muted md:grid-cols-2 xl:grid-cols-4">
+        <div className="flex gap-2">
+          <span
+            aria-hidden="true"
+            className="mt-2 inline-block h-0 w-8 shrink-0 border-t-2 border-solid border-atlas-text"
+          />
+          <span>
+            Solid line shows the accepted state carried forward after each judge
+            decision.
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <span
+            aria-hidden="true"
+            className="mt-2 inline-block h-0 w-8 shrink-0 border-t-2 border-dashed border-atlas-accent"
+          />
+          <span>
+            Dashed blue line shows the proposed defensive fix before the judge
+            decision.
+          </span>
+        </div>
+        <div>
+          Dots are judge-derived replay snapshots from baseline through the
+          synthetic rounds.
+        </div>
+        <div>
+          Each chart header states whether moving up or down is the better
+          outcome.
+        </div>
+      </div>
+    </aside>
+  );
+}
 
 function ChartCard({
   title,

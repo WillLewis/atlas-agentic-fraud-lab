@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project ATLAS Round Narrative Transition Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f3eb;
+        --panel: #fbfaf7;
+        --ink: #1f2633;
+        --muted: #727b8f;
+        --line: rgba(31, 38, 51, 0.12);
+        --line-strong: rgba(31, 38, 51, 0.2);
+        --accent: #2c7df0;
+        --red: #dd4d54;
+        --green: #4f8f67;
+        --gold: #a67b16;
+        --fade: 3.8s;
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 10% 12%, rgba(44, 125, 240, 0.04), transparent 24rem),
+          linear-gradient(180deg, var(--bg), #f4f5f8 78%);
+        color: var(--ink);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .prototype-shell {
+        min-height: 100vh;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--line);
+        background: rgba(247, 243, 235, 0.88);
+        padding: 0.75rem clamp(1rem, 3vw, 2rem);
+        backdrop-filter: blur(16px);
+      }
+
+      .topbar p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        font-family:
+          "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .replay-button {
+        min-height: 2.3rem;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.64);
+        color: var(--ink);
+        cursor: pointer;
+        padding: 0 1rem;
+        font-family:
+          "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        transition:
+          border-color 240ms ease,
+          color 240ms ease,
+          transform 240ms ease;
+      }
+
+      .replay-button:hover,
+      .replay-button:focus-visible {
+        border-color: rgba(44, 125, 240, 0.42);
+        color: var(--accent);
+      }
+
+      .replay-button:active {
+        transform: translateY(1px);
+      }
+
+      .transition-stage {
+        position: relative;
+        min-height: min(880px, calc(100vh - 3.75rem));
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .transition-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(to right, rgba(31, 38, 51, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(31, 38, 51, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        mask-image: radial-gradient(circle at center, black, transparent 70%);
+        opacity: 0.36;
+        pointer-events: none;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: clamp(1rem, 4vw, 4rem);
+        opacity: 0;
+        transform: translateY(18px) scale(0.992);
+        transition:
+          opacity var(--fade) var(--ease),
+          transform var(--fade) var(--ease),
+          filter var(--fade) var(--ease);
+        pointer-events: none;
+      }
+
+      .scene.is-current {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+
+      .scene.is-muted {
+        opacity: 0.07;
+        filter: blur(3px);
+        transform: translateY(-18px) scale(0.982);
+      }
+
+      .demo-grid {
+        display: grid;
+        width: min(1180px, 100%);
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.7fr);
+        gap: clamp(1rem, 3vw, 2rem);
+        align-items: stretch;
+      }
+
+      .round-panel,
+      .evidence-panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(251, 250, 247, 0.82);
+        box-shadow: 0 24px 70px rgba(31, 38, 51, 0.06);
+      }
+
+      .round-panel {
+        padding: clamp(1rem, 2vw, 1.4rem);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.85rem;
+      }
+
+      .panel-header h2,
+      .panel-header h3 {
+        margin: 0.25rem 0 0;
+        font-size: clamp(1.25rem, 2vw, 1.8rem);
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+      }
+
+      .status-pill {
+        white-space: nowrap;
+        border: 1px solid rgba(79, 143, 103, 0.34);
+        border-radius: 999px;
+        background: rgba(79, 143, 103, 0.08);
+        color: var(--green);
+        padding: 0.35rem 0.65rem;
+        font-family:
+          "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+      }
+
+      .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .metric {
+        min-height: 6.25rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.62);
+        padding: 0.85rem;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-family:
+          "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 0.7rem;
+        font-size: clamp(1.35rem, 2vw, 2rem);
+        letter-spacing: -0.02em;
+      }
+
+      .metric em {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-style: normal;
+        line-height: 1.4;
+      }
+
+      .chart {
+        margin-top: 1rem;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background:
+          linear-gradient(to right, rgba(31, 38, 51, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(31, 38, 51, 0.05) 1px, transparent 1px),
+          rgba(255, 255, 255, 0.68);
+        background-size: 40px 40px;
+        padding: 1rem;
+      }
+
+      .chart svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .line-red,
+      .line-blue,
+      .line-green {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 4;
+      }
+
+      .line-red {
+        stroke: var(--red);
+      }
+
+      .line-blue {
+        stroke: var(--accent);
+      }
+
+      .line-green {
+        stroke: var(--green);
+      }
+
+      .evidence-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.1rem;
+      }
+
+      .brief {
+        border-left: 2px solid var(--line-strong);
+        padding-left: 1rem;
+      }
+
+      .brief strong {
+        display: block;
+        color: var(--ink);
+        font-size: 0.94rem;
+      }
+
+      .brief p {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.55;
+      }
+
+      .brief.red {
+        border-color: rgba(221, 77, 84, 0.42);
+      }
+
+      .brief.blue {
+        border-color: rgba(44, 125, 240, 0.42);
+      }
+
+      .brief.gold {
+        border-color: rgba(166, 123, 22, 0.42);
+      }
+
+      .narrative {
+        width: min(920px, 100%);
+      }
+
+      .narrative::before {
+        content: "";
+        display: block;
+        width: 1px;
+        height: 84px;
+        margin: 0 auto 2rem;
+        background: linear-gradient(transparent, var(--accent), transparent);
+      }
+
+      .narrative h2 {
+        margin: 0.75rem auto 0;
+        max-width: 760px;
+        text-align: center;
+        font-size: clamp(2.45rem, 6vw, 5.9rem);
+        line-height: 0.96;
+        letter-spacing: -0.03em;
+      }
+
+      .narrative p {
+        margin: 1.25rem auto 0;
+        max-width: 720px;
+        color: var(--muted);
+        text-align: center;
+        font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+        line-height: 1.55;
+      }
+
+      .narrative .plain {
+        color: var(--ink);
+      }
+
+      .narrative-footer {
+        display: flex;
+        justify-content: center;
+        margin-top: 1.8rem;
+      }
+
+      .narrative-footer span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.52);
+        color: var(--muted);
+        padding: 0.4rem 0.7rem;
+        font-family:
+          "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .transition-stage.is-playing .scene-round-1 {
+        animation: round-one-out 18s var(--ease) both;
+      }
+
+      .transition-stage.is-playing .scene-interlude {
+        animation: narrative-in-out 18s var(--ease) both;
+      }
+
+      .transition-stage.is-playing .scene-round-2 {
+        animation: round-two-in 18s var(--ease) both;
+      }
+
+      @keyframes round-one-out {
+        0%,
+        18% {
+          opacity: 1;
+          filter: blur(0);
+          transform: translateY(0) scale(1);
+        }
+        39%,
+        100% {
+          opacity: 0.07;
+          filter: blur(3px);
+          transform: translateY(-18px) scale(0.982);
+        }
+      }
+
+      @keyframes narrative-in-out {
+        0%,
+        27% {
+          opacity: 0;
+          transform: translateY(24px) scale(0.992);
+        }
+        48%,
+        66% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        88%,
+        100% {
+          opacity: 0;
+          transform: translateY(-24px) scale(0.992);
+        }
+      }
+
+      @keyframes round-two-in {
+        0%,
+        67% {
+          opacity: 0;
+          filter: blur(3px);
+          transform: translateY(22px) scale(0.982);
+        }
+        89%,
+        100% {
+          opacity: 1;
+          filter: blur(0);
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .copy-board {
+        width: min(1180px, calc(100% - 2rem));
+        margin: clamp(2rem, 6vw, 5rem) auto;
+      }
+
+      .copy-board > header {
+        max-width: 760px;
+        margin-bottom: 1.5rem;
+      }
+
+      .copy-board h2 {
+        margin: 0.4rem 0 0;
+        font-size: clamp(1.8rem, 3.5vw, 3.25rem);
+        line-height: 1;
+        letter-spacing: -0.025em;
+      }
+
+      .copy-board p {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .copy-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .copy-item {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.56);
+        padding: 1.1rem;
+      }
+
+      .copy-item h3 {
+        margin: 0.4rem 0 0;
+        font-size: 1.12rem;
+      }
+
+      .copy-item p {
+        margin: 0.75rem 0 0;
+        font-size: 0.92rem;
+      }
+
+      .copy-item .real-world {
+        color: var(--ink);
+      }
+
+      @media (max-width: 860px) {
+        .transition-stage {
+          min-height: 1180px;
+        }
+
+        .scene {
+          align-items: start;
+          padding-top: 3rem;
+        }
+
+        .demo-grid,
+        .copy-list {
+          grid-template-columns: 1fr;
+        }
+
+        .metric-strip {
+          grid-template-columns: 1fr;
+        }
+
+        .narrative {
+          padding-top: 7rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .scene,
+        .transition-stage.is-playing .scene-round-1,
+        .transition-stage.is-playing .scene-interlude,
+        .transition-stage.is-playing .scene-round-2 {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        .scene-round-1 {
+          opacity: 0.08;
+        }
+
+        .scene-interlude,
+        .scene-round-2 {
+          position: relative;
+          opacity: 1;
+          filter: none;
+          transform: none;
+        }
+
+        .transition-stage {
+          display: grid;
+          gap: 1rem;
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="prototype-shell">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">Project ATLAS prototype</div>
+          <p>Standalone demo: slow section fade, narrative focus, then return to the next round.</p>
+        </div>
+        <button class="replay-button" type="button" data-replay>Replay transition</button>
+      </header>
+
+      <main>
+        <section class="transition-stage is-playing" data-stage aria-label="Round narrative transition demo">
+          <div class="scene scene-round-1 is-current">
+            <div class="demo-grid" aria-label="Round 1 evidence view">
+              <article class="round-panel">
+                <header class="panel-header">
+                  <div>
+                    <div class="eyebrow">Round 1 response</div>
+                    <h2>First defensive fix does not clear the bar.</h2>
+                  </div>
+                  <span class="status-pill">safety check: pass</span>
+                </header>
+                <div class="metric-strip">
+                  <div class="metric">
+                    <span>Under-ranked cohort</span>
+                    <strong>2</strong>
+                    <em>model vulnerability cards surfaced</em>
+                  </div>
+                  <div class="metric">
+                    <span>Defensive fixes</span>
+                    <strong>4</strong>
+                    <em>candidate options proposed</em>
+                  </div>
+                  <div class="metric">
+                    <span>Judge decision</span>
+                    <strong>Rejected</strong>
+                    <em>did not generalize cleanly enough</em>
+                  </div>
+                </div>
+                <div class="chart" aria-hidden="true">
+                  <svg viewBox="0 0 760 260">
+                    <path class="line-red" d="M60 72 C170 78 230 88 320 90 S510 96 700 104" />
+                    <path class="line-blue" d="M60 188 C180 182 240 177 330 170 S520 158 700 150" />
+                    <path class="line-green" d="M60 212 C180 210 290 206 390 206 S560 204 700 202" />
+                    <g fill="currentColor" opacity="0.45">
+                      <circle cx="60" cy="72" r="5" />
+                      <circle cx="320" cy="90" r="5" />
+                      <circle cx="700" cy="104" r="5" />
+                      <circle cx="60" cy="188" r="5" />
+                      <circle cx="330" cy="170" r="5" />
+                      <circle cx="700" cy="150" r="5" />
+                    </g>
+                  </svg>
+                </div>
+              </article>
+
+              <aside class="evidence-panel" aria-label="Round 1 brief">
+                <div class="brief red">
+                  <strong>Red-team finding</strong>
+                  <p>The synthetic search found a cohort the mock scorer ranked too low for its synthetic risk profile.</p>
+                </div>
+                <div class="brief blue">
+                  <strong>Bank-defense proposal</strong>
+                  <p>The first response adjusted the decision boundary, but the measured improvement was not durable enough.</p>
+                </div>
+                <div class="brief gold">
+                  <strong>Judge result</strong>
+                  <p>Deterministic checks blocked the fix, preserving the action-rate limit and avoiding a false sense of progress.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <div class="scene scene-interlude">
+            <article class="narrative" aria-label="Narrative interlude">
+              <div class="eyebrow" style="text-align: center">Round 1 response</div>
+              <h2>The first answer is not always the right answer.</h2>
+              <p class="plain">
+                Red-team found a synthetic cohort the model was under-ranking, and bank-defense proposed a decision-threshold fix. The judge rejected it.
+              </p>
+              <p>
+                That rejection is the point of the loop. A fix can look convincing on the cases that exposed the issue and still fail once it is tested against fresh holdouts, drifted examples, and customer-friction limits.
+              </p>
+              <p>
+                In a real model review, this is where the team should slow down: the system has found a weakness, but it has not yet found a defensible change to ship.
+              </p>
+              <div class="narrative-footer">
+                <span>Agents propose · code decides</span>
+              </div>
+            </article>
+          </div>
+
+          <div class="scene scene-round-2">
+            <div class="demo-grid" aria-label="Round 2 evidence view">
+              <article class="round-panel">
+                <header class="panel-header">
+                  <div>
+                    <div class="eyebrow">Round 2 response</div>
+                    <h2>Defense iterates; the judge accepts.</h2>
+                  </div>
+                  <span class="status-pill">safety check: pass</span>
+                </header>
+                <div class="metric-strip">
+                  <div class="metric">
+                    <span>Model miss rate</span>
+                    <strong>73% → 19%</strong>
+                    <em>large reduction after accepted fix</em>
+                  </div>
+                  <div class="metric">
+                    <span>Risk catch</span>
+                    <strong>+54.7 pp</strong>
+                    <em>recall recovery at fixed action-rate</em>
+                  </div>
+                  <div class="metric">
+                    <span>Friction</span>
+                    <strong>Within limit</strong>
+                    <em>reviews stay below demo action-rate limits</em>
+                  </div>
+                </div>
+                <div class="chart" aria-hidden="true">
+                  <svg viewBox="0 0 760 260">
+                    <path class="line-red" d="M60 72 C170 78 230 86 320 88 S500 152 700 196" />
+                    <path class="line-blue" d="M60 188 C180 180 250 170 330 160 S520 90 700 62" />
+                    <path class="line-green" d="M60 212 C180 210 290 206 390 204 S560 190 700 182" />
+                    <g fill="currentColor" opacity="0.45">
+                      <circle cx="60" cy="72" r="5" />
+                      <circle cx="320" cy="88" r="5" />
+                      <circle cx="700" cy="196" r="5" />
+                      <circle cx="60" cy="188" r="5" />
+                      <circle cx="330" cy="160" r="5" />
+                      <circle cx="700" cy="62" r="5" />
+                    </g>
+                  </svg>
+                </div>
+              </article>
+
+              <aside class="evidence-panel" aria-label="Round 2 brief">
+                <div class="brief red">
+                  <strong>New synthetic pressure</strong>
+                  <p>Red-team adapts to the first failure and searches for a different model vulnerability family.</p>
+                </div>
+                <div class="brief blue">
+                  <strong>Better defensive fix</strong>
+                  <p>Bank-defense proposes a feature or calibration change that addresses the pattern without raising friction too far.</p>
+                </div>
+                <div class="brief gold">
+                  <strong>Deterministic acceptance</strong>
+                  <p>The judge checks generalization beyond the found cohort and accepts the change only after it holds on locked tests.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="copy-board" aria-labelledby="copy-heading">
+          <header>
+            <div class="eyebrow">Proposed narrative copy</div>
+            <h2 id="copy-heading">Plainspoken context between rounds.</h2>
+            <p>
+              These are longer versions of the round handoffs. They are written for executives who need to understand what happened, why the system is doing it, and what it means outside the demo.
+            </p>
+          </header>
+
+          <div class="copy-list">
+            <article class="copy-item">
+              <div class="eyebrow">Agents deployed</div>
+              <h3>The synthetic search begins.</h3>
+              <p>
+                Project ATLAS sends the agents into a closed demo environment. They are not touching real customers, real controls, or production endpoints. They are testing generated cases against a mock risk scorer and recording each proposed defensive fix.
+              </p>
+              <p class="real-world">
+                In practice, this is the evaluation moment a PM cares about: can the team find a model vulnerability before it reaches users, and can the work stay bounded by scoring-query and action-rate limits?
+              </p>
+            </article>
+
+            <article class="copy-item">
+              <div class="eyebrow">Round 1 response</div>
+              <h3>The first answer is not always the right answer.</h3>
+              <p>
+                Red-team surfaces an under-ranked synthetic cohort. Bank-defense proposes a decision-threshold fix, but the judge rejects it because a fix must work beyond the exact cases that exposed the issue.
+              </p>
+              <p class="real-world">
+                The useful signal is the rejection. The system found a weakness, then prevented the team from treating a narrow improvement as a production-ready answer.
+              </p>
+            </article>
+
+            <article class="copy-item">
+              <div class="eyebrow">Round 2 response</div>
+              <h3>Defense iterates with a stronger candidate.</h3>
+              <p>
+                The defense proposes a synthetic feature or calibration change. The judge reruns generalization checks, including locked holdouts, and verifies that added reviews or declines stay within the action-rate limit.
+              </p>
+              <p class="real-world">
+                This is the loop mature AI teams need: learn from the failed fix, improve model behavior, and prove the improvement survives data the agents did not see.
+              </p>
+            </article>
+
+            <article class="copy-item">
+              <div class="eyebrow">Round 3 · final report</div>
+              <h3>The evidence becomes a decision record.</h3>
+              <p>
+                The judge consolidates miss-rate movement, generalization, and customer-friction trade-offs into a deterministic verdict. The final report is not an agent summary; it is the record of what changed and why it passed.
+              </p>
+              <p class="real-world">
+                This is the artifact you would want before moving from research preview into a governance, model-risk, or executive review conversation.
+              </p>
+            </article>
+
+            <article class="copy-item">
+              <div class="eyebrow">Evaluation criteria</div>
+              <h3>Every defensive fix has to pass three tests.</h3>
+              <p>
+                First, it must reduce model miss rate. Second, it must generalize beyond the cohort that exposed the issue. Third, it must respect the action-rate limit so customer experience does not quietly degrade.
+              </p>
+              <p class="real-world">
+                If one of those checks fails, the fix is not ready. The agents can recommend; deterministic code decides.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const stage = document.querySelector("[data-stage]");
+      const replayButton = document.querySelector("[data-replay]");
+
+      function replay() {
+        stage.classList.remove("is-playing");
+        void stage.offsetWidth;
+        stage.classList.add("is-playing");
+      }
+
+      replayButton.addEventListener("click", replay);
+    </script>
+  </body>
+</html>

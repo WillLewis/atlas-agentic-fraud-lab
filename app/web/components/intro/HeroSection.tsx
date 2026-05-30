@@ -1,7 +1,23 @@
+"use client";
+
+import { useMemo } from "react";
+
+import { useInView } from "../../hooks/useInView";
+
 export function HeroSection() {
+  const observerOptions = useMemo<IntersectionObserverInit>(
+    () => ({
+      threshold: 0.2,
+      rootMargin: "-35% 0px -35% 0px"
+    }),
+    []
+  );
+  const { ref, inView } = useInView<HTMLElement>(observerOptions, false);
+
   return (
     <section
       id="atlas-intro-hero"
+      ref={ref}
       className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-32"
     >
       <div
@@ -14,14 +30,13 @@ export function HeroSection() {
       </div>
 
       <div
-        className="relative max-w-2xl space-y-8 text-center"
-        style={{
-          animation:
-            "atlas-intro-fade-up-keyframe 2.4s cubic-bezier(0.16,1,0.3,1) 300ms both"
-        }}
+        className={[
+          "atlas-intro-fade-up atlas-intro-fade-slow relative max-w-2xl space-y-8 text-center",
+          inView ? "is-visible" : ""
+        ].join(" ")}
       >
         <div className="inline-flex items-center gap-2 rounded-full border border-intro-border bg-intro-card/60 px-3 py-1 backdrop-blur-sm">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-intro-accent" />
+          <span className="atlas-intro-status-pulse h-1.5 w-1.5 rounded-full bg-intro-accent" />
           <span className="font-mono text-[10px] uppercase tracking-wider text-intro-foreground/70">
             Research Preview · v0.1
           </span>
@@ -33,7 +48,7 @@ export function HeroSection() {
         </h1>
 
         <p className="mx-auto max-w-lg text-lg text-intro-muted">
-          Project Atlas observes a red-team agent, a bank-defense agent, and a
+          Project ATLAS observes a red-team agent, a bank-defense agent, and a
           deterministic judge as they test and propose defensive fixes for a
           mock account-takeover risk scorer, one synthetic round at a time.
         </p>

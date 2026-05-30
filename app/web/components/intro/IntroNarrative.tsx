@@ -49,7 +49,7 @@ function LoopDiagram() {
     <svg
       viewBox="0 0 480 360"
       role="img"
-      aria-label="Schematic of the Atlas evaluation loop: red-team tests the mock risk scorer, bank-defense proposes defensive fixes, and the judge evaluates."
+      aria-label="Schematic of the ATLAS evaluation loop: red-team tests the mock risk scorer, bank-defense proposes defensive fixes, and the judge evaluates."
       className="block h-auto w-full"
     >
       <defs>
@@ -228,27 +228,27 @@ export function IntroNarrative() {
         <h2 className="mb-6 font-mono text-[11px] uppercase tracking-[0.2em] text-intro-accent">
           The Premise
         </h2>
-        <div className="space-y-6 text-xl leading-relaxed">
+        <div className="space-y-6 text-xl leading-relaxed text-intro-muted">
           <p>
             As an AI/ML PM, I keep returning to one question: how can multi-agent
             red teams test defensive systems at scale, so blue teams can drive
             acceptable defensive fixes before model vulnerabilities reach
             production?
           </p>
-          <p className="text-intro-muted">
+          <p>
             Manual policies and back-testing still matter. But forward-testing
             with agentic systems, agents that can search broadly, adapt quickly,
             and surface gaps humans struggle to anticipate one by one, opens a
             different kind of measurement surface.
           </p>
-          <p className="text-intro-muted">
-            Project Atlas is a synthetic, defensive experiment. A red-team agent
+          <p>
+            Project ATLAS is a synthetic, defensive experiment. A red-team agent
             searches a mock account-takeover risk scorer for model
             vulnerabilities. A bank-defense agent responds with defensive fixes.
             A deterministic judge evaluates whether each recommendation actually
             works.
           </p>
-          <p className="text-intro-muted">
+          <p>
             No real data. No real controls, no production endpoints, no
             institution-specific thresholds. The environment is limited and
             synthetic by design, but it hints at how teams might prepare for a

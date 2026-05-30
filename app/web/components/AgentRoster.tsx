@@ -45,7 +45,6 @@ interface AgentRosterEntry {
 
 interface GroupMeta {
   title: string;
-  term: string;
   description: string;
   badge_classes: string;
   glyph_classes: string;
@@ -207,8 +206,7 @@ const DETERMINISTIC_JUDGE: AgentRosterEntry = {
 
 const GROUP_META: Record<AgentGroup, GroupMeta> = {
   red_team: {
-    title: "Stress-test agents — find the model's weak spots",
-    term: "red-team simulation agents",
+    title: "Red agents — find model weak spots",
     description:
       "Run limited, synthetic probes against the practice model. They can't see the locked answer keys or produce any real-world fraud how-to.",
     badge_classes: "border-atlas-danger/40 bg-atlas-danger/10 text-atlas-danger",
@@ -216,7 +214,6 @@ const GROUP_META: Record<AgentGroup, GroupMeta> = {
   },
   bank_defense: {
     title: "Defense agents — propose fixes",
-    term: "bank-defense simulation agents",
     description:
       "Suggest a new signal, a threshold change, or a retrain. They can't approve their own work — the referee does.",
     badge_classes: "border-atlas-accent/40 bg-atlas-accent/10 text-atlas-accent",
@@ -224,7 +221,6 @@ const GROUP_META: Record<AgentGroup, GroupMeta> = {
   },
   judge: {
     title: "The referee — code, not AI",
-    term: "deterministic control",
     description:
       "Plain code does all the measuring and is the only thing that can accept or reject a fix.",
     badge_classes: "border-atlas-ok/40 bg-atlas-ok/10 text-atlas-ok",
@@ -245,7 +241,15 @@ const STEP_MAIN_MESSAGE =
 // Component
 // ---------------------------------------------------------------------------
 
-export function AgentRoster() {
+interface AgentRosterProps {
+  sectionId?: string;
+  showHeader?: boolean;
+}
+
+export function AgentRoster({
+  sectionId = "agents-assigned",
+  showHeader = true
+}: AgentRosterProps = {}) {
   const config = getDemoConfig();
   const tierLabels: Record<AgentTier, string> = {
     frontier: config.model_tier_labels.frontier,
@@ -255,24 +259,31 @@ export function AgentRoster() {
 
   return (
     <section
-      id="agents-assigned"
-      aria-labelledby="agents-assigned-heading"
-      className="scroll-mt-16 px-8 py-16"
+      id={sectionId}
+      {...(showHeader
+        ? { "aria-labelledby": "agents-assigned-heading" }
+        : { "aria-label": "Agent assignment details" })}
+      className={[
+        "atlas-data-section px-8 py-24",
+        showHeader ? "scroll-mt-16" : "border-t border-atlas-border/40"
+      ].join(" ")}
     >
-      <header className="mb-10 max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
-          {STEP_SUBHEADING}
-        </p>
-        <h2
-          id="agents-assigned-heading"
-          className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
-        >
-          {STEP_HEADING}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{STEP_MAIN_MESSAGE}</p>
-      </header>
+      {showHeader ? (
+        <header className="mb-10 max-w-3xl">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-atlas-muted">
+            {STEP_SUBHEADING}
+          </p>
+          <h2
+            id="agents-assigned-heading"
+            className="mt-2 text-3xl font-semibold tracking-tight text-atlas-text"
+          >
+            {STEP_HEADING}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-atlas-muted">{STEP_MAIN_MESSAGE}</p>
+        </header>
+      ) : null}
 
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-20">
         <AgentGroupSection
           group="red_team"
           agents={RED_TEAM_AGENTS}
@@ -307,24 +318,26 @@ function AgentGroupSection({ group, agents, tierLabels }: AgentGroupSectionProps
   const meta = GROUP_META[group];
   return (
     <div>
-      <div className="mb-4 flex items-baseline gap-3">
-        <div>
-          <h3 className="text-base font-semibold uppercase tracking-wide text-atlas-text">
-            {meta.title}
-          </h3>
-          <TermNote>{meta.term}</TermNote>
-        </div>
-        <span className="font-mono text-[11px] text-atlas-muted">
+      <div className="mb-6 text-center">
+        <h3 className="text-base font-semibold uppercase tracking-wide text-atlas-text">
+          {meta.title}
+        </h3>
+        <p className="mt-1 font-mono text-[11px] text-atlas-muted">
           {agents.length} {agents.length === 1 ? "agent" : "agents"}
-        </span>
+        </p>
       </div>
-      <p className="mb-4 max-w-3xl text-sm text-atlas-muted">{meta.description}</p>
+      <p className="mx-auto mb-8 max-w-[30rem] text-center text-sm leading-relaxed text-atlas-muted">
+        {meta.description}
+      </p>
       <ul
         role="list"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        className="flex flex-wrap justify-center gap-x-4 gap-y-7"
       >
         {agents.map((agent) => (
-          <li key={agent.id}>
+          <li
+            key={agent.id}
+            className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] xl:w-[calc(25%-0.75rem)]"
+          >
             <AgentCard agent={agent} tierLabels={tierLabels} />
           </li>
         ))}

@@ -1,9 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { useInView } from "../../hooks/useInView";
 
 export function TransitionBeat() {
-  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.4 });
+  const observerOptions = useMemo<IntersectionObserverInit>(
+    () => ({
+      threshold: 0.2,
+      rootMargin: "-35% 0px -35% 0px"
+    }),
+    []
+  );
+  const { ref, inView } = useInView<HTMLDivElement>(observerOptions, false);
 
   return (
     <section
@@ -28,31 +37,35 @@ export function TransitionBeat() {
         <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-intro-accent">
           The Protocol Rule
         </div>
-        <div className="flex flex-col items-center gap-6 md:flex-row md:gap-12">
+        <div className="mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] items-center gap-5 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)] md:gap-8">
           <span
             className={[
-              "atlas-intro-fade-up atlas-intro-fade-slow font-display text-4xl font-extrabold uppercase tracking-normal text-intro-foreground md:text-6xl",
+              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-right font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-foreground md:text-5xl",
               inView ? "is-visible" : ""
             ].join(" ")}
           >
-            Agents propose.
+            Agents
+            <br />
+            propose
           </span>
           <span
             aria-hidden="true"
-            className="block h-px overflow-hidden bg-intro-accent/40 transition-[width] duration-[2200ms] ease-out"
+            className="mx-auto block h-px overflow-hidden bg-intro-accent/40 transition-[width] duration-[2200ms] ease-out"
             style={{
-              width: inView ? "6rem" : "0rem",
+              width: inView ? "100%" : "0rem",
               transitionDelay: "700ms"
             }}
           />
           <span
             className={[
-              "atlas-intro-fade-up atlas-intro-fade-slow font-display text-4xl font-extrabold uppercase tracking-normal text-intro-accent md:text-6xl",
+              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-left font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-accent md:text-5xl",
               inView ? "is-visible" : ""
             ].join(" ")}
             style={{ transitionDelay: "1200ms" }}
           >
-            Code decides.
+            Code
+            <br />
+            decides
           </span>
         </div>
         <p className="mx-auto max-w-md text-sm text-intro-muted">

@@ -2,7 +2,7 @@
   "name": "atlas-web",
   "private": true,
   "version": "0.0.1",
-  "description": "Project Atlas web shell — synthetic, public-safe Next.js scrollytelling demo.",
+  "description": "Project ATLAS web shell — synthetic, public-safe Next.js scrollytelling demo.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -98,8 +98,8 @@ export function LeftSidebar() {
 
   return (
     <nav
-      aria-label="Project Atlas — five-step narrative navigation"
-      className="sticky top-12 hidden h-[calc(100vh-3rem)] shrink-0 border-r border-atlas-border bg-atlas-panel/85 px-3 py-6 backdrop-blur md:block"
+      aria-label="Project ATLAS — five-step narrative navigation"
+      className="atlas-demo-sidebar sticky top-12 hidden h-[calc(100vh-3rem)] shrink-0 border-r px-3 py-6 backdrop-blur md:block"
       style={{ width: "var(--atlas-sidebar-width)" }}
     >
       <p className="px-3 pb-4 font-mono text-[10px] uppercase tracking-widest text-atlas-muted">

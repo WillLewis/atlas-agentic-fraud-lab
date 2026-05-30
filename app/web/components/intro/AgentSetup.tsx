@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { useInView } from "../../hooks/useInView";
 import { useTypewriter } from "../../hooks/useTypewriter";
 
@@ -55,7 +57,22 @@ const AGENTS: Agent[] = [
   }
 ];
 
-const STAGGER_MS = 3200;
+const TYPEWRITER_SPEED_MS = 18;
+const SEQUENCE_MS_PER_CHARACTER = 28;
+const AGENT_PAUSE_MS = 700;
+
+const agentText = (agent: Agent) => agent.lines.join("\n\n");
+
+const START_DELAYS_MS = AGENTS.map((agent, index) => {
+  if (index === 0) return 0;
+  return AGENTS.slice(0, index).reduce(
+    (delay, priorAgent) =>
+      delay +
+      agentText(priorAgent).length * SEQUENCE_MS_PER_CHARACTER +
+      AGENT_PAUSE_MS,
+    0
+  );
+});
 
 function AgentCard({
   agent,
@@ -66,8 +83,14 @@ function AgentCard({
   index: number;
   sectionInView: boolean;
 }) {
-  const joined = agent.lines.join("\n\n");
-  const typed = useTypewriter(joined, sectionInView, 10, index * STAGGER_MS);
+  const joined = agentText(agent);
+  const startDelay = START_DELAYS_MS[index] ?? 0;
+  const typed = useTypewriter(
+    joined,
+    sectionInView,
+    TYPEWRITER_SPEED_MS,
+    startDelay
+  );
 
   return (
     <div
@@ -83,7 +106,7 @@ function AgentCard({
         className="atlas-intro-sweep pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-intro-foreground/[0.04] to-transparent"
         style={{
           animation: sectionInView
-            ? `atlas-intro-sweep-keyframe 1.4s ease-out ${index * STAGGER_MS}ms 1 forwards`
+            ? `atlas-intro-sweep-keyframe 1.4s ease-out ${startDelay}ms 1 forwards`
             : "none"
         }}
       />
@@ -111,10 +134,14 @@ function AgentCard({
 }
 
 export function AgentSetup() {
-  const { ref, inView } = useInView<HTMLDivElement>({
-    threshold: 0.2,
-    rootMargin: "0px 0px -5% 0px"
-  });
+  const observerOptions = useMemo<IntersectionObserverInit>(
+    () => ({
+      threshold: 0.2,
+      rootMargin: "-35% 0px -35% 0px"
+    }),
+    []
+  );
+  const { ref, inView } = useInView<HTMLDivElement>(observerOptions, false);
 
   return (
     <section
