@@ -67,8 +67,8 @@ def _round_state(
         judge_report_id=judge_report_id,
         transcript_summary=(
             f"Round {round_id}: red-team surfaced 0 model_vulnerability cards; "
-            "bank-defense proposed 0 candidate(s); "
-            "judge no_candidate the selected candidate none. "
+            "bank-defense proposed 0 fix option(s); "
+            "judge none_available the selected fix option none. "
             "Carry-forward: model=baseline_v1, threshold=thresholds_v1."
         ),
         model_vulnerability_card_paths=[],

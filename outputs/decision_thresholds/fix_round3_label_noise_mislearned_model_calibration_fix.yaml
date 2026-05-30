@@ -26,6 +26,6 @@ decision_bands:
   decline_band: decline_threshold_band
 decision_threshold_version: fix_round3_label_noise_mislearned_model_calibration_fix
 decision_thresholds:
-  alert_score_threshold: 0.2032
-  challenge_score_threshold: 0.2032
+  alert_score_threshold: 0.1558
+  challenge_score_threshold: 0.1558
   decline_score_threshold: 1.0

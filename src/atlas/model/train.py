@@ -231,16 +231,16 @@ def _fit_baseline_thresholds(
         / 100.0
         * float(cap_margin)
     )
-    challenge_cap = (
-        float(action_rate_limits.get("challenge_rate_limit_pct", 8.0))
-        / 100.0
-        * float(cap_margin)
-    )
-
     # Each cap r maps to the (1 - r) quantile.  numpy.quantile uses the
     # 'linear' method by default — deterministic across runs.
-    challenge_q = float(np.quantile(calibrated_scores, 1.0 - challenge_cap))
+    #
+    # For fitted model candidates, keep challenge collapsed into the
+    # alert threshold. The acceptance rule allows only a tiny challenge
+    # rate increase, while the alert cap is the intended fixed action-rate
+    # channel for the curated demo. Policy fixes can still create a
+    # separate challenge band explicitly.
     alert_q = float(np.quantile(calibrated_scores, 1.0 - alert_cap))
+    challenge_q = alert_q
     decline_q = (
         1.0
         if decline_cap <= 0.0
@@ -249,7 +249,6 @@ def _fit_baseline_thresholds(
 
     # Enforce challenge ≤ alert ≤ decline (could violate ordering on
     # tied / very small distributions).
-    alert_q = max(alert_q, challenge_q)
     decline_q = max(decline_q, alert_q)
 
     # Clamp + round.

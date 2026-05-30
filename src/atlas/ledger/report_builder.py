@@ -100,7 +100,7 @@ def build_round_transcript_summary(
     """Render a deterministic, public-safe round transcript.
 
     Closed-enum verdict tokens (``accepted`` / ``rejected`` /
-    ``no_candidate``) so the surface area for unsafe text is zero —
+    ``none_available``) so the surface area for unsafe text is zero —
     every token is a structural literal.
 
     Returns ``(summary_text, safety_scan_passed)``.
@@ -112,14 +112,14 @@ def build_round_transcript_summary(
         verdict = "rejected"
         fix_id_token = selected_fix_id
     else:
-        verdict = "no_candidate"
+        verdict = "none_available"
         fix_id_token = "none"
 
     summary = (
         f"Round {round_id}: "
         f"red-team surfaced {n_cards} model_vulnerability cards; "
-        f"bank-defense proposed {n_fixes} candidate(s); "
-        f"judge {verdict} the selected candidate {fix_id_token}. "
+        f"bank-defense proposed {n_fixes} fix option(s); "
+        f"judge {verdict} the selected fix option {fix_id_token}. "
         f"Carry-forward: model={model_version_after}, "
         f"threshold={threshold_version_after}."
     )

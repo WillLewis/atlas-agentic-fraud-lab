@@ -23,21 +23,18 @@ The public demo labels emphasize observable synthetic feature interactions.
 That keeps the walkthrough about fixable model behavior, not hidden latent
 customer risk:
 
-    sum_markers = sum(six binary markers)
-    if sum_markers > 0:
-        prob = 0.45 * base_customer_risk
-             + 0.08 * sum_markers
-             + interaction_bonus
-             + label_noise
-    else:
-        prob = base_customer_risk / 6.0 + label_noise
+    observable_markers = access_change + device_novelty + security_recovery
+                       + cash_velocity + entity_reuse
+    prob = 0.08 * base_customer_risk
+         + 0.04 * observable_markers
+         + interaction_bonus
+         + label_noise
     prob = clamp(round(prob, 4), 0.0, 1.0)
 
-The 1/6 "no-markers" dampener is the value that makes the fixture's
-``tx_000001`` row come out at 0.04 (base=0.18, noise=0.01 → 0.18/6 + 0.01
-= 0.04). Without that dampener, "clean" customers carry too much of their
-base risk into the synthetic label, which over-saturates the
-high-risk-synthetic-activity class.
+The ring-membership marker is still emitted for auditability, but it no
+longer drives the public-demo label. A hidden customer-only marker makes the
+94% recall walkthrough unscientific because the defensive model cannot learn
+that signal from the allowed synthetic feature surface.
 
 Threshold at 0.5 → ``high_risk_synthetic_activity``; otherwise
 ``normal_activity``.
@@ -98,15 +95,12 @@ ALLOWED_LABEL_VALUES: Final[tuple[str, ...]] = (
 # Marker thresholds and weights. Tuned for a demo population where risk
 # labels depend on observable synthetic signals instead of base-risk alone.
 _HIGH_RISK_THRESHOLD: Final[float] = 0.5
-_BASE_RISK_WEIGHT_WITH_MARKERS: Final[float] = 0.45
-_PER_MARKER_WEIGHT: Final[float] = 0.08
-_CASH_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.22
-_CASH_ENTITY_INTERACTION_WEIGHT: Final[float] = 0.14
-_RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.12
-# Dampener applied to base_customer_risk when no markers fire. 1/6 is the
-# value that reproduces the fixture's tx_000001 row exactly (0.18/6 + 0.01
-# = 0.04). See the module docstring for the formula.
-_BASE_DAMPENER_NO_MARKERS: Final[float] = 1.0 / 6.0
+_BASE_RISK_WEIGHT: Final[float] = 0.08
+_PER_OBSERVABLE_MARKER_WEIGHT: Final[float] = 0.04
+_CASH_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.36
+_CASH_ENTITY_INTERACTION_WEIGHT: Final[float] = 0.30
+_RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT: Final[float] = 0.28
+_CASH_RECENT_ACCESS_INTERACTION_WEIGHT: Final[float] = 0.10
 
 _DEVICE_NOVELTY_DAYS: Final[int] = 150
 _ENTITY_REUSE_DEGREE_THRESHOLD: Final[int] = 4
@@ -205,25 +199,27 @@ def _compute_risk_probability(
     entity_reuse_marker: int,
 ) -> float:
     """Latent drivers → synthetic risk probability."""
-    if marker_sum > 0:
-        interaction_bonus = 0.0
-        if cash_movement_velocity_marker and device_novelty_marker:
-            interaction_bonus += _CASH_DEVICE_INTERACTION_WEIGHT
-        if cash_movement_velocity_marker and entity_reuse_marker:
-            interaction_bonus += _CASH_ENTITY_INTERACTION_WEIGHT
-        if (
-            device_novelty_marker
-            and (account_access_change_marker or security_recovery_marker)
-        ):
-            interaction_bonus += _RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT
-        raw = (
-            (_BASE_RISK_WEIGHT_WITH_MARKERS * base_customer_risk)
-            + (_PER_MARKER_WEIGHT * marker_sum)
-            + interaction_bonus
-            + label_noise
-        )
-    else:
-        raw = _BASE_DAMPENER_NO_MARKERS * base_customer_risk + label_noise
+    interaction_bonus = 0.0
+    if cash_movement_velocity_marker and device_novelty_marker:
+        interaction_bonus += _CASH_DEVICE_INTERACTION_WEIGHT
+    if cash_movement_velocity_marker and entity_reuse_marker:
+        interaction_bonus += _CASH_ENTITY_INTERACTION_WEIGHT
+    if (
+        device_novelty_marker
+        and (account_access_change_marker or security_recovery_marker)
+    ):
+        interaction_bonus += _RECENT_ACCESS_DEVICE_INTERACTION_WEIGHT
+    if (
+        cash_movement_velocity_marker
+        and (account_access_change_marker or security_recovery_marker)
+    ):
+        interaction_bonus += _CASH_RECENT_ACCESS_INTERACTION_WEIGHT
+    raw = (
+        (_BASE_RISK_WEIGHT * base_customer_risk)
+        + (_PER_OBSERVABLE_MARKER_WEIGHT * marker_sum)
+        + interaction_bonus
+        + label_noise
+    )
     clamped = max(0.0, min(1.0, raw))
     return round(clamped, 4)
 
@@ -350,7 +346,7 @@ def generate_label_generation_records(
         cust_devices = devices_by_customer.get(transfer["customer_id"], [])
         cust_security_events = security_by_customer.get(transfer["customer_id"], [])
 
-        # Six binary markers (booleans coerced to 0/1).
+        # Observable binary markers (booleans coerced to 0/1) drive the label.
         access_change = int(_has_access_change_event(cust_security_events))
         device_novelty = int(_has_novel_current_device(cust_devices))
         security_recovery = int(_has_security_recovery_event(cust_security_events))
@@ -358,13 +354,12 @@ def generate_label_generation_records(
         entity_reuse = int(_is_high_reuse_recipient(recipient))
         ring_member = int(_is_ring_member(customer["customer_id"]))
 
-        marker_sum = (
+        observable_marker_sum = (
             access_change
             + device_novelty
             + security_recovery
             + cash_velocity
             + entity_reuse
-            + ring_member
         )
 
         # Per-record noise jitter — RNG-deterministic.
@@ -372,7 +367,7 @@ def generate_label_generation_records(
 
         prob = _compute_risk_probability(
             base_customer_risk=customer["synthetic_base_risk"],
-            marker_sum=marker_sum,
+            marker_sum=observable_marker_sum,
             label_noise=label_noise,
             account_access_change_marker=access_change,
             device_novelty_marker=device_novelty,

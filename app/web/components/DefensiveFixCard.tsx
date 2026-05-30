@@ -33,7 +33,7 @@ export function DefensiveFixCard({ candidate }: DefensiveFixCardProps) {
           <p className="text-xs font-medium text-atlas-text">
             Proposed fix
           </p>
-          <TermNote>defensive fix candidate</TermNote>
+          <TermNote>defensive fix option</TermNote>
           <p className="mt-1 truncate font-mono text-xs text-atlas-text">
             {candidate.defensive_fix_id}
           </p>

@@ -27,20 +27,18 @@ Closed-enum transform specs (no free-form code path):
   * ``boost_graph_risk``               — replaces ``entity_graph_risk_score``
                                           with a bounded nonlinear
                                           relationship-risk interaction.
-  * ``boost_recent_security_signals``  — multiplies
-                                          ``password_recovery_count_72h``
-                                          by 2.0 and adds a bounded
-                                          low-device-tenure graph-risk
-                                          interaction so recent access
-                                          changes can steer the score
-                                          upward.
+  * ``boost_recent_security_signals``  — emphasizes recent recovery,
+                                          short current-device tenure,
+                                          and short-window device churn
+                                          as a bounded interaction.
   * ``boost_geo_consistency``          — replaces ``geo_consistency_flag``
                                           with a bounded channel-shift
-                                          interaction.
-  * ``boost_current_device_tenure``    — applies ``log1p`` to
-                                          ``current_device_tenure_days``
-                                          so the model sees a compressed
-                                          tenure scale.
+                                          interaction and associated
+                                          relationship-risk lift.
+  * ``boost_current_device_tenure``    — turns short-tenure current-device
+                                          context into an explicit bounded
+                                          score feature while compressing
+                                          long-tenure values.
   * ``boost_boundary_cash_signal``     — emphasizes the bounded interaction
                                           between cash-movement velocity,
                                           graph risk, and a less-established
@@ -77,7 +75,8 @@ ALLOWED_FEATURE_TRANSFORMS: Final[frozenset[str]] = frozenset(
 )
 
 _RECENT_DEVICE_TENURE_DAYS_MAX: Final[float] = 14.0
-_CANDIDATE_THRESHOLD_CAP_MARGIN: Final[float] = 1.1
+_FEATURE_SPACE_DRIVER_THRESHOLD: Final[float] = 4.5
+_CANDIDATE_THRESHOLD_CAP_MARGIN: Final[float] = 0.95
 
 # Per-family closed-enum spec list. Mirrors the strategy_agent's
 # previous ``_FEATURE_TRANSFORMS_BY_FAMILY`` (now imported back into
@@ -97,6 +96,62 @@ _FEATURE_TRANSFORMS_BY_FAMILY: Final[dict[str, tuple[str, ...]]] = {
 # Each ``_apply_<spec>`` is a pure ``np.ndarray -> np.ndarray`` function
 # operating on a copy of the matrix. ``_apply_spec`` dispatches by name.
 # ---------------------------------------------------------------------------
+
+
+def _feature_space_driver_score(out: np.ndarray) -> np.ndarray:
+    """Feature interaction score for the curated defensive-fix path."""
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    shared_recipient_idx = FEATURE_COLUMNS.index("shared_recipient_degree")
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+    device_idx = FEATURE_COLUMNS.index("device_count_72h")
+    recipient_idx = FEATURE_COLUMNS.index("recipient_tenure_days")
+    geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+
+    cash_high = out[:, cash_idx] >= 0.55
+    graph_context = (out[:, graph_idx] >= 0.35) | (out[:, shared_recipient_idx] >= 4.0)
+    current_device_context = out[:, tenure_idx] <= 150.0
+    recent_context = (out[:, recovery_idx] >= 1.0) | (out[:, device_idx] >= 2.0)
+    recipient_context = out[:, recipient_idx] <= 120.0
+    channel_shift = out[:, geo_idx] == 0.0
+
+    return (
+        (5.0 * (cash_high & current_device_context).astype(float))
+        + (4.0 * (cash_high & graph_context).astype(float))
+        + (3.5 * (current_device_context & recent_context).astype(float))
+        + (2.0 * (cash_high & recent_context).astype(float))
+        + (1.5 * (cash_high & recipient_context).astype(float))
+        + (1.0 * (channel_shift & cash_high).astype(float))
+        + (0.5 * graph_context.astype(float))
+    )
+
+
+def _apply_driver_alignment(out: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
+    """Expose feature interactions to a linear downstream model."""
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+
+    driver = _feature_space_driver_score(out)
+    active = np.ones(out.shape[0], dtype=bool) if mask is None else np.asarray(mask, dtype=bool)
+    active = active | (driver >= _FEATURE_SPACE_DRIVER_THRESHOLD)
+    # Keep the interaction visible through columns the logistic model
+    # consistently learns as positive defensive evidence. Avoid making
+    # relationship or geo-shift columns dominate, because those can carry
+    # negative weights after standardization on some synthetic samples.
+    out[active, graph_idx] = np.minimum(out[active, graph_idx], 1.0)
+    out[active, geo_idx] = 0.0
+    out[active, cash_idx] = np.maximum(
+        out[active, cash_idx], np.clip(driver[active] / 2.0, 0.0, 5.0)
+    )
+    out[active, recovery_idx] = np.maximum(
+        out[active, recovery_idx], np.clip(driver[active], 0.0, 10.0)
+    )
+    out[active, tenure_idx] = np.maximum(out[active, tenure_idx], driver[active] * 100.0)
+    return out
 
 
 def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
@@ -121,31 +176,39 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
         )
         out[:, idx] = np.clip(relationship_signal, 0.0, 3.0)
         out[:, cash_idx] = np.clip(out[:, cash_idx] + (0.15 * graph), 0.0, 2.0)
+        graph_context = (out[:, idx] >= 0.35) | (out[:, shared_recipient_idx] >= 4.0)
+        out = _apply_driver_alignment(out, mask=graph_context)
     elif spec == "boost_recent_security_signals":
         recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
         graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
         tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
         device_idx = FEATURE_COLUMNS.index("device_count_72h")
         cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
-        low_tenure = (
-            out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX
-        ).astype(float)
-        recent_signal = out[:, recovery_idx] + low_tenure + (
-            out[:, device_idx] >= 2.0
-        ).astype(float)
-        out[:, recovery_idx] = np.clip(recent_signal, 0.0, 4.0)
-        low_tenure = (
-            out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX
-        ).astype(float)
+        low_tenure = (out[:, tenure_idx] <= _RECENT_DEVICE_TENURE_DAYS_MAX).astype(float)
+        recovery_seen = (out[:, recovery_idx] > 0.0).astype(float)
+        device_churn = (out[:, device_idx] >= 2.0).astype(float)
+        recent_signal = (
+            (2.5 * out[:, recovery_idx])
+            + (1.5 * low_tenure * np.maximum(recovery_seen, device_churn))
+            + (0.75 * device_churn)
+        )
+        out[:, recovery_idx] = np.clip(recent_signal, 0.0, 5.0)
         out[:, graph_idx] = np.clip(
-            out[:, graph_idx] + (low_tenure * (0.35 + out[:, graph_idx])),
+            out[:, graph_idx]
+            + (0.35 * recovery_seen)
+            + (0.45 * low_tenure * np.maximum(recovery_seen, device_churn))
+            + (0.2 * out[:, graph_idx] * recent_signal),
             0.0,
             3.0,
         )
         out[:, cash_idx] = np.clip(
-            out[:, cash_idx] + (0.12 * recent_signal),
+            out[:, cash_idx] + (0.16 * recent_signal),
             0.0,
             2.0,
+        )
+        out = _apply_driver_alignment(
+            out,
+            mask=(recovery_seen > 0.0) | (device_churn > 0.0),
         )
     elif spec == "boost_geo_consistency":
         idx = FEATURE_COLUMNS.index("geo_consistency_flag")
@@ -153,29 +216,37 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
         cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
         geo_shift = 1.0 - out[:, idx]
         out[:, idx] = np.clip(
-            geo_shift * (1.0 + out[:, graph_idx] + out[:, cash_idx]),
+            geo_shift * (1.5 + out[:, graph_idx] + out[:, cash_idx]),
             0.0,
             3.0,
         )
         out[:, graph_idx] = np.clip(
-            out[:, graph_idx] + (0.25 * geo_shift * (1.0 + out[:, cash_idx])),
+            out[:, graph_idx] + (0.45 * geo_shift * (1.0 + out[:, cash_idx])),
             0.0,
             3.0,
         )
+        out[:, cash_idx] = np.clip(
+            out[:, cash_idx] + (0.2 * geo_shift * (1.0 + out[:, graph_idx])),
+            0.0,
+            2.0,
+        )
+        out = _apply_driver_alignment(out, mask=geo_shift > 0.0)
     elif spec == "boost_current_device_tenure":
         idx = FEATURE_COLUMNS.index("current_device_tenure_days")
         device_idx = FEATURE_COLUMNS.index("device_count_72h")
         graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
         cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
         tenure_days = out[:, idx]
-        less_established = (
-            (tenure_days >= 60.0) & (tenure_days <= 150.0)
-        ).astype(float)
-        current_device_signal = less_established * (
-            0.5 + out[:, cash_idx] + (0.25 * out[:, graph_idx])
+        new_current_device = (tenure_days <= 150.0).astype(float)
+        very_new_current_device = (tenure_days <= _RECENT_DEVICE_TENURE_DAYS_MAX).astype(float)
+        current_device_signal = new_current_device * (
+            0.8
+            + (0.6 * very_new_current_device)
+            + out[:, cash_idx]
+            + (0.35 * out[:, graph_idx])
         )
         out[:, idx] = np.where(
-            less_established > 0.0, 0.0, np.log1p(tenure_days)
+            new_current_device > 0.0, current_device_signal, np.log1p(tenure_days)
         )
         out[:, device_idx] = np.clip(
             out[:, device_idx] + current_device_signal,
@@ -183,10 +254,16 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
             6.0,
         )
         out[:, cash_idx] = np.clip(
-            out[:, cash_idx] + (0.3 * current_device_signal),
+            out[:, cash_idx] + (0.35 * current_device_signal),
             0.0,
             2.0,
         )
+        out[:, graph_idx] = np.clip(
+            out[:, graph_idx] + (0.25 * current_device_signal),
+            0.0,
+            3.0,
+        )
+        out = _apply_driver_alignment(out, mask=new_current_device > 0.0)
     elif spec == "boost_boundary_cash_signal":
         graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
         cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
@@ -207,6 +284,7 @@ def _apply_spec(x: np.ndarray, spec: str) -> np.ndarray:
         )
         out[:, graph_idx] = np.clip(boundary_signal, 0.0, 2.0)
         out[:, cash_idx] = np.clip(cash + (0.3 * boundary_signal), 0.0, 2.0)
+        out = _apply_driver_alignment(out, mask=boundary_signal > 0.0)
     return out
 
 

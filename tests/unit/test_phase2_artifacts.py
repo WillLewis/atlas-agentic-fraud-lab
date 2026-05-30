@@ -180,11 +180,11 @@ def test_manifest_counts_match_files(disk_dataset: Path):
 def test_locked_partition_count_in_manifest(disk_dataset: Path):
     manifest = json.loads((disk_dataset / "manifest.json").read_text())
     assert manifest["counts"]["by_partition"] == {
-        "train": 36,
+        "train": 15,
         "validation": 6,
-        "clean_holdout": 6,
-        "locked_adaptive_holdout": 6,
-        "drifted_holdout": 6,
+        "clean_holdout": 15,
+        "locked_adaptive_holdout": 12,
+        "drifted_holdout": 12,
     }
 
 

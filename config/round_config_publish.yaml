@@ -1,0 +1,95 @@
+# config/round_config_publish.yaml
+# Curated public-walkthrough round profile.
+#
+# Keeps the same families, judge holdouts, and defensive-fix families as
+# round_config.yaml, but uses a smaller scoring-query limit so transparent
+# publish-case searches can evaluate several fix options per round quickly.
+
+round_config_version: rounds_publish_v1
+
+defaults:
+  total_rounds: 3
+  default_seed: 42
+  enforce_safety_scan_per_round: true
+  feature_recomputation_required: true
+  allow_locked_holdout_access_during_round: false
+
+rounds:
+  - round_id: 1
+    label: round_1_initial_test_and_response
+    objective: >-
+      Identify under-ranked high-risk synthetic candidates under a fixed
+      scoring-query limit and propose a first defensive fix.
+    allowed_family_ids:
+      - low_velocity_high_graph_risk
+      - score_boundary_cluster
+    max_score_queries: 360
+    max_runtime_seconds: 120
+    search_methods:
+      - random
+      - evolutionary
+      - graph_probe
+    defensive_fix_types_allowed:
+      - feature_fix
+      - policy_fix
+    judge_holdouts:
+      - clean_holdout
+      - found_adaptive_set
+      - locked_adaptive_holdout
+      - drifted_holdout
+
+  - round_id: 2
+    label: round_2_adaptive_pressure
+    objective: >-
+      Adapt to the round-1 defensive fix; surface a new model vulnerability
+      family; propose a feature or decision-threshold fix.
+    allowed_family_ids:
+      - recent_change_feature_delay
+      - activity_channel_shift
+      - current_device_mismatch
+    max_score_queries: 420
+    max_runtime_seconds: 150
+    search_methods:
+      - evolutionary
+      - graph_probe
+    defensive_fix_types_allowed:
+      - feature_fix
+      - policy_fix
+      - model_calibration_fix
+    judge_holdouts:
+      - clean_holdout
+      - found_adaptive_set
+      - locked_adaptive_holdout
+      - drifted_holdout
+
+  - round_id: 3
+    label: round_3_final_evaluation
+    objective: >-
+      Final evaluation report. Trend metrics across rounds, generalization
+      check on locked holdout, and model-tier comparison summary.
+    allowed_family_ids:
+      - label_noise_mislearned
+      - overfit_fix_failure
+    max_score_queries: 420
+    max_runtime_seconds: 150
+    search_methods:
+      - evolutionary
+      - graph_probe
+    defensive_fix_types_allowed:
+      - feature_fix
+      - policy_fix
+      - model_calibration_fix
+    judge_holdouts:
+      - clean_holdout
+      - found_adaptive_set
+      - locked_adaptive_holdout
+      - drifted_holdout
+
+ledger:
+  output_dir: outputs/ledgers
+  run_dir: outputs/runs
+  model_vulnerability_dir: outputs/model_vulnerabilities
+  defensive_fix_dir: outputs/defensive_fixes
+  report_dir: outputs/reports
+  replay_dir: outputs/demo_replays
+  jsonl_run_index_filename: runs.jsonl

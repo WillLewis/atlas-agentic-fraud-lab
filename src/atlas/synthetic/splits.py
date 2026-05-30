@@ -1,14 +1,14 @@
 """Customer-level partitioning + locked / drifted holdouts (Phase 2).
 
-Splits customers strictly by ``customer_id`` into five partitions matching
-``config/synthetic_schema.yaml``::
+Splits customers strictly by ``customer_id`` into five partitions tuned for
+the curated public demo::
 
-    train                     0.60
+    train                     0.25
     validation                0.10
-    clean_holdout             0.10
-    locked_adaptive_holdout   0.10  (locked: red-team / blue-team agents
+    clean_holdout             0.25
+    locked_adaptive_holdout   0.20  (locked: red-team / blue-team agents
                                      do not see this set during a round)
-    drifted_holdout           0.10  (locked AND has synthetic drift applied
+    drifted_holdout           0.20  (locked AND has synthetic drift applied
                                      to events; labels regenerated)
 
 The customer set is shuffled once with the supplied RNG and sliced by the
@@ -113,11 +113,11 @@ _MIN_SUPPORTED_CUSTOMER_COUNT: Final[int] = 10
 class SplitFractions:
     """Per-partition customer fractions. Must sum to 1.0."""
 
-    train: float = 0.60
+    train: float = 0.25
     validation: float = 0.10
-    clean_holdout: float = 0.10
-    locked_adaptive_holdout: float = 0.10
-    drifted_holdout: float = 0.10
+    clean_holdout: float = 0.25
+    locked_adaptive_holdout: float = 0.20
+    drifted_holdout: float = 0.20
 
     def total(self) -> float:
         return (

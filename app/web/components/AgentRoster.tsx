@@ -79,7 +79,7 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
     allowed: [
       "Mutate event timing, counts, and synthetic graph links",
       "Call the local mock scorer",
-      "Return candidate batches under the scoring-query limit"
+      "Return test batches under the scoring-query limit"
     ],
     tier: "frontier"
   },
@@ -105,7 +105,7 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
     purpose:
       "Writes up each confirmed weak spot into a card the defense side can act on.",
     allowed: [
-      "Summarize accepted high-risk synthetic candidates",
+      "Summarize accepted high-risk synthetic test cases",
       "Generate safe cohort definitions",
       "Recommend defensive fix families"
     ],
@@ -138,7 +138,7 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
     allowed: [
       "Derive features from synthetic event histories",
       "Derive features from synthetic graph relationships",
-      "Submit a feature fix candidate"
+      "Submit a feature fix option"
     ],
     tier: "frontier"
   },
@@ -152,7 +152,7 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
     allowed: [
       "Propose decision-threshold adjustments",
       "Respect challenge / alert / decline action-rate limits",
-      "Submit a policy fix candidate"
+      "Submit a policy fix option"
     ],
     tier: "frontier"
   },
@@ -166,7 +166,7 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
     allowed: [
       "Retrain the mock scorer on allowed synthetic data",
       "Recalibrate the score distribution",
-      "Submit a model calibration fix candidate"
+      "Submit a model calibration fix option"
     ],
     tier: "frontier"
   },

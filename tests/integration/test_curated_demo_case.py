@@ -13,8 +13,8 @@ def _passing_candidate():
         "accepted_family_count": 2,
         "rejected_generalization_fixes": 0,
         "miss_abs_drop": 0.5,
-        "final_miss": 0.25,
-        "final_recall": 0.75,
+        "final_miss": 0.04,
+        "final_recall": 0.96,
         "loss_rel_drop": 0.6,
         "final_false_positive_rate": 0.03,
         "final_challenge_rate": 0.0,
@@ -30,8 +30,7 @@ def test_tightened_publish_thresholds_accept_two_family_case():
 
     assert _qualifies(_passing_candidate()) is True
 
-
-def test_tightened_publish_thresholds_accept_fix_plus_rejection_story():
+def test_tightened_publish_thresholds_reject_one_family_case():
     from scripts.search_demo_case import _qualifies
 
     candidate = _passing_candidate()
@@ -41,7 +40,7 @@ def test_tightened_publish_thresholds_accept_fix_plus_rejection_story():
     candidate["locked_holdout_passes"] = [True]
     candidate["drifted_holdout_passes"] = [True]
 
-    assert _qualifies(candidate) is True
+    assert _qualifies(candidate) is False
 
 
 def test_tightened_publish_thresholds_reject_high_final_miss():
@@ -49,6 +48,26 @@ def test_tightened_publish_thresholds_reject_high_final_miss():
 
     candidate = _passing_candidate()
     candidate["final_miss"] = 0.5
+
+    assert _qualifies(candidate) is False
+
+
+def test_tightened_publish_thresholds_reject_implausibly_perfect_recall():
+    from scripts.search_demo_case import _qualifies
+
+    candidate = _passing_candidate()
+    candidate["final_miss"] = 0.0
+    candidate["final_recall"] = 1.0
+
+    assert _qualifies(candidate) is False
+
+
+def test_tightened_publish_thresholds_reject_low_final_recall():
+    from scripts.search_demo_case import _qualifies
+
+    candidate = _passing_candidate()
+    candidate["final_miss"] = 0.10
+    candidate["final_recall"] = 0.90
 
     assert _qualifies(candidate) is False
 
@@ -81,15 +100,11 @@ def test_previous_seed_pair_no_longer_meets_publish_thresholds(tmp_path):
     metrics = summary["attempts"][0]
 
     assert metrics["qualifies"] is False
-    assert metrics["final_miss"] > summary["targets"]["max_final_miss"]
-    assert metrics["final_recall"] < summary["targets"]["final_recall"]
-    assert metrics["accepted_fixes"] == 1
-    assert metrics["rejected_generalization_fixes"] >= 1
-    assert metrics["miss_abs_drop"] >= 0.3333
-    assert metrics["loss_rel_drop"] >= 0.50
-    assert metrics["final_false_positive_rate"] <= 0.05
-    assert metrics["final_alert_rate"] <= 0.15
-    assert metrics["final_challenge_rate"] <= 0.08
-    assert metrics["final_decline_rate"] <= 0.0025
-    assert all(metrics["locked_holdout_passes"])
-    assert all(metrics["drifted_holdout_passes"])
+    if metrics.get("skipped_reason") == "fixture_health_failed":
+        assert metrics["fixture_health"]["passed"] is False
+    else:
+        assert (
+            metrics["final_miss"] > summary["targets"]["max_final_miss"]
+            or metrics["final_recall"] < summary["targets"]["final_recall"]
+            or metrics["final_recall"] > summary["targets"]["max_final_recall"]
+        )

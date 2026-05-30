@@ -20,11 +20,23 @@ const config: Config = {
           warn: "#b54708",
           danger: "#d92d20",
           ok: "#027a48"
+        },
+        intro: {
+          background: "#faf8f2",
+          foreground: "#1f2937",
+          card: "#ffffff",
+          secondary: "#f1efe8",
+          muted: "#667085",
+          accent: "#2b7cff",
+          border: "rgba(31, 41, 55, 0.1)",
+          red: "#df3344",
+          judge: "#a87908"
         }
       },
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Inter", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"]
+        display: ["Inter Display", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"]
       }
     }
   },

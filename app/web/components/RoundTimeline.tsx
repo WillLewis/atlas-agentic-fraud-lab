@@ -129,7 +129,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label={`${GLOSSARY.model_miss_rate.plain} · selected candidate`}
+          label={`${GLOSSARY.model_miss_rate.plain} · fix option before referee decision`}
           term={GLOSSARY.model_miss_rate.term}
           definition={GLOSSARY.model_miss_rate.definition}
           before_value={round.before.model_miss_rate}
@@ -149,7 +149,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label={`${GLOSSARY.recall.plain} · selected candidate`}
+          label={`${GLOSSARY.recall.plain} · fix option before referee decision`}
           term={GLOSSARY.recall.term}
           definition={GLOSSARY.recall.definition}
           before_value={round.before.recall_at_fixed_action_rate}
@@ -169,7 +169,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label={`${GLOSSARY.false_positive_rate.plain} · selected candidate`}
+          label={`${GLOSSARY.false_positive_rate.plain} · fix option before referee decision`}
           term={GLOSSARY.false_positive_rate.term}
           definition={GLOSSARY.false_positive_rate.definition}
           before_value={round.before.false_positive_rate_at_fixed_action_rate}
@@ -189,7 +189,7 @@ function RoundPanel({ round }: { round: TimelineRound }) {
       />
       {candidateMoves && round.candidate_after ? (
         <BeforeAfter
-          label={`${GLOSSARY.synthetic_loss_allowed.plain} · selected candidate`}
+          label={`${GLOSSARY.synthetic_loss_allowed.plain} · fix option before referee decision`}
           term={GLOSSARY.synthetic_loss_allowed.term}
           definition={GLOSSARY.synthetic_loss_allowed.definition}
           before_value={round.before.synthetic_loss_allowed}

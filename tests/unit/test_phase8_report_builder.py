@@ -63,7 +63,7 @@ def test_round_summary_no_candidate_verdict():
         model_version_after="baseline_v1",
         threshold_version_after="thresholds_v1",
     )
-    assert "no_candidate" in text
+    assert "none_available" in text
     assert "none" in text
     assert ok is True
 

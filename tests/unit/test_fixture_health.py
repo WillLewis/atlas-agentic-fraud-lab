@@ -22,9 +22,9 @@ def test_curated_fixture_health_passes_thresholds():
 
     assert report["passed"] is True
     assert report["failed_holdouts"] == []
-    assert report["holdouts"]["clean_holdout"]["high_risk_events"] >= 12
-    assert report["holdouts"]["locked_adaptive_holdout"]["high_risk_events"] >= 4
-    assert report["holdouts"]["drifted_holdout"]["high_risk_events"] >= 4
+    assert report["holdouts"]["clean_holdout"]["high_risk_events"] >= 50
+    assert report["holdouts"]["locked_adaptive_holdout"]["high_risk_events"] >= 25
+    assert report["holdouts"]["drifted_holdout"]["high_risk_events"] >= 25
 
 
 def test_fixture_health_raises_when_denominator_is_too_small():

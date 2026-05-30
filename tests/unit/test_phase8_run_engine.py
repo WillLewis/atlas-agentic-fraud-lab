@@ -85,6 +85,7 @@ def test_execute_run_one_round_completes(hermetic_outputs):
         max_rounds=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert final.status == "completed"
     assert final.current_round == 1
@@ -111,6 +112,7 @@ def test_execute_run_three_rounds_completes(hermetic_outputs):
         max_rounds=3,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert final.status == "completed"
     assert final.current_round == 3
@@ -138,6 +140,7 @@ def test_execute_run_carry_forward_rejected(hermetic_outputs):
         max_rounds=2,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     rs1 = load_round_state(final.run_id, 1, outputs_root=hermetic_outputs)
     rs2 = load_round_state(final.run_id, 2, outputs_root=hermetic_outputs)
@@ -184,6 +187,7 @@ def test_execute_run_byte_identical_run_state(tmp_path, monkeypatch):
             max_rounds=1,
             outputs_root=out,
             data_dir=REPO_ROOT / "data" / "synthetic",
+            round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
         )
 
     final_a = _run_in(out_a)
@@ -225,6 +229,7 @@ def test_execute_run_byte_identical_ledger(tmp_path, monkeypatch):
             max_rounds=1,
             outputs_root=out,
             data_dir=REPO_ROOT / "data" / "synthetic",
+            round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
         )
 
     final_a = _run_in(out_a)
@@ -277,6 +282,7 @@ def test_execute_run_accepted_carry_forward_advances_versions(hermetic_outputs):
             max_rounds=2,
             outputs_root=hermetic_outputs,
             data_dir=REPO_ROOT / "data" / "synthetic",
+            round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
         )
 
     rs1 = load_round_state(final.run_id, 1, outputs_root=hermetic_outputs)
@@ -305,6 +311,7 @@ def test_execute_run_run_id_format(hermetic_outputs):
         max_rounds=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert final.run_id.startswith("run_")
     assert len(final.run_id) == 4 + 8
@@ -320,11 +327,13 @@ def test_execute_run_different_seeds_different_run_ids(hermetic_outputs):
         max_rounds=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     final_b = execute_run(
         seed=43, run_label="alpha",
         max_rounds=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert final_a.run_id != final_b.run_id

@@ -26,6 +26,6 @@ decision_bands:
   decline_band: decline_threshold_band
 decision_threshold_version: thresholds_v1
 decision_thresholds:
-  alert_score_threshold: 0.2523
-  challenge_score_threshold: 0.2523
+  alert_score_threshold: 0.6509
+  challenge_score_threshold: 0.6509
   decline_score_threshold: 1.0

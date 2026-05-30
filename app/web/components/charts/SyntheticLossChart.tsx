@@ -1,5 +1,5 @@
 // app/web/components/charts/SyntheticLossChart.tsx
-// Demo losses let through across rounds.
+// Synthetic losses let through across rounds.
 //
 // Phase 9: pure function of `metrics`.
 //
@@ -34,7 +34,7 @@ export function SyntheticLossChart({
   };
   const selectedCandidateSeries: LinePlotSeries | null = candidate_metrics
     ? {
-        name: "Selected candidate result",
+        name: "Fix option before referee decision",
         color_token: "accent",
         stroke_dasharray: "4 3",
         points: candidate_metrics.map((s) => ({
@@ -55,7 +55,7 @@ export function SyntheticLossChart({
       y_format={(v) => formatSyntheticCurrency(v, { compact: true })}
       y_min={0}
       show_legend={series.length > 1}
-      aria_label="Demo losses let through, synthetic loss allowed, across baseline and synthetic rounds, in synthetic currency units; lower is better."
+      aria_label="Synthetic losses let through, synthetic loss allowed, across baseline and synthetic rounds, in scaled synthetic currency units; lower is better."
     />
   );
 }

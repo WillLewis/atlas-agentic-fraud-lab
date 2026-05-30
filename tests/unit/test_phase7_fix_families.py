@@ -429,6 +429,7 @@ def test_recent_security_transform_adds_low_tenure_graph_interaction():
     recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
     graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
     tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
     x[:, recovery_idx] = 1.0
     x[:, graph_idx] = 0.52
     x[0, tenure_idx] = 10
@@ -437,10 +438,72 @@ def test_recent_security_transform_adds_low_tenure_graph_interaction():
     t = _FeatureFixTransformer(("boost_recent_security_signals",))
     y = t.transform(x)
 
-    assert y[0, recovery_idx] == 2.0
-    assert y[1, recovery_idx] == 1.0
-    assert y[0, graph_idx] == pytest.approx(1.39)
-    assert y[1, graph_idx] == pytest.approx(0.52)
+    assert y[0, recovery_idx] == 10.0
+    assert y[1, recovery_idx] == 4.0
+    assert y[0, graph_idx] == 1.0
+    assert y[1, graph_idx] == 1.0
+    assert y[0, cash_idx] == 5.0
+    assert y[1, cash_idx] == 2.0
+
+
+def test_current_device_transform_lifts_short_tenure_context():
+    import numpy as np
+    from atlas.model.loader import FEATURE_COLUMNS
+
+    n_features = len(FEATURE_COLUMNS)
+    x = np.zeros((2, n_features), dtype=float)
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    device_idx = FEATURE_COLUMNS.index("device_count_72h")
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+    x[0, tenure_idx] = 7
+    x[0, graph_idx] = 0.6
+    x[0, cash_idx] = 0.7
+    x[1, tenure_idx] = 220
+    x[1, graph_idx] = 0.6
+    x[1, cash_idx] = 0.7
+
+    t = _FeatureFixTransformer(("boost_current_device_tenure",))
+    y = t.transform(x)
+
+    assert y[0, tenure_idx] == pytest.approx(1750.0)
+    assert y[0, device_idx] == pytest.approx(2.31)
+    assert y[0, graph_idx] == 1.0
+    assert y[0, cash_idx] == 5.0
+    assert y[0, recovery_idx] == 10.0
+    assert y[1, tenure_idx] == pytest.approx(1200.0)
+
+
+def test_geo_consistency_transform_lifts_channel_shift_context():
+    import numpy as np
+    from atlas.model.loader import FEATURE_COLUMNS
+
+    n_features = len(FEATURE_COLUMNS)
+    x = np.zeros((2, n_features), dtype=float)
+    geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+    graph_idx = FEATURE_COLUMNS.index("entity_graph_risk_score")
+    cash_idx = FEATURE_COLUMNS.index("cash_movement_velocity_score")
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
+    tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
+    x[0, geo_idx] = 0
+    x[0, graph_idx] = 0.4
+    x[0, cash_idx] = 0.5
+    x[1, geo_idx] = 1
+    x[1, graph_idx] = 0.4
+    x[1, cash_idx] = 0.5
+
+    t = _FeatureFixTransformer(("boost_geo_consistency",))
+    y = t.transform(x)
+
+    assert y[0, geo_idx] == 0.0
+    assert y[0, graph_idx] == 1.0
+    assert y[0, cash_idx] == 5.0
+    assert y[0, recovery_idx] == 10.0
+    assert y[0, tenure_idx] == pytest.approx(1100.0)
+    assert y[1, geo_idx] == 0.0
+    assert y[1, graph_idx] == 0.4
+    assert y[1, cash_idx] == 0.5
 
 
 def test_boundary_cash_transform_adds_score_boundary_interaction():
@@ -454,6 +517,7 @@ def test_boundary_cash_transform_adds_score_boundary_interaction():
     tenure_idx = FEATURE_COLUMNS.index("current_device_tenure_days")
     recipient_idx = FEATURE_COLUMNS.index("recipient_tenure_days")
     geo_idx = FEATURE_COLUMNS.index("geo_consistency_flag")
+    recovery_idx = FEATURE_COLUMNS.index("password_recovery_count_72h")
     x[0, cash_idx] = 0.60
     x[0, graph_idx] = 0.90
     x[0, tenure_idx] = 100
@@ -468,8 +532,10 @@ def test_boundary_cash_transform_adds_score_boundary_interaction():
     t = _FeatureFixTransformer(("boost_boundary_cash_signal",))
     y = t.transform(x)
 
-    assert y[0, graph_idx] == pytest.approx(1.6)
-    assert y[0, cash_idx] == pytest.approx(1.08)
+    assert y[0, graph_idx] == 1.0
+    assert y[0, cash_idx] == 5.0
+    assert y[0, recovery_idx] == 10.0
+    assert y[0, tenure_idx] == pytest.approx(1100.0)
     assert y[1, graph_idx] == 0.0
     assert y[1, cash_idx] == 0.30
 

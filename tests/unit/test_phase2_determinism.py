@@ -115,9 +115,9 @@ def test_manifest_seed_and_count_recorded(tmp_path: Path):
     assert manifest["seed"] == 1234
     assert manifest["customer_count"] == 50
     assert manifest["counts"]["by_partition"] == {
-        "train": 30,
+        "train": 12,
         "validation": 5,
-        "clean_holdout": 5,
-        "locked_adaptive_holdout": 5,
-        "drifted_holdout": 5,
+        "clean_holdout": 12,
+        "locked_adaptive_holdout": 10,
+        "drifted_holdout": 11,
     }

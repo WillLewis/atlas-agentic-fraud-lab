@@ -15,6 +15,7 @@
 // consistent with the rest of the app.
 
 import type { JudgeReport } from "../lib/types";
+import { formatRate, formatSyntheticCurrency } from "../lib/formatters";
 import { GLOSSARY } from "../lib/glossary";
 import { familyLabelFromId, fixTypeLabelFromId } from "../lib/ids";
 import { parseJudgeNotes, sanitizeJudgeText } from "../lib/judgeNotes";
@@ -31,6 +32,30 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
   const evaluatedFixType =
     fixTypeLabelFromId(report.defensive_fix_id) ?? "this round's fix";
   const evaluatedFamilyLabel = familyLabelFromId(report.defensive_fix_id);
+  const displayedMetrics = accepted ? report.fixed : report.baseline;
+  const sectionTitle = accepted
+    ? GLOSSARY.judge_metrics.plain
+    : "Carry-forward state after rejection";
+  const comparisonFor = accepted
+    ? {
+        recall: {
+          baseline_value: report.baseline.recall_at_fixed_action_rate,
+          improvement_direction: "up_is_good" as const
+        },
+        miss: {
+          baseline_value: report.baseline.model_miss_rate,
+          improvement_direction: "down_is_good" as const
+        },
+        falsePositive: {
+          baseline_value: report.baseline.false_positive_rate_at_fixed_action_rate,
+          improvement_direction: "down_is_good" as const
+        },
+        syntheticLoss: {
+          baseline_value: report.baseline.synthetic_loss_allowed,
+          improvement_direction: "down_is_good" as const
+        }
+      }
+    : null;
 
   return (
     <article
@@ -77,7 +102,7 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
       <section className="mt-4" aria-label="Judge-derived metrics">
         <div className="mb-3" title={GLOSSARY.judge_metrics.definition}>
           <p className="text-xs font-medium text-atlas-text">
-            {GLOSSARY.judge_metrics.plain}
+            {sectionTitle}
           </p>
           <TermNote>{GLOSSARY.judge_metrics.term}</TermNote>
         </div>
@@ -86,47 +111,52 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             label={GLOSSARY.recall.plain}
             term={GLOSSARY.recall.term}
             definition={GLOSSARY.recall.definition}
-            value={report.fixed.recall_at_fixed_action_rate}
+            value={displayedMetrics.recall_at_fixed_action_rate}
             format="rate"
-            comparison={{
-              baseline_value: report.baseline.recall_at_fixed_action_rate,
-              improvement_direction: "up_is_good"
-            }}
+            comparison={comparisonFor?.recall}
           />
           <MetricCard
             label={GLOSSARY.model_miss_rate.plain}
             term={GLOSSARY.model_miss_rate.term}
             definition={GLOSSARY.model_miss_rate.definition}
-            value={report.fixed.model_miss_rate}
+            value={displayedMetrics.model_miss_rate}
             format="rate"
-            comparison={{
-              baseline_value: report.baseline.model_miss_rate,
-              improvement_direction: "down_is_good"
-            }}
+            comparison={comparisonFor?.miss}
           />
           <MetricCard
             label={GLOSSARY.false_positive_rate.plain}
             term={GLOSSARY.false_positive_rate.term}
             definition={GLOSSARY.false_positive_rate.definition}
-            value={report.fixed.false_positive_rate_at_fixed_action_rate}
+            value={displayedMetrics.false_positive_rate_at_fixed_action_rate}
             format="rate"
-            comparison={{
-              baseline_value: report.baseline.false_positive_rate_at_fixed_action_rate,
-              improvement_direction: "down_is_good"
-            }}
+            comparison={comparisonFor?.falsePositive}
           />
           <MetricCard
             label={GLOSSARY.synthetic_loss_allowed.plain}
             term={GLOSSARY.synthetic_loss_allowed.term}
             definition={GLOSSARY.synthetic_loss_allowed.definition}
-            value={report.fixed.synthetic_loss_allowed}
+            value={displayedMetrics.synthetic_loss_allowed}
             format="synthetic_currency"
-            comparison={{
-              baseline_value: report.baseline.synthetic_loss_allowed,
-              improvement_direction: "down_is_good"
-            }}
+            comparison={comparisonFor?.syntheticLoss}
           />
         </div>
+        {!accepted ? (
+          <p className="mt-3 rounded-md border border-atlas-danger/25 bg-atlas-danger/5 px-3 py-2 text-[11px] leading-relaxed text-atlas-muted">
+            Rejected fix option measured separately: risky activity caught{" "}
+            <span className="font-mono text-atlas-text">
+              {formatRate(report.fixed.recall_at_fixed_action_rate)}
+            </span>
+            , missed risky activity{" "}
+            <span className="font-mono text-atlas-text">
+              {formatRate(report.fixed.model_miss_rate)}
+            </span>
+            , synthetic losses let through{" "}
+            <span className="font-mono text-atlas-text">
+              {formatSyntheticCurrency(report.fixed.synthetic_loss_allowed)}
+            </span>
+            . It was not carried forward.
+          </p>
+        ) : null}
       </section>
 
       {/* PROMINENT: holdout pass/fail */}

@@ -31,7 +31,7 @@ export function MissRateChart({ metrics, candidate_metrics }: MissRateChartProps
   };
   const selectedCandidateSeries: LinePlotSeries | null = candidate_metrics
     ? {
-        name: "Selected candidate result",
+        name: "Fix option before referee decision",
         color_token: "accent",
         stroke_dasharray: "4 3",
         points: candidate_metrics.map((s) => ({

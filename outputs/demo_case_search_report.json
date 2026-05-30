@@ -1,90 +1,192 @@
 {
   "attempts": [
     {
-      "accepted_family_count": 1,
+      "accepted_family_count": 3,
       "accepted_fix_families": [
-        "current_device_mismatch"
+        "current_device_mismatch",
+        "label_noise_mislearned",
+        "overfit_fix_failure"
       ],
-      "accepted_fixes": 1,
+      "accepted_fixes": 3,
       "accepted_rounds": [
-        2
+        2,
+        3,
+        3
       ],
-      "baseline_loss": 2222000.0,
-      "baseline_miss": 0.875,
-      "baseline_recall": 0.125,
-      "customer_count": 600,
-      "dataset_seed": 6001,
+      "baseline_loss": 19470000.0,
+      "baseline_miss": 0.7344,
+      "baseline_recall": 0.2656,
+      "customer_count": 1000,
+      "dataset_seed": 7019,
+      "displayed_baseline_loss": 194700.0,
+      "displayed_final_loss": 6200.0,
       "drifted_holdout_passes": [
+        true,
+        true,
         true
       ],
-      "final_alert_rate": 0.1081,
+      "final_alert_rate": 0.1399,
       "final_challenge_rate": 0.0,
       "final_decline_rate": 0.0,
-      "final_false_positive_rate": 0.0421,
-      "final_loss": 850500.0,
-      "final_miss": 0.5,
-      "final_recall": 0.5,
+      "final_false_positive_rate": 0.0369,
+      "final_loss": 620000.0,
+      "final_miss": 0.0312,
+      "final_recall": 0.9688,
       "fixture_health": {
         "failed_holdouts": [],
         "holdouts": {
           "clean_holdout": {
-            "high_risk_events": 16,
-            "min_high_risk_events": 12,
-            "normal_events": 95,
+            "high_risk_events": 64,
+            "min_high_risk_events": 50,
+            "normal_events": 515,
             "passed": true,
-            "total_events": 111
+            "total_events": 579
           },
           "drifted_holdout": {
-            "high_risk_events": 22,
-            "min_high_risk_events": 4,
-            "normal_events": 87,
+            "high_risk_events": 49,
+            "min_high_risk_events": 25,
+            "normal_events": 387,
             "passed": true,
-            "total_events": 109
+            "total_events": 436
           },
           "locked_adaptive_holdout": {
-            "high_risk_events": 9,
-            "min_high_risk_events": 4,
-            "normal_events": 126,
+            "high_risk_events": 64,
+            "min_high_risk_events": 25,
+            "normal_events": 404,
             "passed": true,
-            "total_events": 135
+            "total_events": 468
           }
         },
         "passed": true
       },
       "locked_holdout_passes": [
+        true,
+        true,
         true
       ],
-      "loss_abs_drop": 1371500.0,
-      "loss_rel_drop": 0.6172,
-      "miss_abs_drop": 0.375,
-      "qualifies": false,
+      "loss_abs_drop": 18850000.0,
+      "loss_rel_drop": 0.9682,
+      "meets_ideal_baseline_loss": true,
+      "miss_abs_drop": 0.7032,
+      "qualifies": true,
       "rejected_generalization_fixes": 1,
       "rejected_generalization_rounds": [
-        3
+        1
       ],
       "run_id": "run_4548ebb8",
       "run_seed": 42
     }
   ],
-  "customer_count": 600,
+  "customer_count": 1000,
   "dataset_seeds": [
-    6001
+    7019
   ],
   "run_seeds": [
     42
   ],
-  "selected": null,
+  "selected": {
+    "dataset_seed": 7019,
+    "metrics": {
+      "accepted_family_count": 3,
+      "accepted_fix_families": [
+        "current_device_mismatch",
+        "label_noise_mislearned",
+        "overfit_fix_failure"
+      ],
+      "accepted_fixes": 3,
+      "accepted_rounds": [
+        2,
+        3,
+        3
+      ],
+      "baseline_loss": 19470000.0,
+      "baseline_miss": 0.7344,
+      "baseline_recall": 0.2656,
+      "customer_count": 1000,
+      "dataset_seed": 7019,
+      "displayed_baseline_loss": 194700.0,
+      "displayed_final_loss": 6200.0,
+      "drifted_holdout_passes": [
+        true,
+        true,
+        true
+      ],
+      "final_alert_rate": 0.1399,
+      "final_challenge_rate": 0.0,
+      "final_decline_rate": 0.0,
+      "final_false_positive_rate": 0.0369,
+      "final_loss": 620000.0,
+      "final_miss": 0.0312,
+      "final_recall": 0.9688,
+      "fixture_health": {
+        "failed_holdouts": [],
+        "holdouts": {
+          "clean_holdout": {
+            "high_risk_events": 64,
+            "min_high_risk_events": 50,
+            "normal_events": 515,
+            "passed": true,
+            "total_events": 579
+          },
+          "drifted_holdout": {
+            "high_risk_events": 49,
+            "min_high_risk_events": 25,
+            "normal_events": 387,
+            "passed": true,
+            "total_events": 436
+          },
+          "locked_adaptive_holdout": {
+            "high_risk_events": 64,
+            "min_high_risk_events": 25,
+            "normal_events": 404,
+            "passed": true,
+            "total_events": 468
+          }
+        },
+        "passed": true
+      },
+      "locked_holdout_passes": [
+        true,
+        true,
+        true
+      ],
+      "loss_abs_drop": 18850000.0,
+      "loss_rel_drop": 0.9682,
+      "meets_ideal_baseline_loss": true,
+      "miss_abs_drop": 0.7032,
+      "qualifies": true,
+      "rejected_generalization_fixes": 1,
+      "rejected_generalization_rounds": [
+        1
+      ],
+      "run_id": "run_4548ebb8",
+      "run_seed": 42
+    },
+    "promoted_to_repo": true,
+    "run_id": "run_4548ebb8",
+    "run_seed": 42,
+    "selection_rank": [
+      0.0,
+      0.023800000000000043,
+      194700.0,
+      0.0369,
+      7019,
+      42
+    ]
+  },
   "targets": {
     "accepted_family_count": 2.0,
-    "accepted_fixes": 1.0,
-    "final_recall": 0.66,
+    "accepted_fixes": 2.0,
+    "final_recall": 0.92,
+    "ideal_max_displayed_baseline_loss": 500000.0,
     "loss_rel_drop": 0.5,
     "max_final_alert_rate": 0.15,
     "max_final_challenge_rate": 0.08,
     "max_final_decline_rate": 0.0025,
     "max_final_false_positive_rate": 0.05,
-    "max_final_miss": 0.3333,
+    "max_final_miss": 0.08,
+    "max_final_recall": 0.97,
     "miss_abs_drop": 0.3333,
-    "rejected_generalization_fixes": 1.0
+    "rejected_generalization_fixes": 0.0
   }
 }

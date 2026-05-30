@@ -19,6 +19,7 @@ is the canonical write path.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -44,6 +45,7 @@ router = APIRouter()
 
 OUTPUTS_ROOT: Path = REPO_ROOT / "outputs"
 DATA_DIR: Path = DEFAULT_DATA_DIR
+DEMO_CASE_SEARCH_REPORT_PATH: Path = REPO_ROOT / "outputs" / "demo_case_search_report.json"
 
 
 @router.get(
@@ -64,3 +66,25 @@ def get_replay(run_id: str) -> dict:
         data_dir=DATA_DIR,
     )
     return payload
+
+
+@router.get("/demo-case-search-report")
+def get_demo_case_search_report() -> dict:
+    """Return the transparent publish-case search report when present."""
+    if not DEMO_CASE_SEARCH_REPORT_PATH.exists():
+        return {"selected": None, "available": False}
+    try:
+        with DEMO_CASE_SEARCH_REPORT_PATH.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Demo case search report is not readable.",
+        ) from exc
+    if not isinstance(raw, dict):
+        raise HTTPException(
+            status_code=503,
+            detail="Demo case search report has an invalid shape.",
+        )
+    raw["available"] = True
+    return raw

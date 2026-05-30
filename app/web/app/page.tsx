@@ -33,6 +33,8 @@ import { FrictionChart } from "../components/charts/FrictionChart";
 import { MissRateChart } from "../components/charts/MissRateChart";
 import { RecallRecoveryChart } from "../components/charts/RecallRecoveryChart";
 import { SyntheticLossChart } from "../components/charts/SyntheticLossChart";
+import { AtlasFooter } from "../components/intro/AtlasFooter";
+import { AtlasIntro } from "../components/intro/AtlasIntro";
 import { getRunRoundDetail } from "../lib/api";
 import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
 import { familyLabelFromId } from "../lib/ids";
@@ -90,23 +92,27 @@ export default async function HomePage({
   const matrix = getModelQualityMatrix();
 
   return (
-    <div className="flex">
-      <LeftSidebar />
-      <main className="min-w-0 flex-1">
-        <AgentRoster />
-        <EnvironmentOverview />
+    <>
+      <AtlasIntro />
+      <div className="flex">
+        <LeftSidebar />
+        <main className="min-w-0 flex-1">
+          <AgentRoster />
+          <EnvironmentOverview />
 
-        {result.kind === "ready" ? (
-          <ReadyReplayBody payload={result.payload} matrix={matrix} />
-        ) : (
-          <EmptyOrErrorState
-            kind={result.kind}
-            reason={result.reason}
-            remediation={result.remediation}
-          />
-        )}
-      </main>
-    </div>
+          {result.kind === "ready" ? (
+            <ReadyReplayBody payload={result.payload} matrix={matrix} />
+          ) : (
+            <EmptyOrErrorState
+              kind={result.kind}
+              reason={result.reason}
+              remediation={result.remediation}
+            />
+          )}
+        </main>
+      </div>
+      <AtlasFooter />
+    </>
   );
 }
 
@@ -277,7 +283,7 @@ function RoundSection({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
               title="Missed risky activity"
-              hint="model miss rate · Lower is better. Carry-forward state plus selected candidate result."
+              hint="model miss rate · Lower is better. Carry-forward state plus fix option before referee decision."
             >
               <MissRateChart
                 metrics={metrics}
@@ -286,7 +292,7 @@ function RoundSection({
             </ChartCard>
             <ChartCard
               title="Risky activity caught"
-              hint="recall at fixed action-rate · Higher is better. Carry-forward state plus selected candidate result."
+              hint="recall at fixed action-rate · Higher is better. Carry-forward state plus fix option before referee decision."
             >
               <RecallRecoveryChart
                 metrics={metrics}
@@ -389,7 +395,7 @@ function FinalReportSection({
       <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Missed risky activity"
-          hint="model miss rate · Carry-forward state plus selected candidate result before judge rejection."
+          hint="model miss rate · Carry-forward state plus fix option before referee decision."
         >
           <MissRateChart
             metrics={metrics}
@@ -398,7 +404,7 @@ function FinalReportSection({
         </ChartCard>
         <ChartCard
           title="Risky activity caught"
-          hint="recall at fixed action-rate · Higher is better. Carry-forward state plus selected candidate result."
+          hint="recall at fixed action-rate · Higher is better. Carry-forward state plus fix option before referee decision."
         >
           <RecallRecoveryChart
             metrics={metrics}
@@ -406,8 +412,8 @@ function FinalReportSection({
           />
         </ChartCard>
         <ChartCard
-          title="Demo losses let through"
-          hint="synthetic loss allowed · Lower is better. SYN $; play-money only."
+          title={GLOSSARY.synthetic_loss_allowed.plain}
+          hint="synthetic loss allowed · Lower is better. SYN $ values are scaled 10:1; play-money only."
         >
           <SyntheticLossChart
             metrics={metrics}
@@ -572,7 +578,7 @@ function SlimFixCard({
         </p>
         <TermNote>{GLOSSARY.defensive_fix_candidates.term}</TermNote>
         <p className="mt-1 font-mono text-[11px] text-atlas-muted">
-          {filtered.length} candidate{filtered.length === 1 ? "" : "s"} persisted
+          {filtered.length} fix option{filtered.length === 1 ? "" : "s"} persisted
         </p>
       </header>
       <ul className="mt-3 space-y-3">
@@ -807,6 +813,9 @@ function EmptyOrErrorState({
 function standaloneLoadReason(kind: "empty" | "error", reason: string): string {
   if (/No completed run found/i.test(reason)) {
     return "No completed demo run is available yet.";
+  }
+  if (/No completed demo run currently meets the publish criteria/i.test(reason)) {
+    return "No completed demo run currently meets the publish criteria.";
   }
   if (/No replay artifacts found/i.test(reason)) {
     return "The selected demo run does not have display data yet.";

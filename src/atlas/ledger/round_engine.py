@@ -16,18 +16,22 @@ Flow:
      ``persist_cards_as_records`` directly).
   4. Propose Phase 7 defensive fixes via ``strategy_agent.propose_fixes``
      (3-way intersection: request ∩ round_config ∩ card map).
-  5. Deterministic candidate selection rule:
+  5. Deterministic fix-option selection rule:
        sort by (model_miss_rate desc, family_id asc, fix_type asc)
-       → top ``MAX_CANDIDATES_PER_ROUND`` (default 1).
-  6. ``apply_fix`` for the selected candidate, threading the round-state
+       → top ``MAX_CANDIDATES_PER_ROUND``.
+  6. ``apply_fix`` for the selected fix options, threading the round-state
      versions + ``found_adaptive_set_event_ids`` from search.
-  7. Derive before/after metrics from the judge report
+  7. Pick the best accepted fix option by judge-derived clean-holdout
+     recall, then miss rate, then synthetic loss. If every option is
+     rejected, surface the strongest rejected report but do not advance
+     versions.
+  8. Derive before/after metrics from the displayed judge report
      (``baseline.{model_miss_rate, recall_at_fixed_action_rate}`` →
      before; ``fixed.{...}`` → after if applied, else == before).
-  8. When no candidate is selected (empty cards / empty intersection),
+  9. When no candidate is selected (empty cards / empty intersection),
      run a baseline-vs-self judge call to get a deterministic
      before==after metrics snapshot for the round timeline.
-  9. Build ``RoundState``, persist round detail, append
+ 10. Build ``RoundState``, persist round detail, append
      ``LedgerRecord`` row. Return the ``RoundState``.
 
 The caller (component 5's ``execute_run``) is responsible for
@@ -40,12 +44,13 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Sequence
 
 import yaml
 
-from atlas.blue_team.fix_applier import apply_fix, reports_dir
+from atlas.blue_team.fix_applier import FixApplyOutcome, apply_fix, reports_dir
 from atlas.blue_team.manifest import (
     DEFAULT_OUTPUTS_ROOT,
     persist_cards_as_records,
@@ -76,10 +81,10 @@ from atlas.red_team.model_vulnerability_packager import (
 # Constants
 # ---------------------------------------------------------------------------
 
-# Phase 8 evaluates ONE candidate per round. The deterministic selection
-# rule picks the top-K from the proposal output. Future phases may
-# raise this to handle multi-candidate rounds.
-MAX_CANDIDATES_PER_ROUND: Final[int] = 1
+# Evaluate a bounded set of fix options per round. The judge still owns
+# acceptance; this only prevents proposal ordering from hiding a stronger
+# defensive fix in a curated walkthrough.
+MAX_CANDIDATES_PER_ROUND: Final[int] = 3
 
 # Synthetic defensive_fix_id for the no-candidate baseline-vs-self
 # judge call. ``fix_round{N}_no_candidate_baseline_self`` keeps the
@@ -194,6 +199,38 @@ def _select_candidates(
         remaining = [cand for cand in remaining if cand.defensive_fix_id != picked.defensive_fix_id]
 
     return out
+
+
+@dataclass(frozen=True)
+class _EvaluatedCandidate:
+    candidate: DefensiveFixCandidate
+    outcome: FixApplyOutcome
+    report: dict[str, Any]
+
+
+def _evaluation_sort_key(
+    evaluation: _EvaluatedCandidate,
+) -> tuple[float, float, float, float, str]:
+    """Rank evaluated fix options by code-derived clean-holdout metrics."""
+    fixed = evaluation.report.get("fixed", {}) or {}
+    return (
+        -float(fixed.get("recall_at_fixed_action_rate", 0.0)),
+        float(fixed.get("model_miss_rate", 1.0)),
+        float(fixed.get("synthetic_loss_allowed", float("inf"))),
+        float(fixed.get("false_positive_rate_at_fixed_action_rate", float("inf"))),
+        evaluation.candidate.defensive_fix_id,
+    )
+
+
+def _choose_reported_evaluation(
+    evaluations: Sequence[_EvaluatedCandidate],
+) -> _EvaluatedCandidate | None:
+    """Choose the accepted fix to carry forward, or best rejected display."""
+    if not evaluations:
+        return None
+    accepted = [e for e in evaluations if e.outcome.applied]
+    pool = accepted if accepted else list(evaluations)
+    return sorted(pool, key=_evaluation_sort_key)[0]
 
 
 # ---------------------------------------------------------------------------
@@ -379,33 +416,45 @@ def execute_one_round(
         k=MAX_CANDIDATES_PER_ROUND,
     )
 
-    # 6+7+8. Apply selected candidate, derive metrics
+    # 6+7+8. Apply selected fix options, choose the best accepted
+    # result, then derive metrics from the displayed report.
     accepted_fix_id: str | None = None
     judge_report_id: str | None = None
     fix_paths: list[str] = []
+    selected_fix_id: str | None = None
 
     if selected:
-        cand = selected[0]
-        outcome = apply_fix(
-            defensive_fix_id=cand.defensive_fix_id,
-            outputs_root=outputs_root,
-            data_dir=data_dir,
-            current_model_version=run_state.current_model_version,
-            current_threshold_version=run_state.current_threshold_version,
-            found_adaptive_set_event_ids=found_ids,
-        )
-        applied = bool(outcome.applied)
+        evaluations: list[_EvaluatedCandidate] = []
+        for cand in selected:
+            outcome = apply_fix(
+                defensive_fix_id=cand.defensive_fix_id,
+                outputs_root=outputs_root,
+                data_dir=data_dir,
+                current_model_version=run_state.current_model_version,
+                current_threshold_version=run_state.current_threshold_version,
+                found_adaptive_set_event_ids=found_ids,
+            )
+            fix_paths.append(_fix_manifest_path(cand.defensive_fix_id))
+            report = _load_judge_report(outcome.judge_report_id, outputs_root=outputs_root)
+            evaluations.append(
+                _EvaluatedCandidate(candidate=cand, outcome=outcome, report=report)
+            )
+
+        chosen = _choose_reported_evaluation(evaluations)
+        if chosen is None:
+            raise RuntimeError("selected fix options produced no evaluations")
+
+        selected_fix_id = chosen.candidate.defensive_fix_id
+        applied = bool(chosen.outcome.applied)
         if applied:
-            new_model_version = outcome.candidate_model_version
-            new_threshold_version = outcome.candidate_threshold_version
-            accepted_fix_id = cand.defensive_fix_id
+            new_model_version = chosen.outcome.candidate_model_version
+            new_threshold_version = chosen.outcome.candidate_threshold_version
+            accepted_fix_id = chosen.candidate.defensive_fix_id
         else:
             new_model_version = run_state.current_model_version
             new_threshold_version = run_state.current_threshold_version
-        judge_report_id = outcome.judge_report_id
-        fix_paths.append(_fix_manifest_path(cand.defensive_fix_id))
-
-        report = _load_judge_report(judge_report_id, outputs_root=outputs_root)
+        judge_report_id = chosen.outcome.judge_report_id
+        report = chosen.report
         miss_b, miss_a, recall_b, recall_a = _metrics_from_report(
             report, applied=applied
         )
@@ -434,7 +483,6 @@ def execute_one_round(
     # Component 6: deterministic, closed-enum transcript summary +
     # in-process safety scan against the production rules. The flag
     # surfaces on the RoundState; the persisted run + ledger reflect it.
-    selected_fix_id = selected[0].defensive_fix_id if selected else None
     transcript_summary, safety_scan_passed = build_round_transcript_summary(
         round_id=round_id,
         n_cards=len(cards),

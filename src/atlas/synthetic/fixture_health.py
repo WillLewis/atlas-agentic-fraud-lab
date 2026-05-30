@@ -22,9 +22,9 @@ HEADLINE_HOLDOUTS: Final[tuple[str, ...]] = (
 )
 
 DEFAULT_MIN_HIGH_RISK_BY_HOLDOUT: Final[dict[str, int]] = {
-    "clean_holdout": 12,
-    "locked_adaptive_holdout": 4,
-    "drifted_holdout": 4,
+    "clean_holdout": 50,
+    "locked_adaptive_holdout": 25,
+    "drifted_holdout": 25,
 }
 
 

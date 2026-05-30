@@ -195,6 +195,93 @@ def test_select_candidates_uses_seed_for_equal_severity_ties():
     assert first[0].defensive_fix_id != second[0].defensive_fix_id
 
 
+def test_choose_reported_evaluation_prefers_best_accepted_fix():
+    from atlas.blue_team.fix_applier import FixApplyOutcome
+    from atlas.blue_team.strategy_agent import DefensiveFixCandidate
+    from atlas.ledger.round_engine import _EvaluatedCandidate, _choose_reported_evaluation
+
+    def _eval(fix_id: str, *, applied: bool, recall: float, miss: float):
+        cand = DefensiveFixCandidate(
+            defensive_fix_id=fix_id,
+            round_id=1,
+            fix_type="feature_fix",
+            description="",
+            expected_benefit="",
+        )
+        outcome = FixApplyOutcome(
+            defensive_fix_id=fix_id,
+            applied=applied,
+            candidate_model_version=fix_id,
+            candidate_threshold_version=fix_id,
+            changed_files=[],
+            judge_report_id=f"judge_{fix_id}",
+            governance_rationale="",
+        )
+        return _EvaluatedCandidate(
+            candidate=cand,
+            outcome=outcome,
+            report={
+                "fixed": {
+                    "recall_at_fixed_action_rate": recall,
+                    "model_miss_rate": miss,
+                    "synthetic_loss_allowed": 1000.0,
+                    "false_positive_rate_at_fixed_action_rate": 0.01,
+                }
+            },
+        )
+
+    rejected_high_recall = _eval("fix_round1_a_feature_fix", applied=False, recall=0.99, miss=0.01)
+    accepted_lower = _eval("fix_round1_b_feature_fix", applied=True, recall=0.90, miss=0.10)
+    accepted_higher = _eval("fix_round1_c_feature_fix", applied=True, recall=0.96, miss=0.04)
+
+    chosen = _choose_reported_evaluation(
+        [rejected_high_recall, accepted_lower, accepted_higher]
+    )
+
+    assert chosen is accepted_higher
+
+
+def test_choose_reported_evaluation_surfaces_best_rejected_when_none_pass():
+    from atlas.blue_team.fix_applier import FixApplyOutcome
+    from atlas.blue_team.strategy_agent import DefensiveFixCandidate
+    from atlas.ledger.round_engine import _EvaluatedCandidate, _choose_reported_evaluation
+
+    def _eval(fix_id: str, recall: float):
+        cand = DefensiveFixCandidate(
+            defensive_fix_id=fix_id,
+            round_id=1,
+            fix_type="feature_fix",
+            description="",
+            expected_benefit="",
+        )
+        outcome = FixApplyOutcome(
+            defensive_fix_id=fix_id,
+            applied=False,
+            candidate_model_version=fix_id,
+            candidate_threshold_version=fix_id,
+            changed_files=[],
+            judge_report_id=f"judge_{fix_id}",
+            governance_rationale="",
+        )
+        return _EvaluatedCandidate(
+            candidate=cand,
+            outcome=outcome,
+            report={
+                "fixed": {
+                    "recall_at_fixed_action_rate": recall,
+                    "model_miss_rate": 1.0 - recall,
+                    "synthetic_loss_allowed": 1000.0,
+                    "false_positive_rate_at_fixed_action_rate": 0.01,
+                }
+            },
+        )
+
+    low = _eval("fix_round1_a_feature_fix", 0.25)
+    high = _eval("fix_round1_b_feature_fix", 0.50)
+
+    assert _choose_reported_evaluation([low, high]) is high
+
+
 # ---------------------------------------------------------------------------
 # Single-round execution (real data, slow)
 # ---------------------------------------------------------------------------
@@ -209,6 +296,7 @@ def test_execute_one_round_produces_round_state(hermetic_outputs):
         run_state, round_id=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert rs.run_id == run_state.run_id
     assert rs.round_id == 1
@@ -229,6 +317,7 @@ def test_execute_one_round_persists_round_state(hermetic_outputs):
         run_state, round_id=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     loaded = load_round_state(run_state.run_id, 1, outputs_root=hermetic_outputs)
     assert loaded == rs
@@ -244,6 +333,7 @@ def test_execute_one_round_appends_ledger_row(hermetic_outputs):
         run_state, round_id=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     rows = load_ledger_records(run_state.run_id, outputs_root=hermetic_outputs)
     assert len(rows) == 1
@@ -264,6 +354,7 @@ def test_execute_one_round_safety_scan_passed_true(hermetic_outputs):
         run_state, round_id=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     assert rs.safety_scan_passed is True
     assert rs.transcript_summary  # non-empty
@@ -279,6 +370,7 @@ def test_execute_one_round_carry_forward_when_rejected(hermetic_outputs):
         run_state, round_id=1,
         outputs_root=hermetic_outputs,
         data_dir=REPO_ROOT / "data" / "synthetic",
+        round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
     )
     if not rs.accepted_fix_id:
         # Rejected → versions hold.
@@ -327,6 +419,7 @@ def test_execute_one_round_carry_forward_when_accepted(hermetic_outputs):
             run_state, round_id=1,
             outputs_root=hermetic_outputs,
             data_dir=REPO_ROOT / "data" / "synthetic",
+            round_config_path=REPO_ROOT / "config" / "round_config_publish.yaml",
         )
     assert rs.accepted_fix_id is not None
     # Candidate model_version embedded in feature_fix or calibration_fix path

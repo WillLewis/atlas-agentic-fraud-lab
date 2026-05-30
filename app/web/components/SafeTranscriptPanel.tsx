@@ -28,6 +28,10 @@ function humanizeTranscript(text: string): string {
       const f = familyLabelFromId(id);
       return t ? `the ${t.toLowerCase()} fix${f ? ` for "${f}"` : ""}` : "the selected fix";
     })
+    .replace(/\bcandidate\(s\)/g, "fix option(s)")
+    .replace(/\bselected candidate\b/g, "selected fix option")
+    .replace(/\bcandidates\b/g, "fix options")
+    .replace(/\bcandidate\b/g, "fix option")
     .replace(/\s*Carry-forward:.*$/s, "")
     .trim();
 }

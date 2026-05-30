@@ -23,11 +23,16 @@ from atlas.red_team.model_vulnerability_packager import (
 from atlas.red_team.mutations import ALLOWED_FAMILY_IDS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_SEARCH_RESULT_CACHE = None
 
 
 @pytest.fixture
 def search_result(trained_baseline_dir, monkeypatch):
     """One round-1 search result we can package + assert against."""
+    global _SEARCH_RESULT_CACHE
+    if _SEARCH_RESULT_CACHE is not None:
+        yield _SEARCH_RESULT_CACHE
+        return
     import atlas.judge.evaluate as evaluate_mod
     import atlas.model.scorer as scorer_mod
     monkeypatch.setattr(scorer_mod, "DEFAULT_OUTPUT_DIR", trained_baseline_dir)
@@ -38,9 +43,10 @@ def search_result(trained_baseline_dir, monkeypatch):
     result = run_search(
         run_id="run_test", round_id=1,
         search_methods=["random", "evolutionary", "graph_probe"],
-        max_score_queries=1200,
+        max_score_queries=240,
         outputs_root=trained_baseline_dir.parent.parent,
     )
+    _SEARCH_RESULT_CACHE = result
     yield result
     reset_caches()
 

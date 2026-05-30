@@ -95,11 +95,17 @@ from atlas.synthetic.splits import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "synthetic"
-DEFAULT_CUSTOMER_COUNT = 600
+DEFAULT_CUSTOMER_COUNT = 1200
 DEMO_CONFIG_PATH = REPO_ROOT / "config" / "demo.yaml"
 
 # Partitions whose data flows into the global flat files.
 GLOBAL_PARTITION_NAMES: tuple[str, ...] = ("train", "validation", "clean_holdout")
+
+# Public-demo label alignment. The original latent labels are retained in each
+# label record's driver fields, but the final synthetic_truth_label is aligned
+# to observable feature interactions. This creates a defensive-model problem
+# that a feature fix can learn without hidden customer-only signals.
+FEATURE_ALIGNED_HIGH_RISK_THRESHOLD = 4.5
 
 # Generated subdirs that ``--clean`` removes before writing.
 GENERATED_SUBDIRS: tuple[str, ...] = (
@@ -291,6 +297,59 @@ def compute_features_per_partition(
     return out
 
 
+def feature_aligned_risk_score(fv: FeatureVector) -> float:
+    """Feature interaction score used for the curated public demo label."""
+    cash_high = fv["cash_movement_velocity_score"] >= 0.55
+    graph_context = (
+        fv["entity_graph_risk_score"] >= 0.35
+        or fv["shared_recipient_degree"] >= 4
+    )
+    current_device_context = fv["current_device_tenure_days"] <= 150
+    recent_context = (
+        fv["password_recovery_count_72h"] >= 1
+        or fv["device_count_72h"] >= 2
+    )
+    recipient_context = fv["recipient_tenure_days"] <= 120
+    channel_shift = fv["geo_consistency_flag"] == 0
+    return float(
+        (5.0 * (cash_high and current_device_context))
+        + (4.0 * (cash_high and graph_context))
+        + (3.5 * (current_device_context and recent_context))
+        + (2.0 * (cash_high and recent_context))
+        + (1.5 * (cash_high and recipient_context))
+        + (1.0 * (channel_shift and cash_high))
+        + (0.5 * graph_context)
+    )
+
+
+def align_labels_to_feature_space(
+    splits: SplitsResult,
+    features_by_partition: dict[str, list[FeatureVector]],
+) -> None:
+    """Mutate partition labels to match the feature-space scenario."""
+    for pname, partition in splits.partitions.items():
+        features = features_by_partition[pname]
+        risk_by_event_id = {
+            fv["event_id"]: feature_aligned_risk_score(fv) for fv in features
+        }
+        label_by_event_id = {label["event_id"]: label for label in partition.label_records}
+        transfer_by_event_id = {
+            tx["transfer_event_id"]: tx for tx in partition.transfer_events
+        }
+        for event_id, risk_score in risk_by_event_id.items():
+            label = (
+                "high_risk_synthetic_activity"
+                if risk_score >= FEATURE_ALIGNED_HIGH_RISK_THRESHOLD
+                else "normal_activity"
+            )
+            probability = round(min(1.0, max(0.0, risk_score / 10.0)), 4)
+            if event_id in label_by_event_id:
+                label_by_event_id[event_id]["synthetic_risk_probability"] = probability
+                label_by_event_id[event_id]["synthetic_truth_label"] = label
+            if event_id in transfer_by_event_id:
+                transfer_by_event_id[event_id]["synthetic_truth_label"] = label
+
+
 def persist_dataset(
     output_dir: Path,
     splits: SplitsResult,
@@ -302,8 +361,9 @@ def persist_dataset(
     clean_generated_subdirs(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    g = collect_global_records(splits)
     features_by_partition = compute_features_per_partition(splits)
+    align_labels_to_feature_space(splits, features_by_partition)
+    g = collect_global_records(splits)
 
     # --- Global entity tables (train + val + clean only) ---
     write_json(output_dir / "entities" / "customers.json", g["customers"])

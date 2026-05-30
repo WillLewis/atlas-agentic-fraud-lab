@@ -10,10 +10,10 @@
 // imagery, photos, or person icons (Bible §8 Step 1, architecture doc
 // §1.2 failure mode "uses human images").
 //
-// Active section tracking uses IntersectionObserver so we don't burn a
-// scroll listener; the sidebar gracefully no-ops when sections aren't yet
-// mounted (e.g., suspense, partial hydration, or before component 15
-// composes the page).
+// Active section tracking uses one passive scroll listener and a reading
+// marker placed inside the viewport. The marker is intentionally lower than
+// the sticky header because these sections are tall; if we key only off the
+// section top crossing the header, the rail lags behind what the reader sees.
 
 "use client";
 
@@ -58,7 +58,7 @@ function useActiveStepId(steps: readonly SidebarStep[]): string {
     if (elements.length === 0) return;
 
     const updateActive = () => {
-      const markerY = 96;
+      const markerY = Math.min(window.innerHeight * 0.36, 360);
       let nextActive = elements[0]?.id ?? fallback;
 
       for (const el of elements) {
@@ -76,10 +76,12 @@ function useActiveStepId(steps: readonly SidebarStep[]): string {
     updateActive();
     window.addEventListener("scroll", updateActive, { passive: true });
     window.addEventListener("resize", updateActive);
+    window.addEventListener("hashchange", updateActive);
 
     return () => {
       window.removeEventListener("scroll", updateActive);
       window.removeEventListener("resize", updateActive);
+      window.removeEventListener("hashchange", updateActive);
     };
   }, [fallback, steps]);
 

@@ -70,7 +70,7 @@ build-replay:
 	PYTHONPATH=src $(PYTHON) scripts/build_replay.py --outputs-root outputs --run-id $$RUN_ID
 
 search-demo-case:
-	PYTHONPATH=src $(PYTHON) scripts/search_demo_case.py
+	PYTHONPATH=src $(PYTHON) scripts/search_demo_case.py --round-config-path config/round_config_publish.yaml
 
 bootstrap:
 	PYTHONPATH=src $(PYTHON) scripts/bootstrap_demo.py
