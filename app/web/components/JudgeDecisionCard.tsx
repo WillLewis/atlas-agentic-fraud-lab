@@ -18,7 +18,8 @@ import type { JudgeReport } from "../lib/types";
 import { formatRate, formatSyntheticCurrency } from "../lib/formatters";
 import { GLOSSARY } from "../lib/glossary";
 import { familyLabelFromId, fixTypeLabelFromId } from "../lib/ids";
-import { parseJudgeNotes, sanitizeJudgeText } from "../lib/judgeNotes";
+import { parseJudgeNotes } from "../lib/judgeNotes";
+import { AnimatedCardGrid } from "./AnimatedCardGrid";
 import { TermNote } from "./DualLabel";
 import { MetricCard } from "./MetricCard";
 
@@ -106,7 +107,10 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
           </p>
           <TermNote>{GLOSSARY.judge_metrics.term}</TermNote>
         </div>
-        <div className="grid grid-cols-1 gap-3 min-[1180px]:grid-cols-2">
+        <AnimatedCardGrid
+          className="grid grid-cols-1 gap-3 min-[1180px]:grid-cols-2"
+          itemClassName="min-w-0"
+        >
           <MetricCard
             label={GLOSSARY.recall.plain}
             term={GLOSSARY.recall.term}
@@ -139,7 +143,7 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
             format="synthetic_currency"
             comparison={comparisonFor?.syntheticLoss}
           />
-        </div>
+        </AnimatedCardGrid>
         {!accepted ? (
           <p className="mt-3 rounded-md border border-atlas-danger/25 bg-atlas-danger/5 px-3 py-2 text-[11px] leading-relaxed text-atlas-muted">
             Rejected fix option measured separately: risky activity caught{" "}
@@ -219,19 +223,11 @@ export function JudgeDecisionCard({ report }: JudgeDecisionCardProps) {
               ))}
             </ul>
           ) : (
-            <blockquote className="mt-2 break-words border-l-2 border-atlas-border/60 pl-3 text-xs italic leading-relaxed text-atlas-muted">
-              {sanitizeJudgeText(report.judge_notes)}
-            </blockquote>
+            <p className="mt-2 text-xs leading-relaxed text-atlas-muted">
+              Judge checks recorded for this round.
+            </p>
           );
         })()}
-        <details className="mt-2">
-          <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-widest text-atlas-muted/70">
-            Technical record
-          </summary>
-          <blockquote className="mt-1 break-words border-l-2 border-atlas-border/60 pl-3 text-[11px] italic leading-relaxed text-atlas-muted">
-            {sanitizeJudgeText(report.judge_notes)}
-          </blockquote>
-        </details>
       </section>
     </article>
   );

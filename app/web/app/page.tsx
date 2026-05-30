@@ -22,6 +22,7 @@
 // the live records — no invented data, no parallel data contract.
 
 import { AgentRoster } from "../components/AgentRoster";
+import { AnimatedCardGrid } from "../components/AnimatedCardGrid";
 import { TermNote } from "../components/DualLabel";
 import { EnvironmentOverview } from "../components/EnvironmentOverview";
 import { JudgeDecisionCard } from "../components/JudgeDecisionCard";
@@ -34,6 +35,7 @@ import { SyntheticLossChart } from "../components/charts/SyntheticLossChart";
 import { AtlasFooter } from "../components/intro/AtlasFooter";
 import { AtlasIntro } from "../components/intro/AtlasIntro";
 import { getRunRoundDetail } from "../lib/api";
+import { formatRate } from "../lib/formatters";
 import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
 import { familyLabelFromId } from "../lib/ids";
 import { loadActiveReplay } from "../lib/replay";
@@ -48,77 +50,77 @@ const NARRATIVE_BREAKS = {
   agentsAssigned: {
     id: "agents-assigned",
     eyebrow: "Agents assigned",
-    title: "The roles are set before the loop begins.",
+    title: "Agents are assigned roles.",
     lead:
-      "Before any synthetic search starts, each agent gets a narrow job: stress-test the mock scorer, propose defensive fixes, or judge the result.",
+      "Each agent has a limited task before the run starts.",
     paragraphs: [
-      "The setup is intentionally constrained. Agents can work with generated cases, local mock scores, and public-safe summaries, but they cannot touch real customers, real controls, or production endpoints.",
-      "This is what makes the demo useful as an AI/ML product story: the system is agentic enough to explore, but bounded enough that deterministic code can decide what counts as real improvement."
+      "Agents use generated cases, local mock scores, and public-safe summaries. They do not use real customer data, real controls, or production endpoints.",
+      "Red agents search for model vulnerabilities. Defense agents propose defensive fixes. The judge decides which results count."
     ],
     criteria: [
-      "synthetic search only",
+      "synthetic data only",
       "defensive fixes only",
-      "deterministic judge"
+      "judge decides"
     ],
-    footer: "Scoped agents · bounded tools · code-reviewed outcomes",
-    watermark: "Assign"
+    footer: "Scoped agents · limited tools · recorded outcomes",
+    watermark: "Roles"
   },
   agentsDeployed: {
     id: "agents-deployed",
     eyebrow: "Agents deployed",
-    title: "The synthetic search begins.",
+    title: "Agents enter the demo environment.",
     lead:
-      "This next step sends the agents into a closed demo environment. They will test generated cases against the Mock Account-Takeover Risk Scorer and record every proposed defensive fix.",
+      "The run uses generated cases, a local mock scorer, and fixed action-rate limits.",
     paragraphs: [
-      "The agents can score synthetic cases and recommend changes, but they cannot touch real customers, real controls, or production endpoints.",
-      "Every defensive fix has to pass three tests: reduce model miss rate, generalize beyond the cohort that exposed the issue, and stay inside action-rate limits so customer experience does not quietly degrade."
+      "Agents can score generated cases and propose defensive fixes. They cannot change the judge criteria or approve their own work.",
+      "Each defensive fix is checked for model miss-rate movement, holdout performance, and action-rate limits."
     ],
     criteria: [
       "model miss-rate reduction",
-      "generalization beyond found cohort",
+      "holdout performance",
       "within action-rate limits"
     ],
-    footer: "Agents propose · deterministic code decides",
-    watermark: "Evaluate"
+    footer: "Agents propose · judge evaluates",
+    watermark: "Run"
   },
   round1: {
     id: "round-1",
     eyebrow: "Round 1 response",
-    title: "The first answer is not always the right answer.",
+    title: "Round 1 produces a rejected fix.",
     lead:
-      "In the first round, red-team surfaces an under-ranked synthetic cohort. Bank-defense proposes a decision-threshold-style defensive fix, and the judge rejects it.",
+      "The red agents identify an under-ranked cohort. Defense proposes a decision-threshold defensive fix, and the judge rejects it.",
     paragraphs: [
-      "That rejection is the point of the loop. A defensive fix can look convincing on the cases that exposed the issue and still fail once it is tested against fresh holdouts, drifted examples, and customer-friction limits.",
-      "In a real model review, this is where the team should slow down: the system found a valid synthetic model vulnerability, but it has not yet found a defensible change to ship."
+      "The fix does not pass the full evaluation. It is not carried forward.",
+      "The model vulnerability remains recorded so the next round can test another defensive fix."
     ],
-    footer: "Rejected fixes are useful signal",
+    footer: "Rejected defensive fix",
     watermark: "Round 1"
   },
   round2: {
     id: "round-2",
     eyebrow: "Round 2 response",
-    title: "Defense iterates with a stronger candidate.",
+    title: "Round 2 tests another defensive fix.",
     lead:
-      "Next, bank-defense changes the response. It proposes a synthetic feature or calibration change, and the judge retests the result against holdouts and action-rate limits.",
+      "Defense proposes a different fix, and the judge evaluates it against holdouts and action-rate limits.",
     paragraphs: [
-      "This time, the change reduces missed risky activity while staying inside the demo's customer-friction guardrails.",
-      "For an AI/ML product team, this is the useful behavior: learn from the failed defensive fix, improve model behavior, and prove the improvement survives data the agents did not see."
+      "The accepted state improves missed risky activity while staying inside the configured limits.",
+      "The result is based on judge output, not an agent summary."
     ],
-    footer: "Generalization beats memorization",
+    footer: "Accepted state updated",
     watermark: "Round 2"
   },
   round3: {
     id: "round-3",
     eyebrow: "Round 3 · final report",
-    title: "The evidence becomes a decision record.",
+    title: "Round 3 records the final state.",
     lead:
-      "Finally, the judge consolidates miss-rate movement, generalization, and customer-friction trade-offs into a deterministic verdict.",
+      "The judge reports final metrics, holdout results, and customer-friction rates.",
     paragraphs: [
-      "The final report is not an agent summary. It is the record of what changed, why it passed, and where the evaluation still depends on synthetic assumptions.",
-      "This is the artifact a team would want before moving from research preview into a governance, model-risk, or executive review conversation."
+      "The final report lists the accepted state and the remaining synthetic assumptions.",
+      "It is a decision record for review, not a separate agent opinion."
     ],
-    footer: "Final numbers · locked holdouts · friction trade-offs",
-    watermark: "Verdict"
+    footer: "Final metrics · holdouts · action-rate limits",
+    watermark: "Round 3"
   }
 } as const;
 
@@ -279,26 +281,30 @@ function RoundSection({
       ) : (
         <>
           {/* Slim cards strip — vulnerabilities, fixes, judge */}
-          <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-            <div className="min-w-0">
-              <SlimVulnerabilityCard
-                records={detail?.model_vulnerabilities ?? []}
-                round_id={round.round_id}
-              />
-            </div>
-            <div className="min-w-0">
-              <SlimFixCard
-                records={detail?.defensive_fixes ?? []}
-                round_id={round.round_id}
-              />
-            </div>
-            <div className="min-w-0 xl:col-span-2 2xl:col-span-1">
-              <RoundJudgeCard reports={detail?.judge_reports ?? []} />
-            </div>
-          </div>
+          <AnimatedCardGrid
+            className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3"
+            itemClassNames={[
+              "min-w-0",
+              "min-w-0",
+              "min-w-0 xl:col-span-2 2xl:col-span-1"
+            ]}
+          >
+            <SlimVulnerabilityCard
+              records={detail?.model_vulnerabilities ?? []}
+              round_id={round.round_id}
+            />
+            <SlimFixCard
+              records={detail?.defensive_fixes ?? []}
+              round_id={round.round_id}
+            />
+            <RoundJudgeCard reports={detail?.judge_reports ?? []} />
+          </AnimatedCardGrid>
 
           {/* Chart strip — focused subset for round-level reading */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <AnimatedCardGrid
+            className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+            itemClassName="min-w-0"
+          >
             <ChartCard
               title="Missed risky activity"
               hint="model miss rate · Lower is better. Solid = accepted state; dashed = proposed fix before judge decision."
@@ -317,7 +323,7 @@ function RoundSection({
                 candidate_metrics={candidateMetrics}
               />
             </ChartCard>
-          </div>
+          </AnimatedCardGrid>
         </>
       )}
     </section>
@@ -346,90 +352,94 @@ function FinalReportSection({
   const finalReportCard = findFinalReportCard(payload);
 
   return (
-    <section
-      id={id}
-      aria-label="Round 3 final report evidence"
-      className="atlas-data-section border-t border-atlas-border/40 px-8 py-16"
-    >
-      {round !== undefined ? (
-        <>
-          {/* Round 3 cards strip */}
-          <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-            <div className="min-w-0">
+    <>
+      <section
+        id={id}
+        aria-label="Round 3 final report evidence"
+        className="atlas-data-section border-t border-atlas-border/40 px-8 py-16"
+      >
+        {round !== undefined ? (
+          <>
+            {/* Round 3 cards strip */}
+            <AnimatedCardGrid
+              className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3"
+              itemClassNames={[
+                "min-w-0",
+                "min-w-0",
+                "min-w-0 xl:col-span-2 2xl:col-span-1"
+              ]}
+            >
               <SlimVulnerabilityCard
                 records={detail?.model_vulnerabilities ?? []}
                 round_id={round.round_id}
               />
-            </div>
-            <div className="min-w-0">
               <SlimFixCard
                 records={detail?.defensive_fixes ?? []}
                 round_id={round.round_id}
               />
-            </div>
-            <div className="min-w-0 xl:col-span-2 2xl:col-span-1">
               <RoundJudgeCard reports={detail?.judge_reports ?? []} />
-            </div>
+            </AnimatedCardGrid>
+
+          </>
+        ) : (
+          <div className="mb-8">
+            <RoundNotRunYet />
           </div>
+        )}
 
-        </>
-      ) : (
-        <div className="mb-8">
-          <RoundNotRunYet />
-        </div>
-      )}
+        <AnimatedCardGrid className="mb-4 grid grid-cols-1" itemClassName="min-w-0">
+          <ChartReadingGuide />
+        </AnimatedCardGrid>
 
-      <ChartReadingGuide />
+        {/* All four charts in a 2x2 grid */}
+        <AnimatedCardGrid
+          className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2"
+          itemClassName="min-w-0"
+        >
+          <ChartCard
+            title="Missed risky activity"
+            hint="model miss rate · Lower is better. Solid = accepted state; dashed = proposed fix before judge decision."
+          >
+            <MissRateChart
+              metrics={metrics}
+              candidate_metrics={candidateMetrics}
+            />
+          </ChartCard>
+          <ChartCard
+            title="Risky activity caught"
+            hint="recall at fixed action-rate · Higher is better. Solid = accepted state; dashed = proposed fix before judge decision."
+          >
+            <RecallRecoveryChart
+              metrics={metrics}
+              candidate_metrics={candidateMetrics}
+            />
+          </ChartCard>
+          <ChartCard
+            title={GLOSSARY.synthetic_loss_allowed.plain}
+            hint="synthetic loss allowed · Lower is better. Solid = accepted state; dashed = proposed fix. SYN $ is scaled play-money only."
+          >
+            <SyntheticLossChart
+              metrics={metrics}
+              candidate_metrics={candidateMetrics}
+            />
+          </ChartCard>
+          <ChartCard
+            title="How often we interrupt customers"
+            hint="customer-friction rates · Lower interruption is better when risk capture holds. Lines track action-rate limits."
+          >
+            <FrictionChart metrics={metrics} />
+          </ChartCard>
+        </AnimatedCardGrid>
+      </section>
 
-      {/* All four charts in a 2x2 grid */}
-      <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Missed risky activity"
-          hint="model miss rate · Lower is better. Solid = accepted state; dashed = proposed fix before judge decision."
-        >
-          <MissRateChart
-            metrics={metrics}
-            candidate_metrics={candidateMetrics}
-          />
-        </ChartCard>
-        <ChartCard
-          title="Risky activity caught"
-          hint="recall at fixed action-rate · Higher is better. Solid = accepted state; dashed = proposed fix before judge decision."
-        >
-          <RecallRecoveryChart
-            metrics={metrics}
-            candidate_metrics={candidateMetrics}
-          />
-        </ChartCard>
-        <ChartCard
-          title={GLOSSARY.synthetic_loss_allowed.plain}
-          hint="synthetic loss allowed · Lower is better. Solid = accepted state; dashed = proposed fix. SYN $ is scaled play-money only."
-        >
-          <SyntheticLossChart
-            metrics={metrics}
-            candidate_metrics={candidateMetrics}
-          />
-        </ChartCard>
-        <ChartCard
-          title="How often we interrupt customers"
-          hint="customer-friction rates · Lower interruption is better when risk capture holds. Lines track action-rate limits."
-        >
-          <FrictionChart metrics={metrics} />
-        </ChartCard>
-      </div>
-
-      {/* Final-report summary card */}
       {finalReportCard ? (
-        <div className="mb-10">
-          <FinalReportSummaryCard card={finalReportCard} />
-        </div>
+        <FinalReportNarrativePage
+          card={finalReportCard}
+          payload={payload}
+          metrics={metrics}
+        />
       ) : null}
-
-      {/* Run summary / ledger-style facts */}
-      <div className="mb-10">
-        <RunFacts payload={payload} />
-      </div>
-    </section>
+    </>
   );
 }
 
@@ -471,7 +481,7 @@ function SlimVulnerabilityCard({
         </p>
       </header>
       <ul className="mt-3 space-y-3">
-        {filtered.map((r) => {
+        {filtered.map((r, i) => {
           const id = String(r.model_vulnerability_id ?? "");
           const family = String(r.family_id ?? "");
           const summary = String(r.summary ?? "");
@@ -481,7 +491,7 @@ function SlimVulnerabilityCard({
             : [];
           return (
             <li
-              key={id}
+              key={slimRecordKey(r, i, "model_vulnerability_id")}
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
               title={id}
             >
@@ -522,6 +532,25 @@ function SlimVulnerabilityCard({
   );
 }
 
+function slimRecordKey(
+  r: Record<string, unknown>,
+  index: number,
+  primaryField: "model_vulnerability_id" | "defensive_fix_id"
+): string {
+  return [
+    r.run_id,
+    r.round_id,
+    r[primaryField],
+    r.fix_type,
+    r.vulnerability_id,
+    JSON.stringify(r.proposed_threshold_overrides ?? {}),
+    JSON.stringify(r.expected_rate_limit_claim ?? {}),
+    index
+  ]
+    .map((part) => String(part ?? ""))
+    .join("|");
+}
+
 function SlimFixCard({
   records,
   round_id
@@ -556,7 +585,7 @@ function SlimFixCard({
         </p>
       </header>
       <ul className="mt-3 space-y-3">
-        {filtered.map((r) => {
+        {filtered.map((r, i) => {
           const id = String(r.defensive_fix_id ?? "");
           const fixType = String(r.fix_type ?? "");
           const vulnerabilityId = String(r.vulnerability_id ?? "");
@@ -567,7 +596,7 @@ function SlimFixCard({
           >;
           return (
             <li
-              key={id}
+              key={slimRecordKey(r, i, "defensive_fix_id")}
               className="rounded-md border border-atlas-border/60 bg-atlas-surface/40 p-3"
               title={id}
             >
@@ -626,7 +655,7 @@ function RoundJudgeCard({ reports }: { reports: JudgeReport[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Final-report card + run-facts panel
+// Final-report narrative page
 // ---------------------------------------------------------------------------
 
 function findFinalReportCard(
@@ -638,107 +667,85 @@ function findFinalReportCard(
   return card ?? null;
 }
 
-function FinalReportSummaryCard({
-  card
+function FinalReportNarrativePage({
+  card,
+  payload,
+  metrics
 }: {
   card: Record<string, unknown>;
+  payload: ReplayPayload;
+  metrics: MetricSnapshot[];
 }) {
-  const summary = String(card.summary ?? "");
   const acceptedCount = typeof card.accepted_count === "number" ? card.accepted_count : null;
-  const trend = Array.isArray(card.miss_rate_trend)
-    ? (card.miss_rate_trend as number[])
-    : [];
+  const trend = finalReportMissRateTrend(card, metrics);
+  const firstMissRate = finiteMetricOrNull(trend[0]);
+  const finalMissRate = finiteMetricOrNull(trend[trend.length - 1]);
+  const missRateDelta =
+    firstMissRate !== null && finalMissRate !== null
+      ? firstMissRate - finalMissRate
+      : null;
+  const completedRounds =
+    payload.run.rounds.filter((r) => r.status === "completed").length ||
+    payload.run.current_round ||
+    metrics.filter((m) => m.round_id > 0).length;
   const safetyOk = card.safety_scan_passed === true;
+  const trendSummary =
+    firstMissRate !== null && finalMissRate !== null && missRateDelta !== null
+      ? `Model miss rate changed from ${formatRate(firstMissRate, { digits: 1 })} to ${formatRate(finalMissRate, { digits: 1 })}, a ${formatPercentagePointChange(missRateDelta)}.`
+      : "The final report shows judge-derived metrics without extra run metadata.";
+  const acceptedSummary =
+    acceptedCount !== null
+      ? `The judge accepted ${acceptedCount} defensive fix${acceptedCount === 1 ? "" : "es"} after checking holdouts and action-rate limits.`
+      : "The judge records which defensive fixes pass holdout checks and action-rate limits.";
 
   return (
-    <article className="rounded-lg border border-atlas-ok/40 bg-atlas-panel/60 p-5">
-      <header className="flex items-center justify-between gap-3 border-b border-atlas-border/60 pb-3">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-ok">
-            Final report
-          </p>
-          <h3 className="mt-1 text-base font-semibold text-atlas-text">
-            Summary
-          </h3>
-        </div>
-        <span
-          className={[
-            "rounded-full border px-2 py-0.5 font-mono text-[10px]",
-            safetyOk
-              ? "border-atlas-ok/40 bg-atlas-ok/10 text-atlas-ok"
-              : "border-atlas-warn/40 bg-atlas-warn/10 text-atlas-warn"
-          ].join(" ")}
-          aria-label={safetyOk ? "Safety scan passed" : "Safety scan flagged for review"}
-        >
-          <span aria-hidden="true">{safetyOk ? "✓" : "⚠"}</span> safety check
-        </span>
-      </header>
-      <p className="mt-3 font-mono text-[11px] leading-relaxed text-atlas-text/90">
-        {summary}
-      </p>
-      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs md:grid-cols-2">
-        {acceptedCount !== null ? (
-          <Fact label="Accepted defensive fixes" value={String(acceptedCount)} />
-        ) : null}
-        {trend.length > 0 ? (
-          <Fact
-            label="Miss-rate trend"
-            value={trend.map((v) => v.toFixed(4)).join(" → ")}
-          />
-        ) : null}
-      </dl>
-    </article>
+    <NarrativeInterlude
+      id="final-report-narrative"
+      eyebrow="Final report"
+      title="Final report summary."
+      lead="This section summarizes the accepted run state and removes run metadata that is not needed for review."
+      paragraphs={[
+        trendSummary,
+        acceptedSummary,
+        "The record uses synthetic data, local mock scoring, locked holdout checks, and the safety scan result."
+      ]}
+      criteria={[
+        `${completedRounds} synthetic rounds completed`,
+        acceptedCount !== null
+          ? `${acceptedCount} defensive fixes accepted`
+          : "defensive fixes judged",
+        firstMissRate !== null && finalMissRate !== null
+          ? `${formatRate(firstMissRate, { digits: 1 })} to ${formatRate(finalMissRate, { digits: 1 })} model miss rate`
+          : "model miss rate recorded",
+        safetyOk ? "safety scan passed" : "safety scan recorded"
+      ]}
+      footer="Judge metrics · synthetic assumptions · action-rate limits"
+      watermark="Final"
+    />
   );
 }
 
-function RunFacts({ payload }: { payload: ReplayPayload }) {
-  const r = payload.run;
-  return (
-    <article className="rounded-lg border border-atlas-border bg-atlas-panel/60 p-5">
-      <header>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-atlas-muted">
-          Run summary
-        </p>
-        <h3 className="mt-1 text-base font-semibold text-atlas-text">
-          Run details
-        </h3>
-      </header>
-      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs md:grid-cols-2">
-        <Fact label="Run" value="Completed demo run" title={r.run_id} />
-        <Fact label="Seed" value={String(r.seed)} mono />
-        <Fact label="Demo mode" value={r.demo_mode} mono />
-        <Fact label="Status" value={r.status} mono />
-        <Fact label="Current round" value={String(r.current_round ?? 0)} mono />
-        <Fact label="Created" value={r.created_at_utc ?? "-"} mono />
-      </dl>
-    </article>
-  );
+function finalReportMissRateTrend(
+  card: Record<string, unknown>,
+  metrics: MetricSnapshot[]
+): number[] {
+  if (Array.isArray(card.miss_rate_trend)) {
+    return card.miss_rate_trend.filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value)
+    );
+  }
+  return metrics
+    .map((snapshot) => snapshot.model_miss_rate)
+    .filter((value) => Number.isFinite(value));
 }
 
-function Fact({
-  label,
-  value,
-  mono = false,
-  title
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  title?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3" title={title}>
-      <dt className="text-atlas-muted">{label}</dt>
-      <dd
-        className={[
-          mono ? "font-mono tabular-nums" : "",
-          "text-atlas-text"
-        ].join(" ")}
-      >
-        {value}
-      </dd>
-    </div>
-  );
+function formatPercentagePointChange(delta: number): string {
+  const direction = delta >= 0 ? "reduction" : "increase";
+  return `${Math.abs(delta * 100).toFixed(1)} percentage-point ${direction}`;
+}
+
+function finiteMetricOrNull(value: number | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 // ---------------------------------------------------------------------------

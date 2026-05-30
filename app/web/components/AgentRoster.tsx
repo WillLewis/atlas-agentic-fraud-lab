@@ -20,6 +20,7 @@ import type { JSX } from "react";
 
 import { getDemoConfig } from "../lib/demoConfig";
 import type { ModelTier } from "../lib/types";
+import { AnimatedAgentCardGrid } from "./AnimatedCardGrid";
 import { TermNote } from "./DualLabel";
 
 // ---------------------------------------------------------------------------
@@ -60,9 +61,9 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
     group: "red_team",
     display_name: "Scenario agent",
     term: "Fraud Scenario Agent",
-    purpose: "Suggests where the model might have a weak spot.",
+    purpose: "Suggests where the practice model might under-rank a configured synthetic risk pattern.",
     allowed: [
-      "Choose a configured vulnerability family",
+      "Choose a configured model vulnerability family",
       "Propose scoring-query allocation across search methods",
       "Explain model-risk intuition in safe terms"
     ],
@@ -74,7 +75,7 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
     display_name: "Search agent",
     term: "Evolutionary Search Agent",
     purpose:
-      "Tweaks synthetic activity to find risky cases the model scores too low.",
+      "Tweaks synthetic activity to find high-risk generated cases the model scores too low.",
     allowed: [
       "Mutate event timing, counts, and synthetic graph links",
       "Call the local mock scorer",
@@ -102,7 +103,7 @@ const RED_TEAM_AGENTS: readonly AgentRosterEntry[] = [
     display_name: "Findings agent",
     term: "Model Vulnerability Analyst Agent",
     purpose:
-      "Writes up each confirmed weak spot into a card the defense side can act on.",
+      "Writes up each confirmed model vulnerability into a card the defense side can act on.",
     allowed: [
       "Summarize accepted high-risk synthetic test cases",
       "Generate safe cohort definitions",
@@ -119,7 +120,7 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
     display_name: "Strategy agent",
     term: "Bank Strategy Agent",
     purpose:
-      "Reads the weak-spot cards and picks which fix approach to try.",
+      "Reads the model vulnerability cards and picks which defensive fix approach to try.",
     allowed: [
       "Read incoming model vulnerability cards",
       "Select a fix type within the configured allow-list",
@@ -147,10 +148,10 @@ const BANK_DEFENSE_AGENTS: readonly AgentRosterEntry[] = [
     display_name: "Threshold agent",
     term: "Decision-Threshold Fix Agent",
     purpose:
-      "Proposes moving the verify / review / block lines while staying within customer-friction limits.",
+      "Proposes moving review or decline lines while staying within customer-friction limits.",
     allowed: [
       "Propose decision-threshold adjustments",
-      "Respect challenge / alert / decline action-rate limits",
+      "Respect challenge, alert, and decline action-rate limits",
       "Submit a policy fix option"
     ],
     tier: "frontier"
@@ -206,9 +207,9 @@ const DETERMINISTIC_JUDGE: AgentRosterEntry = {
 
 const GROUP_META: Record<AgentGroup, GroupMeta> = {
   red_team: {
-    title: "Red agents — find model weak spots",
+    title: "Red agents — find model vulnerabilities",
     description:
-      "Run limited, synthetic probes against the practice model. They can't see the locked answer keys or produce any real-world fraud how-to.",
+      "Run limited, synthetic probes against the practice model. They can score generated cases, but locked answer keys stay hidden.",
     badge_classes: "border-atlas-danger/40 bg-atlas-danger/10 text-atlas-danger",
     glyph_classes: "text-atlas-danger"
   },
@@ -264,7 +265,7 @@ export function AgentRoster({
         ? { "aria-labelledby": "agents-assigned-heading" }
         : { "aria-label": "Agent assignment details" })}
       className={[
-        "atlas-data-section px-8 py-24",
+        "atlas-data-section px-6 py-24 sm:px-12 lg:px-24 xl:px-32",
         showHeader ? "scroll-mt-16" : "border-t border-atlas-border/40"
       ].join(" ")}
     >
@@ -329,19 +330,11 @@ function AgentGroupSection({ group, agents, tierLabels }: AgentGroupSectionProps
       <p className="mx-auto mb-8 max-w-[30rem] text-center text-sm leading-relaxed text-atlas-muted">
         {meta.description}
       </p>
-      <ul
-        role="list"
-        className="flex flex-wrap justify-center gap-x-4 gap-y-7"
-      >
+      <AnimatedAgentCardGrid>
         {agents.map((agent) => (
-          <li
-            key={agent.id}
-            className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] xl:w-[calc(25%-0.75rem)]"
-          >
-            <AgentCard agent={agent} tierLabels={tierLabels} />
-          </li>
+          <AgentCard key={agent.id} agent={agent} tierLabels={tierLabels} />
         ))}
-      </ul>
+      </AnimatedAgentCardGrid>
     </div>
   );
 }

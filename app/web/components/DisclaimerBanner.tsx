@@ -7,8 +7,8 @@
 // must remain visible on every page in every demo mode.
 //
 // Per architecture doc §1.2 the failure modes for this component are:
-// "Missing from pages; copy too vague". Keeping the badge + institution
-// label + model label + disclaimer text together addresses both.
+// "Missing from pages; copy too vague". Keep the badge + synthetic-data note
+// visible at all times.
 
 import { getDemoConfig } from "../lib/demoConfig";
 
@@ -16,6 +16,8 @@ const MODE_BADGE_LABELS: Record<"public" | "internal", string> = {
   public: "Public Demo",
   internal: "Internal Demo"
 };
+
+const SYNTHETIC_DATA_NOTE = "Synthetic Data -- courtesy of Google";
 
 export function DisclaimerBanner() {
   const config = getDemoConfig();
@@ -35,19 +37,7 @@ export function DisclaimerBanner() {
           {badgeLabel}
         </span>
 
-        <span className="font-medium text-atlas-text">{config.institution_label}</span>
-
-        <span aria-hidden="true" className="text-atlas-border">
-          ·
-        </span>
-
-        <span>{config.model_label}</span>
-
-        <span aria-hidden="true" className="text-atlas-border">
-          ·
-        </span>
-
-        <span className="text-atlas-muted">{config.disclaimer}</span>
+        <span className="text-atlas-muted">{SYNTHETIC_DATA_NOTE}</span>
       </div>
     </div>
   );

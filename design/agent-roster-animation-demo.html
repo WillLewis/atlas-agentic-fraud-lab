@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project ATLAS Agent Roster Animation Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #faf8f2;
+        --bg-deep: #f4efe6;
+        --panel: rgba(255, 255, 255, 0.68);
+        --ink: #1f2937;
+        --muted: #667085;
+        --line: rgba(31, 41, 55, 0.12);
+        --line-strong: rgba(31, 41, 55, 0.18);
+        --red: #d92d20;
+        --blue: #1f6feb;
+        --green: #027a48;
+        --global-animation-speed: 3.8s;
+        --global-animation-speed-ms: 3800;
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-height: 100vh;
+        background:
+          linear-gradient(to right, rgba(31, 41, 55, 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(31, 41, 55, 0.04) 1px, transparent 1px),
+          radial-gradient(circle at 78% 6rem, rgba(31, 111, 235, 0.055), transparent 30rem),
+          radial-gradient(circle at 6% 28rem, rgba(168, 121, 8, 0.035), transparent 24rem),
+          linear-gradient(180deg, var(--bg), var(--bg-deep) 70%, #f8f6f1);
+        background-size: 40px 40px, 40px 40px, auto, auto, auto;
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: clip;
+        text-rendering: optimizeLegibility;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .demo-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--line);
+        background: rgba(250, 248, 242, 0.9);
+        padding: 0.85rem clamp(1rem, 3vw, 2rem);
+        backdrop-filter: blur(16px);
+      }
+
+      .demo-topbar p {
+        margin: 0.2rem 0 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
+
+      .eyebrow {
+        color: var(--blue);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .replay-button {
+        display: inline-flex;
+        min-height: 2.35rem;
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid rgba(31, 111, 235, 0.34);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.68);
+        color: var(--blue);
+        cursor: pointer;
+        padding: 0 0.85rem;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        transition:
+          background 180ms ease,
+          border-color 180ms ease,
+          transform 180ms ease;
+      }
+
+      .replay-button:hover,
+      .replay-button:focus-visible {
+        background: #ffffff;
+        border-color: rgba(31, 111, 235, 0.6);
+      }
+
+      .replay-button:active {
+        transform: translateY(1px);
+      }
+
+      .replay-button svg {
+        display: block;
+        height: 0.95rem;
+        width: 0.95rem;
+      }
+
+      .roster-section {
+        min-height: calc(100vh - 4.1rem);
+        padding: clamp(4rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem) 6rem;
+      }
+
+      .section-kicker {
+        margin: 0;
+        text-align: center;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .section-title {
+        margin: 0.55rem auto 0;
+        max-width: 48rem;
+        text-align: center;
+        font-size: clamp(1.7rem, 4vw, 3.1rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .section-copy {
+        margin: 1rem auto 0;
+        max-width: 46rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: clamp(1rem, 1.5vw, 1.2rem);
+        line-height: 1.65;
+      }
+
+      .agent-stack {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(5rem, 8vw, 7.2rem);
+        margin-top: clamp(3.5rem, 6vw, 5rem);
+      }
+
+      .agent-group > header {
+        margin: 0 auto 1.8rem;
+        max-width: 46rem;
+        text-align: center;
+      }
+
+      .agent-group h2 {
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(1rem, 1.5vw, 1.35rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        line-height: 1.2;
+        text-transform: uppercase;
+      }
+
+      .agent-count {
+        margin: 0.55rem 0 0;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.78rem;
+      }
+
+      .group-copy {
+        margin: 2rem auto 0;
+        max-width: 46rem;
+        color: var(--muted);
+        font-size: clamp(1rem, 1.4vw, 1.16rem);
+        line-height: 1.65;
+      }
+
+      .agent-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.45rem;
+        margin: 0 auto;
+        max-width: 96rem;
+        padding: 0 0.5rem;
+      }
+
+      .agent-item {
+        display: flex;
+        flex: 1 1 17.75rem;
+        max-width: 22rem;
+        min-width: 0;
+        opacity: 0;
+        transform: translateY(34px) scale(0.982);
+        filter: blur(3px);
+        transition:
+          opacity var(--global-animation-speed) var(--ease) var(--delay),
+          transform var(--global-animation-speed) var(--ease) var(--delay),
+          filter var(--global-animation-speed) var(--ease) var(--delay);
+      }
+
+      .agent-grid.is-visible .agent-item,
+      .agent-item.is-visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+      }
+
+      .agent-card {
+        position: relative;
+        display: flex;
+        min-height: 26.8rem;
+        width: 100%;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.58)),
+          var(--panel);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.82),
+          0 20px 50px rgba(31, 41, 55, 0.045);
+        padding: 1.45rem;
+      }
+
+      .agent-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+        pointer-events: none;
+      }
+
+      .card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.45rem;
+      }
+
+      .group-icon {
+        display: block;
+        height: 2rem;
+        width: 2rem;
+      }
+
+      .red-card .group-icon {
+        color: var(--red);
+      }
+
+      .defense-card .group-icon {
+        color: var(--blue);
+      }
+
+      .judge-card .group-icon {
+        color: var(--green);
+      }
+
+      .tier-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.65rem;
+        white-space: nowrap;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        padding: 0 0.78rem;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .red-card .tier-pill {
+        background: rgba(217, 45, 32, 0.075);
+        color: var(--red);
+      }
+
+      .defense-card .tier-pill {
+        background: rgba(31, 111, 235, 0.075);
+        color: var(--blue);
+      }
+
+      .judge-card .tier-pill {
+        background: rgba(2, 122, 72, 0.075);
+        color: var(--green);
+      }
+
+      .agent-card h3 {
+        margin: 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        line-height: 1.25;
+      }
+
+      .term {
+        display: block;
+        margin-top: 0.42rem;
+        color: #8a93a5;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        line-height: 1.4;
+      }
+
+      .purpose {
+        margin: 0.95rem 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.58;
+      }
+
+      .allowed {
+        margin-top: 1.35rem;
+        border-top: 1px solid rgba(31, 41, 55, 0.1);
+        padding-top: 1.15rem;
+      }
+
+      .allowed-label {
+        margin: 0;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .allowed ul {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0.7rem 0 0;
+        padding: 0;
+      }
+
+      .allowed li {
+        display: grid;
+        grid-template-columns: 0.75rem 1fr;
+        gap: 0.35rem;
+        color: rgba(31, 41, 55, 0.78);
+        font-size: 0.88rem;
+        line-height: 1.33;
+        list-style: none;
+      }
+
+      .allowed li::before {
+        content: ">";
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        line-height: 1.6;
+      }
+
+      .judge-grid {
+        max-width: 24rem;
+      }
+
+      .judge-grid .agent-item {
+        flex-basis: 22rem;
+      }
+
+      @media (max-width: 960px) {
+        .demo-topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .agent-card {
+          min-height: 0;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .roster-section {
+          padding-inline: 0.85rem;
+        }
+
+        .agent-grid {
+          padding: 0;
+        }
+
+        .agent-item {
+          flex-basis: 100%;
+          max-width: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .agent-item,
+        .replay-button {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        .agent-item {
+          opacity: 1;
+          transform: none;
+          filter: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="demo-topbar">
+      <div>
+        <div class="eyebrow">Project ATLAS prototype</div>
+        <p>Agent roster card entrance using staggered scroll reveal.</p>
+      </div>
+      <button class="replay-button" type="button" data-replay>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <path d="M21 4v6h-6" />
+        </svg>
+        Replay entrance
+      </button>
+    </header>
+
+    <main>
+      <section class="roster-section" data-roster aria-labelledby="roster-title">
+        <p class="section-kicker">Step 1</p>
+        <h1 class="section-title" id="roster-title">Agents Assigned</h1>
+        <p class="section-copy">
+          Each agent gets a narrow goal, bounded tools, and strict limits. No agent can touch real customer data or production systems.
+        </p>
+
+        <div class="agent-stack">
+          <section class="agent-group" aria-labelledby="red-title">
+            <header>
+              <h2 id="red-title">Red agents - find model vulnerabilities</h2>
+              <p class="agent-count">4 agents</p>
+              <p class="group-copy">
+                Run limited, synthetic probes against the practice model. They can score generated cases, but locked answer keys stay hidden.
+              </p>
+            </header>
+
+            <ul class="agent-grid" data-reveal-group role="list">
+              <li class="agent-item" style="--delay: 0ms">
+                <article class="agent-card red-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4 20 19H4Z" />
+                      <circle cx="12" cy="14" r="1.2" fill="currentColor" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Scenario agent</h3>
+                  <span class="term">Model Vulnerability Scenario Agent</span>
+                  <p class="purpose">Suggests where the practice model might under-rank a configured synthetic risk pattern.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Choose a configured model vulnerability family</li>
+                      <li>Propose scoring-query allocation across search methods</li>
+                      <li>Explain model-risk intuition in safe terms</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 320ms">
+                <article class="agent-card red-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4 20 19H4Z" />
+                      <circle cx="12" cy="14" r="1.2" fill="currentColor" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Search agent</h3>
+                  <span class="term">Evolutionary Search Agent</span>
+                  <p class="purpose">Tweaks synthetic activity to find high-risk generated cases the model scores too low.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Mutate event timing, counts, and synthetic graph links</li>
+                      <li>Call the local mock scorer</li>
+                      <li>Return test batches under the scoring-query limit</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 640ms">
+                <article class="agent-card red-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4 20 19H4Z" />
+                      <circle cx="12" cy="14" r="1.2" fill="currentColor" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Connections agent</h3>
+                  <span class="term">Graph Probe Agent</span>
+                  <p class="purpose">Looks at how synthetic accounts, devices, and recipients connect to identify risky clusters.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Analyze the synthetic recipient/device/account graph</li>
+                      <li>Propose graph features</li>
+                      <li>Identify cohorts with high graph risk and low model score</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 960ms">
+                <article class="agent-card red-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4 20 19H4Z" />
+                      <circle cx="12" cy="14" r="1.2" fill="currentColor" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Findings agent</h3>
+                  <span class="term">Model Vulnerability Analyst Agent</span>
+                  <p class="purpose">Writes each confirmed model vulnerability into a card the defense side can act on.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Summarize accepted high-risk synthetic test cases</li>
+                      <li>Generate safe cohort definitions</li>
+                      <li>Recommend defensive fix families</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+            </ul>
+          </section>
+
+          <section class="agent-group" aria-labelledby="defense-title">
+            <header>
+              <h2 id="defense-title">Defense agents - propose fixes</h2>
+              <p class="agent-count">5 agents</p>
+              <p class="group-copy">
+                Suggest a new signal, a decision-threshold change, or a retrain. They cannot approve their own work; the referee does.
+              </p>
+            </header>
+
+            <ul class="agent-grid" data-reveal-group role="list">
+              <li class="agent-item" style="--delay: 0ms">
+                <article class="agent-card defense-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="m9 12 2.5 2.5L15 10" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Strategy agent</h3>
+                  <span class="term">Bank Strategy Agent</span>
+                  <p class="purpose">Reads the model vulnerability cards and picks which defensive fix approach to try.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Read incoming model vulnerability cards</li>
+                      <li>Select a fix type within the configured allow-list</li>
+                      <li>Coordinate handoff to the Governance Agent</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 320ms">
+                <article class="agent-card defense-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="m9 12 2.5 2.5L15 10" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>New-signal agent</h3>
+                  <span class="term">Feature Fix Agent</span>
+                  <p class="purpose">Proposes a new signal derived from synthetic activity or how accounts connect.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Derive features from synthetic event histories</li>
+                      <li>Derive features from synthetic graph relationships</li>
+                      <li>Submit a feature fix option</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 640ms">
+                <article class="agent-card defense-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="m9 12 2.5 2.5L15 10" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Threshold agent</h3>
+                  <span class="term">Decision-Threshold Fix Agent</span>
+                  <p class="purpose">Proposes moving review or decline lines while staying within customer-friction limits.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Propose decision-threshold adjustments</li>
+                      <li>Respect challenge, alert, and decline action-rate limits</li>
+                      <li>Submit a policy fix option</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 960ms">
+                <article class="agent-card defense-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="m9 12 2.5 2.5L15 10" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Retrain agent</h3>
+                  <span class="term">Model Calibration Fix Agent</span>
+                  <p class="purpose">Retrains or recalibrates the practice model using approved synthetic data.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Retrain the mock scorer on allowed synthetic data</li>
+                      <li>Recalibrate the score distribution</li>
+                      <li>Submit a model calibration fix option</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+
+              <li class="agent-item" style="--delay: 1280ms">
+                <article class="agent-card defense-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="m9 12 2.5 2.5L15 10" />
+                    </svg>
+                    <span class="tier-pill">Frontier</span>
+                  </div>
+                  <h3>Guardrail agent</h3>
+                  <span class="term">Governance Agent</span>
+                  <p class="purpose">Stops fixes that are unsafe, too aggressive on customers, or that only memorize known cases.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Reject fixes that exceed customer-friction tolerances</li>
+                      <li>Reject fixes that fail the locked adaptive holdout</li>
+                      <li>Summarize accept/reject rationale using judge output</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+            </ul>
+          </section>
+
+          <section class="agent-group" aria-labelledby="judge-title">
+            <header>
+              <h2 id="judge-title">The referee - code, not AI</h2>
+              <p class="agent-count">1 evaluator</p>
+              <p class="group-copy">
+                Plain code does the measuring and is the only thing that can accept or reject a defensive fix.
+              </p>
+            </header>
+
+            <ul class="agent-grid judge-grid" data-reveal-group role="list">
+              <li class="agent-item" style="--delay: 0ms">
+                <article class="agent-card judge-card">
+                  <div class="card-top">
+                    <svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9Z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    <span class="tier-pill">Deterministic</span>
+                  </div>
+                  <h3>Evaluation referee</h3>
+                  <span class="term">Evaluation Judge</span>
+                  <p class="purpose">Code that measures everything and decides which defensive fixes pass.</p>
+                  <div class="allowed">
+                    <p class="allowed-label">Allowed</p>
+                    <ul>
+                      <li>Compute model miss rate, recall, and friction metrics</li>
+                      <li>Evaluate clean, found, locked, and drifted holdouts</li>
+                      <li>Accept or reject defensive fixes; enforce action-rate limits</li>
+                    </ul>
+                  </div>
+                </article>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const roster = document.querySelector("[data-roster]");
+      const groups = Array.from(document.querySelectorAll("[data-reveal-group]"));
+      const replayButton = document.querySelector("[data-replay]");
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      let observer;
+
+      function groupIsVisible(group) {
+        const rect = group.getBoundingClientRect();
+        return rect.top < window.innerHeight * 0.86 && rect.bottom > window.innerHeight * 0.12;
+      }
+
+      function createObserver() {
+        if (observer) {
+          observer.disconnect();
+        }
+
+        observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                revealGroup(entry.target);
+              } else {
+                resetGroup(entry.target);
+              }
+            });
+          },
+          {
+            rootMargin: "0px 0px -10% 0px",
+            threshold: 0.15
+          }
+        );
+      }
+
+      function delayToMs(delay) {
+        const value = delay.trim();
+        if (value.endsWith("ms")) {
+          return Number.parseFloat(value);
+        }
+        if (value.endsWith("s")) {
+          return Number.parseFloat(value) * 1000;
+        }
+        return 0;
+      }
+
+      function globalAnimationDurationMs() {
+        const duration = Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--global-animation-speed-ms")
+        );
+        return Number.isFinite(duration) ? duration : 3800;
+      }
+
+      function revealGroup(group) {
+        group.classList.add("is-visible");
+        group.querySelectorAll(".agent-item").forEach((item) => {
+          item.style.transition = "";
+          item.classList.add("is-visible");
+          item.style.opacity = "1";
+          item.style.transform = "translateY(0) scale(1)";
+          item.style.filter = "blur(0)";
+          const delay = delayToMs(item.style.getPropertyValue("--delay"));
+          window.setTimeout(() => {
+            if (item.classList.contains("is-visible")) {
+              item.style.transition = "none";
+            }
+          }, delay + globalAnimationDurationMs() + 120);
+        });
+      }
+
+      function resetGroup(group) {
+        group.classList.remove("is-visible");
+        group.querySelectorAll(".agent-item").forEach((item) => {
+          item.style.transition = "none";
+          item.classList.remove("is-visible");
+          item.style.opacity = "0";
+          item.style.transform = "translateY(34px) scale(0.982)";
+          item.style.filter = "blur(3px)";
+        });
+      }
+
+      function armGroups() {
+        if (reduceMotion.matches || typeof IntersectionObserver === "undefined") {
+          groups.forEach(revealGroup);
+          return;
+        }
+
+        createObserver();
+        groups.forEach((group) => {
+          if (groupIsVisible(group)) {
+            revealGroup(group);
+          } else {
+            resetGroup(group);
+          }
+          observer.observe(group);
+        });
+      }
+
+      function replayEntrance() {
+        if (reduceMotion.matches) {
+          return;
+        }
+
+        if (observer) {
+          observer.disconnect();
+        }
+
+        groups.forEach((group) => {
+          resetGroup(group);
+        });
+
+        void document.body.offsetWidth;
+
+        roster.scrollIntoView({ block: "start" });
+        window.setTimeout(armGroups, 160);
+      }
+
+      replayButton.addEventListener("click", replayEntrance);
+      reduceMotion.addEventListener("change", armGroups);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(armGroups);
+      });
+    </script>
+  </body>
+</html>

@@ -1,25 +1,18 @@
 // app/web/components/EnvironmentOverview.tsx
 // Step 2 content — synthetic environment cards.
 //
-// Six cards summarize what the agents are deployed into:
-//   1. Synthetic customer population
-//   2. Synthetic event stream
-//   3. Local mock scoring API
-//   4. Baseline decision-threshold overlay
-//   5. Baseline model metrics
-//   6. Holdouts (clean / found adaptive / locked adaptive / drifted)
+// Three cards summarize what the agents are deployed into:
+//   1. Synthetic event stream
+//   2. Baseline decision-threshold overlay
+//   3. Baseline model metrics
 //
 // Bible §8 Step 2 main message: "The mock institution starts with a plausible
 // account-takeover risk scorer and fixed customer-friction limits."
 //
-// Public-mode labels (institution_label, model_label, api.base_url) come from
-// getDemoConfig() per CLAUDE.md / Bible §7.3. All other UI strings live as
-// structured constants below so the safety scanner can inspect them as data.
-
-import { getDemoConfig } from "../lib/demoConfig";
 import { getEntityCounts, getRoundMetrics } from "../lib/fixtures";
 import { formatBps, formatRate, formatSyntheticCurrency } from "../lib/formatters";
 import { GLOSSARY } from "../lib/glossary";
+import { AnimatedCardGrid } from "./AnimatedCardGrid";
 import { TermNote } from "./DualLabel";
 
 // ---------------------------------------------------------------------------
@@ -125,50 +118,6 @@ const BASELINE_ACTION_RATE_LIMITS: ReadonlyArray<{
 ];
 
 // ---------------------------------------------------------------------------
-// Holdouts — mirrors config/synthetic_schema.yaml `splits.partitions`.
-// Descriptions paraphrase Bible §6.1 rule 8 and §14 step 10.
-// ---------------------------------------------------------------------------
-
-interface HoldoutDescription {
-  id: string;
-  display_name: string;
-  term: string;
-  locked: boolean;
-  purpose: string;
-}
-
-const HOLDOUTS: readonly HoldoutDescription[] = [
-  {
-    id: "clean_holdout",
-    display_name: "Fresh customers (never tested)",
-    term: "clean holdout",
-    locked: false,
-    purpose: GLOSSARY.clean_holdout.definition
-  },
-  {
-    id: "found_adaptive_set",
-    display_name: "Cases we already found",
-    term: "found adaptive set",
-    locked: false,
-    purpose: GLOSSARY.found_adaptive_set.definition
-  },
-  {
-    id: "locked_adaptive_holdout",
-    display_name: "Hidden stress test",
-    term: "locked adaptive holdout",
-    locked: true,
-    purpose: GLOSSARY.locked_adaptive_holdout.definition
-  },
-  {
-    id: "drifted_holdout",
-    display_name: "Future-drift test",
-    term: "drifted holdout",
-    locked: true,
-    purpose: GLOSSARY.drifted_holdout.definition
-  }
-];
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -181,7 +130,6 @@ export function EnvironmentOverview({
   sectionId = "agents-deployed",
   showHeader = true
 }: EnvironmentOverviewProps = {}) {
-  const config = getDemoConfig();
   const counts = getEntityCounts();
   const baseline = getRoundMetrics()[0];
   if (!baseline) {
@@ -219,17 +167,10 @@ export function EnvironmentOverview({
         </header>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card eyebrow="Population" title="Synthetic customers">
-          <DefinitionRow label="Customers loaded" value={String(counts.customers)} />
-          <DefinitionRow label="Accounts" value={String(counts.accounts)} />
-          <DefinitionRow label="Devices" value={String(counts.devices)} />
-          <DefinitionRow label="Recipients" value={String(counts.recipients)} />
-          <DefinitionRow label="External accounts" value={String(counts.external_accounts)} />
-          <DefinitionRow label="Graph edges" value={String(counts.graph_edges)} />
-          <Footnote>A representative sample of the synthetic population.</Footnote>
-        </Card>
-
+      <AnimatedCardGrid
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+        itemClassName="min-w-0"
+      >
         <Card eyebrow="Event stream" title="Synthetic event types">
           <DefinitionRow
             label="Total events in this sample"
@@ -244,18 +185,6 @@ export function EnvironmentOverview({
             ))}
           </ul>
           <Footnote>The activity types the agents can work with.</Footnote>
-        </Card>
-
-        <Card eyebrow="Scoring" title="Local mock scoring API">
-          <DefinitionRow label="Institution" value={config.institution_label} />
-          <DefinitionRow label="Model" value={config.model_label} />
-          <DefinitionRow
-            label="Scoring surface"
-            value="Local mock API"
-            mono
-          />
-          <DefinitionRow label="Posture" value="Local-only" />
-          <Footnote>Scored locally by the mock risk model — no real systems involved.</Footnote>
         </Card>
 
         <Card eyebrow="Decision overlay" title="Baseline thresholds">
@@ -327,31 +256,7 @@ export function EnvironmentOverview({
           />
           <Footnote>Measured before the agents start.</Footnote>
         </Card>
-
-        <Card eyebrow="Test sets" title="Holdouts">
-          <ul className="space-y-3">
-            {HOLDOUTS.map((h) => (
-              <li key={h.id} className="border-l-2 border-atlas-border pl-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-atlas-text">
-                    {h.display_name}
-                    <TermNote>{h.term}</TermNote>
-                  </span>
-                  {h.locked ? (
-                    <span
-                      className="font-mono text-[9px] uppercase tracking-wider text-atlas-warn"
-                      aria-label="Locked from simulation agents"
-                    >
-                      Locked
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-atlas-muted">{h.purpose}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+      </AnimatedCardGrid>
     </section>
   );
 }

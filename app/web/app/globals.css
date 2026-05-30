@@ -7,6 +7,8 @@
   /* Width reserved for the left sidebar (component 8). Defining it here so
      layout, page, and sidebar all share one source of truth. */
   --atlas-sidebar-width: 16rem;
+  --atlas-global-animation-speed: 3.8s;
+  --atlas-animation-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --atlas-chart-grid: #d8dee9;
   --atlas-chart-empty-fill: #faf8f2;
   --atlas-intro-background: oklch(0.975 0.012 85);
@@ -102,6 +104,22 @@ html {
   background:
     radial-gradient(circle at 82% 4rem, rgb(31 111 235 / 0.035), transparent 24rem),
     linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(250 248 242 / 0.18) 20rem, transparent 36rem);
+}
+
+.atlas-card-item {
+  opacity: 0;
+  transform: translateY(34px) scale(0.982);
+  filter: blur(3px);
+  transition:
+    opacity var(--atlas-global-animation-speed) var(--atlas-animation-ease) var(--atlas-card-delay, 0ms),
+    transform var(--atlas-global-animation-speed) var(--atlas-animation-ease) var(--atlas-card-delay, 0ms),
+    filter var(--atlas-global-animation-speed) var(--atlas-animation-ease) var(--atlas-card-delay, 0ms);
+}
+
+.atlas-card-grid[data-visible="true"] .atlas-card-item {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .line-plot-series {
@@ -405,6 +423,13 @@ html {
   .line-plot-series,
   .line-plot-point,
   .line-plot-change-segment {
+    transition: none;
+  }
+
+  .atlas-card-item {
+    opacity: 1;
+    filter: none;
+    transform: none;
     transition: none;
   }
 
