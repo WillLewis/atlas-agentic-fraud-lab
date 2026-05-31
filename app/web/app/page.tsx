@@ -2,11 +2,11 @@
 // Phase 9 component 8 — replay-driven five-section page.
 //
 // The page is an async server component. It calls
-// `loadActiveReplay(searchParams)` once and fans out to 0–3 per-round
-// `getRunRoundDetail(...)` fetches in parallel for the rich
-// JudgeDecisionCard + slim vulnerability/fix renderings. Phase 9
-// invariant (a)(5): there is NO silent fixture fallback. When the
-// replay is missing, the page renders a clear local-only empty state
+// `loadActiveReplay(searchParams)` once. Local development fans out to
+// 0–3 per-round `getRunRoundDetail(...)` fetches; Cloudflare static
+// export uses embedded `round_details` from the curated replay fixture.
+// Phase 9 invariant (a)(5): there is NO silent fixture fallback. When
+// the replay is missing, the page renders a clear local-only empty state
 // with a remediation hint pointing at the right Make target.
 //
 // Sections 1 (AgentRoster) and 2 (EnvironmentOverview) are static and
@@ -38,7 +38,7 @@ import { getRunRoundDetail } from "../lib/api";
 import { formatRate } from "../lib/formatters";
 import { FIX_TYPE_PLAIN, GLOSSARY, VULN_FAMILY_LABELS } from "../lib/glossary";
 import { familyLabelFromId } from "../lib/ids";
-import { loadActiveReplay } from "../lib/replay";
+import { isStaticAtlasBuild, loadActiveReplay } from "../lib/replay";
 import type { ReplayPayload, RoundDetail, RoundSummary } from "../lib/replay";
 import type { JudgeReport, MetricSnapshot } from "../lib/types";
 
@@ -133,7 +133,7 @@ export default async function HomePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = await searchParams;
+  const params = isStaticAtlasBuild() ? {} : await searchParams;
   const result = await loadActiveReplay(params);
 
   return (
@@ -174,19 +174,7 @@ async function ReadyReplayBody({
   const rounds = payload.run.rounds ?? [];
   const metrics: MetricSnapshot[] = payload.charts.round_metrics ?? [];
 
-  // Fan out per-round detail fetches in parallel. A 404 on any one
-  // round becomes a `null` entry so the section renders the slim
-  // round_summary fallback instead of crashing the page.
-  const detailEntries = await Promise.all(
-    rounds.map(async (r) => {
-      try {
-        const detail = await getRunRoundDetail(run_id, r.round_id);
-        return [r.round_id, detail] as const;
-      } catch {
-        return [r.round_id, null] as const;
-      }
-    })
-  );
+  const detailEntries = await loadRoundDetailEntries(payload, rounds, run_id);
   const detailByRound = new Map<number, RoundDetail | null>(detailEntries);
   const candidateMetrics = buildSelectedCandidateMetrics(metrics, detailByRound);
 
@@ -230,6 +218,37 @@ async function ReadyReplayBody({
       />
 
     </>
+  );
+}
+
+async function loadRoundDetailEntries(
+  payload: ReplayPayload,
+  rounds: RoundSummary[],
+  run_id: string
+): Promise<Array<readonly [number, RoundDetail | null]>> {
+  const embeddedDetails = payload.round_details ?? [];
+  if (embeddedDetails.length > 0) {
+    const byRound = new Map(
+      embeddedDetails.map((detail) => [detail.round_id, detail] as const)
+    );
+    return rounds.map((round) => [
+      round.round_id,
+      byRound.get(round.round_id) ?? null
+    ] as const);
+  }
+
+  // Local-only API path. A 404 on any one round becomes a `null`
+  // entry so the section renders the slim round_summary fallback
+  // instead of crashing the page.
+  return Promise.all(
+    rounds.map(async (r) => {
+      try {
+        const detail = await getRunRoundDetail(run_id, r.round_id);
+        return [r.round_id, detail] as const;
+      } catch {
+        return [r.round_id, null] as const;
+      }
+    })
   );
 }
 

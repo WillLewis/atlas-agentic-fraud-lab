@@ -23,6 +23,7 @@ ignore_globs:
   - "**/node_modules/**"
   - "**/__pycache__/**"
   - "**/.next/**"
+  - "app/web/out/**"
   - "**/.pytest_cache/**"
   - "**/.mypy_cache/**"
   - "**/.ruff_cache/**"

@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "npm --workspace app/web run dev",
     "build": "npm --workspace app/web run build",
+    "build:atlas": "ATLAS_DEPLOY_TARGET=cloudflare ATLAS_PUBLIC_BASE_PATH=/atlas npm --workspace app/web run build",
+    "preview:atlas": "wrangler dev --config wrangler.atlas.jsonc --local --port 8787",
+    "deploy:atlas": "wrangler deploy --config wrangler.atlas.jsonc",
     "start": "npm --workspace app/web run start",
     "lint": "npm --workspace app/web run lint",
     "typecheck": "npm --workspace app/web run typecheck"
@@ -19,5 +22,8 @@
   },
   "overrides": {
     "postcss": "^8.5.12"
+  },
+  "devDependencies": {
+    "wrangler": "^4.95.0"
   }
 }

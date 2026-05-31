@@ -11,8 +11,8 @@ page-level invariants the web shell depends on:
   * Step 5 has exactly one ``final_report`` card.
   * Charts' ``round_metrics`` kinds ⊆ {baseline, fixed} (no
     interpolated leaks from fixture-mode into live replay).
-  * RoundDetail returned by the artifact-join route exposes the slim
-    persisted record shape the page renders against.
+  * Replay embeds static ``round_details`` for the Cloudflare export, and
+    the artifact-join route exposes the same slim persisted record shape.
 
 The test is slow because it runs one real round end-to-end; that's the
 smallest amount of execution that proves the chain holds.
@@ -55,12 +55,19 @@ def test_phase9_lifecycle_through_routes(api_client):
     replay_resp = api_client.get(f"/replay/{run_id}")
     assert replay_resp.status_code == 200
     payload = replay_resp.json()
-    assert sorted(payload.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(payload.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
 
     # ``run`` shape sanity.
     assert payload["run"]["run_id"] == run_id
     assert payload["run"]["status"] == "running"  # max_rounds=3, only 1 done
     assert len(payload["run"]["rounds"]) == 1
+    assert len(payload["round_details"]) == 1
+    assert payload["round_details"][0]["round_id"] == 1
 
     # ``five_step_story`` invariants the web page depends on.
     five = payload["five_step_story"]

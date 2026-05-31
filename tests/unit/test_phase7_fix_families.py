@@ -189,7 +189,9 @@ def test_judge_loads_alternate_threshold_version(outputs):
     evaluate_mod.ALTERNATE_THRESHOLDS_ROOT = alternate_thresholds_dir(outputs)
     evaluate_mod.reset_caches()
     try:
-        config = evaluate_mod._config_for_version(candidate_version)
+        config = evaluate_mod._config_for_version(
+            candidate_version, outputs_root=outputs
+        )
         assert config.threshold_version == candidate_version
         assert config.challenge_score_threshold == 0.69
     finally:

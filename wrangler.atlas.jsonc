@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "atlas-agentic-fraud-lab",
+  "main": "workers/atlas-static.js",
+  "compatibility_date": "2026-05-30",
+  "workers_dev": false,
+  "keep_vars": true,
+  "routes": [
+    {
+      "pattern": "wxl3.com/atlas*",
+      "zone_name": "wxl3.com"
+    }
+  ],
+  "assets": {
+    "directory": "./app/web/out",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "auto-trailing-slash"
+  }
+}

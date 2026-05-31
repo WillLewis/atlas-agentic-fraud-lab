@@ -130,7 +130,12 @@ def test_build_replay_payload_top_level_keys(replay_outputs):
     payload = build_replay_payload(
         _run_state(), rs, outputs_root=replay_outputs,
     )
-    assert sorted(payload.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(payload.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
 
 
 def test_build_replay_payload_five_steps(replay_outputs):
@@ -207,6 +212,25 @@ def test_build_replay_payload_run_detail_shape(replay_outputs):
     assert run["seed"] == 42
     assert run["status"] == "completed"
     assert len(run["rounds"]) == 3
+
+
+def test_build_replay_payload_round_details_shape(replay_outputs):
+    from atlas.ledger.replay import build_replay_payload
+
+    rs = [_round_state(round_id=1)]
+    _write_judge_report(replay_outputs, rs[0].judge_report_id)
+    payload = build_replay_payload(
+        _run_state(current_round=1, max_rounds=1), rs, outputs_root=replay_outputs,
+    )
+    details = payload["round_details"]
+    assert len(details) == 1
+    detail = details[0]
+    assert detail["round_id"] == 1
+    assert detail["model_vulnerabilities"] == []
+    assert detail["defensive_fixes"] == []
+    assert len(detail["judge_reports"]) == 1
+    assert detail["transcript_summary"] == rs[0].transcript_summary
+    assert detail["safety_scan_passed"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +346,12 @@ def test_persist_replay_payload_writes_under_demo_replays(replay_outputs):
     # Re-parses cleanly.
     with out.open() as fh:
         roundtrip = json.load(fh)
-    assert sorted(roundtrip.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(roundtrip.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
 
 
 def test_persist_replay_payload_byte_identical_on_rewrite(replay_outputs):

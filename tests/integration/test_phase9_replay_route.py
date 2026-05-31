@@ -113,8 +113,14 @@ def test_replay_top_level_shape(api_client):
     _write_judge(outputs, "judge_x", "run_replay01")
 
     body = api_client.get("/replay/run_replay01").json()
-    assert sorted(body.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(body.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
     assert body["run"]["run_id"] == "run_replay01"
+    assert len(body["round_details"]) == 1
 
 
 def test_replay_five_step_story_length(api_client):
@@ -201,6 +207,12 @@ def test_replay_run_with_no_rounds(api_client):
     persist_run_state(rs, outputs_root=outputs)
 
     body = api_client.get("/replay/run_norounds01").json()
-    assert sorted(body.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(body.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
     assert body["charts"]["round_metrics"] == []
+    assert body["round_details"] == []
     assert len(body["five_step_story"]) == 5

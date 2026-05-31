@@ -139,13 +139,21 @@ def test_get_replay_payload_forwards_get(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         seen["path"] = request.url.path
         return httpx.Response(200, json={
-            "run": {}, "five_step_story": [], "charts": {"round_metrics": []},
+            "run": {},
+            "five_step_story": [],
+            "charts": {"round_metrics": []},
+            "round_details": [],
         })
 
     _patch_client(monkeypatch, handler)
     out = mcp_server.get_replay_payload("run_replay01")
     assert seen["path"] == "/replay/run_replay01"
-    assert sorted(out.keys()) == ["charts", "five_step_story", "run"]
+    assert sorted(out.keys()) == [
+        "charts",
+        "five_step_story",
+        "round_details",
+        "run",
+    ]
 
 
 def test_create_run_omits_run_label_when_none(monkeypatch):

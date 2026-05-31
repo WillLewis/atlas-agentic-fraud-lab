@@ -10,7 +10,8 @@ Structure (matches OpenAPI ``ReplayPayload`` lines 1107–1119):
     {
       "run":              RunDetail-shaped,
       "five_step_story":  [{step_id, title, cards}, ...],
-      "charts":           {"round_metrics": MetricSnapshot[]}
+      "charts":           {"round_metrics": MetricSnapshot[]},
+      "round_details":    [RoundDetail-shaped, ...]
     }
 
 Five-step narrative follows Bible §8:
@@ -56,6 +57,8 @@ from atlas.ledger.ledger import (
     DEFAULT_OUTPUTS_ROOT,
     RoundState,
     RunState,
+    load_run_defensive_fix_manifests,
+    load_run_model_vulnerability_records,
 )
 from atlas.ledger.report_builder import ROUND_LABELS, build_final_report_summary
 from atlas.model.loader import DEFAULT_DATA_DIR
@@ -81,6 +84,7 @@ class ReplayPayload(TypedDict):
     run: dict
     five_step_story: list[dict]
     charts: dict
+    round_details: list[dict]
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +396,41 @@ def _round_summary_dict(rs: RoundState) -> dict[str, Any]:
     }
 
 
+def _build_round_details(
+    run_id: str,
+    round_states: Sequence[RoundState],
+    judge_reports: dict[int, dict[str, Any]],
+    outputs_root: Path,
+) -> list[dict[str, Any]]:
+    """Build static ``RoundDetail`` rows for public replay exports.
+
+    The local API still owns dynamic round-detail routes. This projection
+    mirrors those routes so the Cloudflare static build can render the
+    same cards without exposing the local mock API.
+    """
+    model_vulnerabilities = load_run_model_vulnerability_records(
+        run_id, outputs_root=outputs_root
+    )
+    defensive_fixes = load_run_defensive_fix_manifests(
+        run_id, outputs_root=outputs_root
+    )
+    details: list[dict[str, Any]] = []
+    for rs in round_states:
+        body = _round_summary_dict(rs)
+        body["model_vulnerabilities"] = [
+            r for r in model_vulnerabilities if r.get("round_id") == rs.round_id
+        ]
+        body["defensive_fixes"] = [
+            r for r in defensive_fixes if r.get("round_id") == rs.round_id
+        ]
+        report = judge_reports.get(rs.round_id)
+        body["judge_reports"] = [report] if report is not None else []
+        body["transcript_summary"] = rs.transcript_summary or None
+        body["safety_scan_passed"] = rs.safety_scan_passed
+        details.append(body)
+    return details
+
+
 def _build_run_detail(
     run_state: RunState,
     round_states: Sequence[RoundState],
@@ -432,6 +471,9 @@ def build_replay_payload(
     """
     judge_reports = _load_judge_reports(round_states, outputs_root)
     round_metrics = _build_round_metrics(round_states, judge_reports)
+    round_details = _build_round_details(
+        run_state.run_id, round_states, judge_reports, outputs_root
+    )
 
     # Five-step narrative — Bible §8.
     rounds_by_id = {rs.round_id: rs for rs in round_states}
@@ -453,6 +495,7 @@ def build_replay_payload(
         run=run_detail,
         five_step_story=five_step,
         charts={"round_metrics": round_metrics},
+        round_details=round_details,
     )
 
 

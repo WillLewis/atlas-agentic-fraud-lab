@@ -8,6 +8,9 @@
 // pin the contract on the Python side; `npm run typecheck` pins it
 // here.
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { AtlasApiError, getDemoCaseSearchReport, getReplay, getRuns } from "./api";
 import type {
   DemoMode,
@@ -93,6 +96,7 @@ export interface ReplayPayload {
   run: RunDetail;
   five_step_story: FiveStepStoryStep[];
   charts: ReplayCharts;
+  round_details?: RoundDetail[];
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +142,29 @@ export function selectLatestCompletedRun(
 //                     run ``make demo-api``).
 
 type SearchParams = Record<string, string | string[] | undefined>;
+
+const REPO_ROOT_FROM_APP_WEB = path.resolve("..", "..");
+const STATIC_REPLAY_RUN_ID = process.env.ATLAS_STATIC_REPLAY_RUN_ID ?? "run_4548ebb8";
+const STATIC_REPLAY_PATH = path.join(
+  REPO_ROOT_FROM_APP_WEB,
+  "outputs",
+  "demo_replays",
+  `${STATIC_REPLAY_RUN_ID}.json`,
+);
+
+export function isStaticAtlasBuild(): boolean {
+  return process.env.ATLAS_DEPLOY_TARGET === "cloudflare";
+}
+
+function loadStaticReplayPayload(): ReplayPayload {
+  if (!fs.existsSync(STATIC_REPLAY_PATH)) {
+    throw new Error(
+      `Static Atlas replay is missing at ${STATIC_REPLAY_PATH}. Run make build-replay before building the Cloudflare export.`,
+    );
+  }
+  const raw = fs.readFileSync(STATIC_REPLAY_PATH, "utf8");
+  return JSON.parse(raw) as ReplayPayload;
+}
 
 type PromotedRunSelection =
   | { kind: "selected"; run_id: string }
@@ -215,6 +242,10 @@ export async function loadReplayForRun(
 export async function loadActiveReplay(
   searchParams: SearchParams,
 ): Promise<ReplayLoadResult> {
+  if (isStaticAtlasBuild()) {
+    return { kind: "ready", payload: loadStaticReplayPayload() };
+  }
+
   let runs: RunSummary[];
   try {
     const out = await getRuns();
