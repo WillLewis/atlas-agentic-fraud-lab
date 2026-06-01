@@ -27,12 +27,12 @@ export function NarrativeInterlude({
 }: NarrativeInterludeProps) {
   const observerOptions = useMemo<IntersectionObserverInit>(
     () => ({
-      threshold: 0.35,
-      rootMargin: "-18% 0px -18% 0px"
+      threshold: 0.01,
+      rootMargin: "-8% 0px -8% 0px"
     }),
     []
   );
-  const { ref, inView } = useInView<HTMLElement>(observerOptions, false);
+  const { ref, inView } = useInView<HTMLElement>(observerOptions, false, true);
   const headingId = `${id}-heading`;
 
   return (

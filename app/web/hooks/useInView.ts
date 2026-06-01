@@ -7,10 +7,11 @@ export function useInView<T extends HTMLElement = HTMLDivElement>(
     threshold: 0.2,
     rootMargin: "0px 0px -10% 0px"
   },
-  once = true
+  once = true,
+  initialInView = false
 ) {
   const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
+  const [inView, setInView] = useState(initialInView);
 
   useEffect(() => {
     const el = ref.current;

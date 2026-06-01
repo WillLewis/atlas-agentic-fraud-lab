@@ -54,7 +54,7 @@ const NARRATIVE_BREAKS = {
     lead:
       "My take on agents is they should have a specialized utility and they should stay in their lane.",
     paragraphs: [
-      "Posture- and prompt-wise, the red-team agents are curious; the bank-defense agents are cautious; the judge is a poker-faced Switzerland. None of them gets the keys to the kingdom: the full system.",
+      "Posture and prompt-wise, the red-team agents are curious; the bank-defense agents are cautious; the judge is a poker-faced Switzerland. None of them gets the keys to the kingdom: the full system.",
       "One red-team agent forms model vulnerability hypotheses. It uses a deterministic orchestrator to manage search methods, requested model vulnerability families, and how many times the red team can check its score on an approach. It basically says, \"maybe the mock scorer under-ranks this risk pattern.\" The red-team agents then try to produce evidence for that hypothesis. If they find accepted high-risk cases, it becomes a model vulnerability card.",
       "Another searches event histories with evolutionary search. It picks events, mutates the records, recomputes features, and rescores them. It is evolutionary in that it has a loop that ranks the best candidates, then re-mutates the winners while keeping some random exploration. It is saying, \"If I slightly change the history on this model vulnerability family, can I produce a coherent case the scorer treats as lower risk than it should?\"",
       "Another looks at relationship-graph signals using relationship/connection-weighted search. It reads the relationship graph for customer, recipient, device, and account links, counts which have the most edges or relationships, and over-indexes on those. It applies a mutation and the system recomputes graph features like relationship risk and shared-recipient signals. Accepted high-risk cases can become model vulnerability cards. It is asking, \"If graph-connected customers are more likely to expose a model vulnerability, which existing events should I adjust first?\"",
@@ -101,8 +101,8 @@ const NARRATIVE_BREAKS = {
       "Round 1 is the failure case I wanted the demo to show.",
     paragraphs: [
       "The red-team agents found two model vulnerability cards: one around elevated relationship-graph risk, and another around cases clustered just below the scorer's decision boundary.",
-      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked tempting. Model miss rate moved down. Recall moved up. Loss allowed fell. A weaker demo would have called that success.",
-      "The judge did not. It checked the candidate against the full evaluation set and rejected it. The false-positive increase was outside tolerance, and the locked adaptive holdout did not pass. The fix helped the examples that produced it, but it did not earn the right to become the accepted state.",
+      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked goo. Model miss rate moved down. Recall moved up. Loss allowed fell. Ostensibly that would have been a win.",
+      "The judge wasn't going for it though. It checked the candidate against the full evaluation set and rejected it. The false-positive increase was outside tolerance, and the locked adaptive holdout did not pass. The fix helped the examples that produced it, but it did not earn the right to become the accepted state.",
       "That is the point of Round 1: the agents surfaced something real inside the lab, and the defense produced a plausible answer, but the judge kept the system honest."
     ],
     footer: "Rejected defensive fix · vulnerability recorded · baseline carried forward",
