@@ -101,7 +101,7 @@ const NARRATIVE_BREAKS = {
       "Round 1 is the failure case I wanted the demo to show.",
     paragraphs: [
       "The red-team agents found two model vulnerability cards: one around elevated relationship-graph risk, and another around cases clustered just below the scorer's decision boundary.",
-      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked goo. Model miss rate moved down. Recall moved up. Loss allowed fell. Ostensibly that would have been a win.",
+      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked good. Model miss rate moved down. Recall moved up. Loss allowed fell. Ostensibly that would have been a win.",
       "The judge wasn't going for it though. It checked the candidate against the full evaluation set and rejected it. The false-positive increase was outside tolerance, and the locked adaptive holdout did not pass. The fix helped the examples that produced it, but it did not earn the right to become the accepted state.",
       "That is the point of Round 1: the agents surfaced something real inside the lab, and the defense produced a plausible answer, but the judge kept the system honest."
     ],

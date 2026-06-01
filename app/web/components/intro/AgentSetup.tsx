@@ -136,21 +136,20 @@ function AgentCard({
 export function AgentSetup() {
   const observerOptions = useMemo<IntersectionObserverInit>(
     () => ({
-      threshold: 0.2,
-      rootMargin: "-35% 0px -35% 0px"
+      threshold: 0.15,
+      rootMargin: "0px 0px -20% 0px"
     }),
     []
   );
-  const { ref, inView } = useInView<HTMLDivElement>(observerOptions, false);
+  const { ref, inView } = useInView<HTMLDivElement>(observerOptions, true);
 
   return (
     <section
       id="atlas-intro-agents"
-      ref={ref}
       className="border-t border-intro-border bg-intro-card/40 py-32"
     >
       <div className="mx-auto max-w-screen-xl px-6">
-        <div className="mb-16 max-w-2xl space-y-3">
+        <div ref={ref} className="mb-16 max-w-2xl space-y-3">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-intro-accent">
             Agent Initialization
           </h2>
