@@ -55,7 +55,7 @@ export function HeroSection() {
 
         <div className="flex items-center justify-center gap-3 pt-2">
           <span className="font-mono text-[10px] uppercase tracking-widest text-intro-muted">
-            Synthetic data · Defensive evaluation · No production systems
+            Generated cases · Defensive evaluation · Local mock scorer
           </span>
         </div>
       </div>

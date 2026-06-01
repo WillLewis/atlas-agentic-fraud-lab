@@ -3,7 +3,7 @@
 //
 // Every user-facing label here flows from config/demo.yaml via
 // getDemoConfig(). No institution name, model name, or disclaimer string is
-// hard-coded — the safety scanner depends on this.
+// hard-coded.
 //
 // The disclaimer banner is a persistent slot at the top of every page.
 // Component 7 (DisclaimerBanner.tsx) will replace the inline placeholder
@@ -25,6 +25,10 @@ export function generateMetadata(): Metadata {
       `at ${config.institution_label}.`,
       "Local-only, public-safe demo. Not a production fraud system."
     ].join(" "),
+    icons: {
+      icon: [{ url: "https://wxl3.com/favicon.svg", type: "image/svg+xml" }],
+      apple: [{ url: "https://wxl3.com/apple-touch-icon.png" }]
+    },
     robots: { index: false, follow: false }
   };
 }

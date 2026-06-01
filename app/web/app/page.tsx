@@ -55,9 +55,9 @@ const NARRATIVE_BREAKS = {
       "My take on agents is they should have a specialized utility and they should stay in their lane.",
     paragraphs: [
       "Posture- and prompt-wise, the red-team agents are curious; the bank-defense agents are cautious; the judge is a poker-faced Switzerland. None of them gets the keys to the kingdom: the full system.",
-      "One red-team agent forms model vulnerability hypotheses. It uses a deterministic orchestrator to manage search methods, requested model vulnerability families, and how many times the red team can check its score on an approach. It basically says, \"maybe the mock scorer under-ranks this risk pattern.\" The red-team agents then try to produce evidence for that hypothesis. If they find accepted high-risk synthetic events, it becomes a model vulnerability card.",
-      "Another searches synthetic event histories with evolutionary search. It picks events, mutates the synthetic records, recomputes features, and rescores them. It is evolutionary in that it has a loop that ranks the best candidates, then re-mutates the winners while keeping some random exploration. It is saying, \"If I slightly change the history on this model vulnerability family, can I produce a coherent case the scorer treats as lower risk than it should?\"",
-      "Another looks at relationship-graph signals using relationship/connection-weighted search. It reads the relationship graph for customer, recipient, device, and account links, counts which have the most edges or relationships, and over-indexes on those. It applies a mutation and the system recomputes graph features like relationship risk and shared-recipient signals. Accepted high-risk synthetic events can become model vulnerability cards. It is asking, \"If graph-connected customers are more likely to expose a model vulnerability, which existing events should I adjust first?\"",
+      "One red-team agent forms model vulnerability hypotheses. It uses a deterministic orchestrator to manage search methods, requested model vulnerability families, and how many times the red team can check its score on an approach. It basically says, \"maybe the mock scorer under-ranks this risk pattern.\" The red-team agents then try to produce evidence for that hypothesis. If they find accepted high-risk cases, it becomes a model vulnerability card.",
+      "Another searches event histories with evolutionary search. It picks events, mutates the records, recomputes features, and rescores them. It is evolutionary in that it has a loop that ranks the best candidates, then re-mutates the winners while keeping some random exploration. It is saying, \"If I slightly change the history on this model vulnerability family, can I produce a coherent case the scorer treats as lower risk than it should?\"",
+      "Another looks at relationship-graph signals using relationship/connection-weighted search. It reads the relationship graph for customer, recipient, device, and account links, counts which have the most edges or relationships, and over-indexes on those. It applies a mutation and the system recomputes graph features like relationship risk and shared-recipient signals. Accepted high-risk cases can become model vulnerability cards. It is asking, \"If graph-connected customers are more likely to expose a model vulnerability, which existing events should I adjust first?\"",
       "A final analyst packages the result into model vulnerability cards the defense side can actually use.",
       "On the other side, the bank-defense agents read those cards and choose what kind of defensive fix to try: a feature fix, a decision-threshold fix, or a model calibration fix. They can argue for a recommendation, and the fix candidate is accepted or rejected by the judge.",
       "The bank strategy agent triages model vulnerability cards, choosing which defensive fix types are eligible by validating card-recommended fixes, round-allowed fixes, and requested fixes.",
@@ -67,7 +67,7 @@ const NARRATIVE_BREAKS = {
       "The judge checks model miss rate, holdouts, action-rate limits, and whether the proposed fix candidate generalizes. If the numbers do not work, the candidate is rejected."
     ],
     criteria: [
-      "synthetic data only",
+      "generated data",
       "defensive fixes only",
       "judge decides"
     ],
@@ -79,10 +79,10 @@ const NARRATIVE_BREAKS = {
     eyebrow: "Agents deployed",
     title: "Let the adversarial games begin - but there are rules to this.",
     lead:
-      "First rule: the environment is synthetic all the way down.",
+      "First rule: the environment is generated all the way down.",
     paragraphs: [
-      "Customers, accounts, devices, recipients, login sessions, transfer events, security events, relationship edges, labels, features, and splits are all synthetic, courtesy of Google.",
-      "Another rule: the red-team agents do not get to directly rewrite engineered features. They mutate synthetic event histories, then the system recomputes features before the mock scorer sees the case. That constraint matters because it keeps the search tied to actual records instead of letting an agent hallucinate convenient numbers.",
+      "Customers, accounts, devices, recipients, login sessions, transfer events, security events, relationship edges, labels, features, and splits are all generated for the demo, courtesy of Google.",
+      "Another rule: the red-team agents do not get to directly rewrite engineered features. They mutate event histories, then the system recomputes features before the mock scorer sees the case. That constraint matters because it keeps the search tied to actual records instead of letting an agent hallucinate convenient numbers.",
       "The bank-defense agents enter the same environment with a different temperament. They have to propose defensive fixes that survive the judge's checks: better recall at fixed action-rate limits, no unacceptable customer friction, and no failure on locked holdouts."
     ],
     criteria: [
@@ -90,7 +90,7 @@ const NARRATIVE_BREAKS = {
       "holdout performance",
       "within action-rate limits"
     ],
-    footer: "Synthetic environment · local mock scorer · fixed evaluation rules",
+    footer: "Generated environment · local mock scorer · fixed evaluation rules",
     watermark: "Run"
   },
   round1: {
@@ -100,10 +100,10 @@ const NARRATIVE_BREAKS = {
     lead:
       "Round 1 is the failure case I wanted the demo to show.",
     paragraphs: [
-      "The red-team agents found two model vulnerability cards: one around elevated relationship-graph risk, and another around synthetic cases clustered just below the scorer's decision boundary.",
-      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked tempting. Model miss rate moved down. Recall moved up. Synthetic loss allowed fell. A weaker demo would have called that success.",
+      "The red-team agents found two model vulnerability cards: one around elevated relationship-graph risk, and another around cases clustered just below the scorer's decision boundary.",
+      "The bank-defense side responded with several defensive fix options and selected a feature fix for the score-boundary cluster. On the found examples, the fix looked tempting. Model miss rate moved down. Recall moved up. Loss allowed fell. A weaker demo would have called that success.",
       "The judge did not. It checked the candidate against the full evaluation set and rejected it. The false-positive increase was outside tolerance, and the locked adaptive holdout did not pass. The fix helped the examples that produced it, but it did not earn the right to become the accepted state.",
-      "That is the point of Round 1: the agents surfaced something real inside the synthetic lab, and the defense produced a plausible answer, but the judge kept the system honest."
+      "That is the point of Round 1: the agents surfaced something real inside the lab, and the defense produced a plausible answer, but the judge kept the system honest."
     ],
     footer: "Rejected defensive fix · vulnerability recorded · baseline carried forward",
     watermark: "Round 1"
@@ -116,8 +116,8 @@ const NARRATIVE_BREAKS = {
       "After Round 1, the agents had a ledger.",
     paragraphs: [
       "The rejected fix stayed in the record, the model vulnerability cards stayed available, and the red-team agents shifted pressure to new families: activity-channel shift, current-device mismatch, and recent-change feature delay.",
-      "This time, the bank-defense side selected a feature fix for current-device mismatch. The idea was narrower and better grounded in the synthetic feature space. It strengthened a signal the mock scorer had been under-weighting without trying to move the whole decision boundary at once.",
-      "The judge accepted it. Model miss rate dropped from 73.44% to 18.75%. Recall at the fixed action-rate limit rose from 26.56% to 81.25%. Synthetic loss allowed fell from SYN $19.47M to SYN $5.75M. The locked holdout passed, and the customer-friction checks stayed within the configured limits.",
+      "This time, the bank-defense side selected a feature fix for current-device mismatch. The idea was narrower and better grounded in the feature space. It strengthened a signal the mock scorer had been under-weighting without trying to move the whole decision boundary at once.",
+      "The judge accepted it. Model miss rate dropped from 73.44% to 18.75%. Recall at the fixed action-rate limit rose from 26.56% to 81.25%. Loss allowed fell from SYN $19.47M to SYN $5.75M. The locked holdout passed, and the customer-friction checks stayed within the configured limits.",
       "Same scorer. Same judge. Same constraints. Different defensive state."
     ],
     footer: "Accepted defensive fix · locked holdout passed · state updated",
@@ -132,10 +132,10 @@ const NARRATIVE_BREAKS = {
     paragraphs: [
       "Can the agents still find pressure, and can the defense improve the system without overfitting to the latest examples?",
       "The red-team agents came back with two final model vulnerability cards: one near the label-noise boundary and another showing how a defensive fix can appear strong on found examples while still leaving graph-risk cases under-ranked. The bank-defense side chose a model calibration fix, with the judge again waiting at the end of the line.",
-      "The judge accepted the final fix. Model miss rate moved from 18.75% to 3.12%. Recall rose to 96.88%. Synthetic loss allowed fell to SYN $0.62M. The final accepted state passed clean, found adaptive, locked adaptive, and drifted holdout checks.",
-      "The final report kept it real: one rejected fix, two accepted defensive fixes, the metrics that changed, the limits that held, and the synthetic assumptions that still bound the whole experiment."
+      "The judge accepted the final fix. Model miss rate moved from 18.75% to 3.12%. Recall rose to 96.88%. Loss allowed fell to SYN $0.62M. The final accepted state passed clean, found adaptive, locked adaptive, and drifted holdout checks.",
+      "The final report kept it real: one rejected fix, two accepted defensive fixes, the metrics that changed, and the limits that held."
     ],
-    footer: "Final metrics · accepted state · synthetic assumptions",
+    footer: "Final metrics · accepted state · action-rate limits",
     watermark: "Round 3"
   }
 } as const;
@@ -723,7 +723,6 @@ function FinalReportNarrativePage({
     payload.run.rounds.filter((r) => r.status === "completed").length ||
     payload.run.current_round ||
     metrics.filter((m) => m.round_id > 0).length;
-  const safetyOk = card.safety_scan_passed === true;
   const trendSummary =
     firstMissRate !== null && finalMissRate !== null && missRateDelta !== null
       ? `Model miss rate changed from ${formatRate(firstMissRate, { digits: 1 })} to ${formatRate(finalMissRate, { digits: 1 })}, a ${formatPercentagePointChange(missRateDelta)}.`
@@ -742,19 +741,18 @@ function FinalReportNarrativePage({
       paragraphs={[
         trendSummary,
         acceptedSummary,
-        "The record uses synthetic data, local mock scoring, locked holdout checks, and the safety scan result."
+        "The record uses generated data, local mock scoring, and locked holdout checks."
       ]}
       criteria={[
-        `${completedRounds} synthetic rounds completed`,
+        `${completedRounds} rounds completed`,
         acceptedCount !== null
           ? `${acceptedCount} defensive fixes accepted`
           : "defensive fixes judged",
         firstMissRate !== null && finalMissRate !== null
           ? `${formatRate(firstMissRate, { digits: 1 })} to ${formatRate(finalMissRate, { digits: 1 })} model miss rate`
-          : "model miss rate recorded",
-        safetyOk ? "safety scan passed" : "safety scan recorded"
+          : "model miss rate recorded"
       ]}
-      footer="Judge metrics · synthetic assumptions · action-rate limits"
+      footer="Judge metrics · accepted state · action-rate limits"
       watermark="Final"
     />
   );

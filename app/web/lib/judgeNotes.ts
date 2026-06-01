@@ -16,8 +16,7 @@ const CONDITION_LABELS: Record<string, string> = {
   miss_rate_decreases: "Let less risky activity through",
   false_positive_rate_within_tolerance: "Didn't over-flag good customers",
   action_rate_limits_within_tolerance: "Stayed within customer-friction limits",
-  locked_holdout_neutral_or_better: "Held up on the hidden stress test",
-  safety_scan_passed: "Passed the safety check"
+  locked_holdout_neutral_or_better: "Held up on the hidden stress test"
 };
 
 // Remove internal placeholders like "(phase5_placeholder)" so nothing
