@@ -230,10 +230,10 @@ export function IntroNarrative() {
         </h2>
         <div className="space-y-6 text-xl leading-relaxed text-intro-muted">
           <p>
-            As a fintech AI/ML PM, one question I kept returning to was "how
+            As a fintech AI/ML PM, one question I kept returning to was &quot;how
             can multi-agent red teams test defensive systems at scale, so blue
             teams can drive acceptable defensive fixes before model
-            vulnerabilities reach production?"
+            vulnerabilities reach production?&quot;
           </p>
           <p>
             Manual policies and back-testing still matter. But forward-testing

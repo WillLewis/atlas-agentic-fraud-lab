@@ -6,8 +6,8 @@ import { useInView } from "../hooks/useInView";
 
 const CARD_STAGGER_MS = 320;
 const CARD_REVEAL_OPTIONS: IntersectionObserverInit = {
-  rootMargin: "0px 0px -10% 0px",
-  threshold: 0.15
+  rootMargin: "0px 0px -8% 0px",
+  threshold: 0.01
 };
 
 interface AnimatedCardGridProps {
@@ -43,7 +43,7 @@ export function AnimatedCardGrid({
   itemClassNames,
   staggerMs = CARD_STAGGER_MS
 }: AnimatedCardGridProps) {
-  const { ref, inView } = useInView<HTMLDivElement>(CARD_REVEAL_OPTIONS, false);
+  const { ref, inView } = useInView<HTMLDivElement>(CARD_REVEAL_OPTIONS, true);
 
   return (
     <div
@@ -67,7 +67,7 @@ export function AnimatedCardGrid({
 }
 
 export function AnimatedAgentCardGrid({ children }: AnimatedAgentCardGridProps) {
-  const { ref, inView } = useInView<HTMLUListElement>(CARD_REVEAL_OPTIONS, false);
+  const { ref, inView } = useInView<HTMLUListElement>(CARD_REVEAL_OPTIONS, true);
 
   return (
     <ul

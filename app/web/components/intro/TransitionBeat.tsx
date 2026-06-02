@@ -37,10 +37,10 @@ export function TransitionBeat() {
         <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-intro-accent">
           The Protocol Rule
         </div>
-        <div className="mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] items-center gap-5 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)] md:gap-8">
+        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 items-center gap-5 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)] md:gap-8">
           <span
             className={[
-              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-right font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-foreground md:text-5xl",
+              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-center font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-foreground sm:text-right md:text-5xl",
               inView ? "is-visible" : ""
             ].join(" ")}
           >
@@ -58,7 +58,7 @@ export function TransitionBeat() {
           />
           <span
             className={[
-              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-left font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-accent md:text-5xl",
+              "atlas-intro-fade-up atlas-intro-fade-slow whitespace-nowrap text-center font-display text-4xl font-extrabold uppercase leading-[0.9] tracking-normal text-intro-accent sm:text-left md:text-5xl",
               inView ? "is-visible" : ""
             ].join(" ")}
             style={{ transitionDelay: "1200ms" }}
