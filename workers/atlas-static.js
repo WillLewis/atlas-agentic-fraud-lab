@@ -1,4 +1,23 @@
 const BASE_PATH = "/atlas";
+const LINKEDIN_MARKDOWN_PATH_PREFIX = `${BASE_PATH}](`;
+
+function safeDecodePathname(pathname) {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
+
+function isMalformedLinkedInAtlasPath(pathname) {
+  return safeDecodePathname(pathname).startsWith(LINKEDIN_MARKDOWN_PATH_PREFIX);
+}
+
+function redirectToAtlasHome(url) {
+  url.pathname = `${BASE_PATH}/`;
+  url.search = "";
+  return Response.redirect(url.toString(), 308);
+}
 
 function jsonResponse(body, init) {
   return new Response(JSON.stringify(body), {
@@ -14,9 +33,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (url.pathname === BASE_PATH) {
-      url.pathname = `${BASE_PATH}/`;
-      return Response.redirect(url.toString(), 308);
+    if (url.pathname === BASE_PATH || isMalformedLinkedInAtlasPath(url.pathname)) {
+      return redirectToAtlasHome(url);
     }
 
     if (!url.pathname.startsWith(`${BASE_PATH}/`)) {
